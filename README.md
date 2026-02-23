@@ -148,12 +148,12 @@ Planned roadmap items:
 - Late move reductions (LMR)
 - Endgame tablebase integration
 - Internal iterative deepening when no TT move is available
+- Check extensions
 
 ### Evaluation
 
 - Piece-square tables
 - King/pawn endgame tables
-- Check extensions
 - Pawn structure terms (passed, isolated, stacked pawns, pawn hash ideas)
 - King safety terms (pawn shield, open files, nearby attackers)
 - Rooks on open files
