@@ -1,0 +1,4 @@
+.vscode
+build/
+versions/
+*__pycache__*
