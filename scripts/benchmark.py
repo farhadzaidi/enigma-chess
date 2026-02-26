@@ -13,9 +13,9 @@ require_env('stockfish_binary')
 # Match config
 CONCURRENCY = 8
 TIMEMARGIN = 50
-TIME = 30
-INCREMENT = 0
-GAMES_PER_BATCH = 150
+TIME = 120
+INCREMENT = 1
+GAMES_PER_BATCH = 200
 DRAW_MOVENUMBER = 60
 DRAW_MOVECOUNT = 8
 DRAW_SCORE = 5
@@ -142,8 +142,8 @@ for round_num in range(1, MAX_ROUNDS + 1):
         print(f'{"="*50}')
         break
 
-    # Adjust guess based on measured difference
-    current_guess = round(current_guess + elo_diff)
+    # Adjust guess based on measured difference (dampened to reduce noisy overshoot)
+    current_guess = round(current_guess + 0.75 * elo_diff)
     print(f'\n  Adjusting Stockfish Elo to {current_guess} for next round...')
 
 else:
