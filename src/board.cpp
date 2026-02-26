@@ -21,8 +21,11 @@ void Board::reset() {
 
     piece_map.fill(NO_PIECE);
     king_squares.fill(NO_SQUARE);
-    material.fill(0);
     positions.fill(0);
+
+    early_score.fill(0);
+    late_score.fill(0);
+    game_phase = 0;
 
     occupied = EMPTY_BITBOARD;
     to_move = NO_COLOR;
@@ -101,7 +104,7 @@ void Board::load_from_fen(const std::string& fen) {
         }
 
         place_piece(color, piece, square);
-        material[color] += PIECE_VALUE[piece];
+
         file++;
     }
 
@@ -214,11 +217,7 @@ void Board::print_board_state() const {
         std::clog << index_to_uci(en_passant_target);
     }
     std::clog << "\n";
-
-    // Material
-    std::clog << "\tMaterial: White " << material[WHITE]
-              << " | Black " << material[BLACK] << "\n";
-
+    
     // Move counters
     std::clog << "\tHalfmove clock: " << halfmoves << "\n";
     std::clog << "\tFullmove number: " << fullmoves << "\n";
@@ -300,22 +299,10 @@ void Board::make_move(Move move) {
 
     // Check if the move is a promotion; if so, update the moving piece
     switch (mflag) {
-        case PROMOTION_BISHOP:
-            moving_piece = BISHOP;
-            material[moving_color] += PIECE_VALUE[BISHOP] - PIECE_VALUE[PAWN];
-            break;
-        case PROMOTION_KNIGHT:
-            moving_piece = KNIGHT;
-            material[moving_color] += PIECE_VALUE[KNIGHT] - PIECE_VALUE[PAWN];
-            break;
-        case PROMOTION_ROOK:
-            moving_piece = ROOK;
-            material[moving_color] += PIECE_VALUE[ROOK] - PIECE_VALUE[PAWN];
-            break;
-        case PROMOTION_QUEEN:
-            moving_piece = QUEEN;
-            material[moving_color] += PIECE_VALUE[QUEEN] - PIECE_VALUE[PAWN];
-            break;
+        case PROMOTION_BISHOP: moving_piece = BISHOP; break;
+        case PROMOTION_KNIGHT: moving_piece = KNIGHT; break;
+        case PROMOTION_ROOK:   moving_piece = ROOK;   break;
+        case PROMOTION_QUEEN:  moving_piece = QUEEN;  break;
     }
 
     // After changing moving_piece (in the case of a promotion), we can now
@@ -369,7 +356,6 @@ void Board::unmake_move(Move move) {
     // In the case of a promotion, we change the moving piece to pawn so we place
     // the correct piece back on "from"
     if (move.is_promotion()) {
-        material[moving_color] -= PIECE_VALUE[moving_piece] - PIECE_VALUE[PAWN];
         moving_piece = PAWN;
     }
 
@@ -389,7 +375,6 @@ void Board::unmake_move(Move move) {
         }
 
         place_piece(captured_color, prev_state.captured_piece, capture_square);
-        material[captured_color] += PIECE_VALUE[prev_state.captured_piece];
     }
 
     if (mflag == CASTLE) {

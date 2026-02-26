@@ -109,13 +109,12 @@ Available test names:
 - `opening_book`
 - `game_end`
 - `transposition_table`
-- `material`
 
 Examples:
 
 ```bash
 ./build/enigma test
-./build/enigma test zobrist material
+./build/enigma test zobrist transposition_table
 ```
 
 ---
@@ -152,8 +151,6 @@ Planned roadmap items:
 
 ### Evaluation
 
-- Piece-square tables
-- King/pawn endgame tables
 - Pawn structure terms (passed, isolated, stacked pawns, pawn hash ideas)
 - King safety terms (pawn shield, open files, nearby attackers)
 - Rooks on open files

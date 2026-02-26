@@ -35,10 +35,10 @@ using PieceBitboards    = std::array<std::array<Bitboard, NUM_PIECES>, NUM_COLOR
 using ColorBitboards    = std::array<Bitboard, NUM_COLORS>;
 using PieceMap          = std::array<Piece, NUM_SQUARES>;
 using KingSquares       = std::array<Square, NUM_COLORS>;
-using Material          = std::array<int, NUM_COLORS>;
 using MoveStack         = std::array<Move, MAX_GAME_PLY>;
 using StateStack        = std::array<State, MAX_GAME_PLY>;
 using PositionStack     = std::array<ZobristHash, MAX_GAME_PLY + 1>;
+using Score             = std::array<int, NUM_COLORS>;
 
 class Board {
 public:
@@ -51,7 +51,11 @@ public:
     // Additional information 
     KingSquares king_squares;
     Bitboard occupied;
-    Material material;
+
+    // Score
+    Score early_score;
+    Score late_score;
+    int game_phase;
 
     // Board state information
     Color to_move;
@@ -103,6 +107,11 @@ private:
 
         // XOR piece into hash
         zobrist_hash ^= ZOBRIST_PIECES[color][piece][square];
+
+        // Update scores
+        early_score[color] += EARLY_EVAL_TABLE[color][piece][square];
+        late_score[color] += LATE_EVAL_TABLE[color][piece][square];
+        game_phase += GAME_PHASE_INCREMENT[piece];
     }
 
     inline void remove_piece(Color color, Piece piece, Square square) {
@@ -118,6 +127,11 @@ private:
 
         // XOR piece out of hash
         zobrist_hash ^= ZOBRIST_PIECES[color][piece][square];
+
+        // Updates score
+        early_score[color] -= EARLY_EVAL_TABLE[color][piece][square];
+        late_score[color] -= LATE_EVAL_TABLE[color][piece][square];
+        game_phase -= GAME_PHASE_INCREMENT[piece];
     }
 
     inline void xor_en_passant() {
@@ -194,7 +208,6 @@ private:
 
         Piece captured_piece = piece_map[capture_square];
         remove_piece(captured_color, captured_piece, capture_square);
-        material[captured_color] -= PIECE_VALUE[captured_piece];
         return captured_piece;
     }
 

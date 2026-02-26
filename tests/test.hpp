@@ -19,11 +19,10 @@ bool test_zobrist(Board& b);
 bool test_opening_book(Board& b);
 bool test_game_end(Board& b);
 bool test_transposition_table();
-bool test_material(Board& b);
 
 inline const std::vector<std::string> TEST_NAMES = {
     "in_check", "san_parsing", "zobrist", "opening_book",
-    "game_end", "transposition_table", "material"
+    "game_end", "transposition_table"
 };
 
 inline int run_tests(const std::vector<std::string>& selected) {
@@ -37,7 +36,6 @@ inline int run_tests(const std::vector<std::string>& selected) {
         {"opening_book",        [&]() { return test_opening_book(b); }},
         {"game_end",            [&]() { return test_game_end(b); }},
         {"transposition_table", [&]() { return test_transposition_table(); }},
-        {"material",            [&]() { return test_material(b); }},
     };
 
     for (const auto& test : tests) {
