@@ -18,7 +18,6 @@ def require_env(name):
 
 
 CUTECHESS_CLI_BINARY_PATH = _env_path('cutechess_cli_binary')
-STOCKFISH_BINARY_PATH = _env_path('stockfish_binary')
 BINARY_PATH = Path('build') / 'enigma'
 VERSIONS_DIR = Path('versions')
 MIXED_EPD_PATH = Path('fen') / 'mixed.epd'
