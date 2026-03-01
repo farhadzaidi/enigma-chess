@@ -50,7 +50,7 @@ constexpr int MAX_MOVES = 256;
 
 using Bitboard          = uint64_t;
 using ZobristHash       = uint64_t;
-using MoveScore         = uint32_t;
+using MoveScore         = int32_t;
 using MoveType          = uint16_t;
 using MoveFlag          = uint16_t;
 using PositionScore     = int16_t;
@@ -83,6 +83,9 @@ constexpr PositionScore CHECKMATE_SCORE    =  32'000;
 constexpr PositionScore STALEMATE_SCORE    =  0;
 constexpr PositionScore DUMMY_SCORE        = -32'700;
 constexpr PositionScore SEARCH_INTERRUPTED = DUMMY_SCORE;
+
+constexpr MoveScore MAX_MOVE_SCORE = 32'000;
+constexpr MoveScore MIN_MOVE_SCORE = -MAX_MOVE_SCORE;
 
 // --- Enums ---
 
@@ -191,8 +194,9 @@ enum SearchModeEnum : SearchMode {
 };
 
 enum MoveSelectorPhaseEnum : MoveSelectorPhase {
+    PREVIOUS_BEST,
     TRANSPOSITION,
-    GOOD_CAPTURE,
+    TACTICAL_MOVE,
     KILLER,
     QUIET_MOVE,
     BAD_CAPTURE

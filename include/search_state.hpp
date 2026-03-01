@@ -20,8 +20,8 @@ struct SearchState {
     bool search_interrupted;
 
     // Killer moves
-    KillerMove killer_1;
-    KillerMove killer_2;
+    KillerMoves killer_1;
+    KillerMoves killer_2;
 
     // History heuristic tables (for quiet moves)
     ColorPieceToHistory color_piece_to;

@@ -81,7 +81,9 @@ public:
     void debug();
     void make_move(Move move);
     void unmake_move(Move move);
-    bool in_check() const;
+    bool in_check(Color side = NO_COLOR) const;
+    bool is_attacked(Square sq, Color by) const;
+    bool is_legal_move(Move move);
     bool has_repeated() const;
 
 private:

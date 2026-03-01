@@ -7,6 +7,7 @@
 #include "utils.hpp"
 #include "board.hpp"
 #include "precompute.hpp"
+#include "move_generator.hpp"
 
 // Computed at the start of move generation at every node
 // Useful for determining legal moves efficienctly

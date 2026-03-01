@@ -408,31 +408,153 @@ void Board::unmake_move(Move move) {
     zobrist_hash = positions[ply];
 }
 
-// Used to determine if the side to move is in check
-bool Board::in_check() const {
-    // This function uses piece attacks masks to determine if the side to move's
-    // king is in check. For non-sliding pieces, we can use precomputed attack maps
-    // and for sliding pieces we can generate attack masks.
-    // These masks are intersected with their respective enemy piece bitboards. 
-    // If there is an intersection (i.e. result is not 0), then the king is attacked
-    // by the piece. We collect all intersections using a union (faster than branching)
-    // and return the result which should be implicitly cast to a boolean.
+bool Board::in_check(Color side) const {
+    Color us = side == NO_COLOR ? to_move : side;
+    return is_attacked(king_squares[us], us ^ 1);
+}
 
-    Bitboard check_mask = 0;
-    Square king_sq = king_squares[to_move];
-    Color them = to_move ^ 1;
-    auto& enemy_pieces = pieces[them];
-
+// Uses piece attack masks to determine if a square is attacked by the given color.
+// For non-sliding pieces, we use precomputed attack maps and for sliding pieces
+// we generate attack masks. These masks are intersected with the attacker's piece
+// bitboards. If there is an intersection (i.e. result is not 0), then the square
+// is attacked. We collect all intersections using a union (faster than branching)
+// and return the result which is implicitly cast to a boolean.
+bool Board::is_attacked(Square sq, Color by) const {
+    auto& their_pieces = pieces[by];
     return (
         // Non-sliding pieces
-        (KNIGHT_ATTACK_MAP[king_sq] & enemy_pieces[KNIGHT]) |
-        (KING_ATTACK_MAP[king_sq] & enemy_pieces[KING]) |
-        (PAWN_ATTACK_MAPS[them][king_sq] & enemy_pieces[PAWN]) |
+        (PAWN_ATTACK_MAPS[by][sq] & their_pieces[PAWN]) |
+        (KNIGHT_ATTACK_MAP[sq] & their_pieces[KNIGHT]) |
+        (KING_ATTACK_MAP[sq] & their_pieces[KING]) |
 
         // Sliding pieces
-        (generate_sliding_attack_mask<ROOK>(*this, king_sq) & (enemy_pieces[ROOK] | enemy_pieces[QUEEN])) |
-        (generate_sliding_attack_mask<BISHOP>(*this, king_sq) & (enemy_pieces[BISHOP] | enemy_pieces[QUEEN]))
+        (generate_sliding_attack_mask<ROOK>(*this, sq) & (their_pieces[ROOK] | their_pieces[QUEEN])) |
+        (generate_sliding_attack_mask<BISHOP>(*this, sq) & (their_pieces[BISHOP] | their_pieces[QUEEN]))
     );
+}
+
+// Checks if a move is legal in the current position. Assumes the move was
+// correctly encoded by the move generator from a valid position (e.g. a TT
+// or killer move from a previous search). We don't re-validate encoding
+// correctness (flag/type combos, etc.) - only whether the move is still
+// pseudo-legal and legal given that the board state may have changed.
+bool Board::is_legal_move(Move move) {
+    const Color us = to_move;
+    const Color them = us ^ 1;
+    const Square from = move.from();
+    const Square to = move.to();
+    const MoveFlag flag = move.flag();
+    const Bitboard to_mask = get_mask(to);
+    const Piece piece = piece_map[from];
+
+    // Must be our piece on the from square
+    if (piece == NO_PIECE || get_color(from) != us) return false;
+
+    // Can't capture a king (makes in_check meaningless)
+    if (piece_map[to] == KING) return false;
+
+    // --- Castling ---
+    // Must have rights, rook in place and ours, path clear,
+    // not currently in check, and transit square not attacked.
+    // Destination safety is handled by make/unmake + in_check below.
+    if (flag == CASTLE) {
+        if (piece != KING || in_check(us)) return false;
+
+        if (us == WHITE && to == G1) {
+            if (!(castling_rights & WHITE_SHORT)) return false;
+            if (piece_map[H1] != ROOK || get_color(H1) != us) return false;
+            if (piece_map[F1] != NO_PIECE || piece_map[G1] != NO_PIECE) return false;
+            if (is_attacked(F1, them)) return false;
+
+        } else if (us == WHITE && to == C1) {
+            if (!(castling_rights & WHITE_LONG)) return false;
+            if (piece_map[A1] != ROOK || get_color(A1) != us) return false;
+            if (piece_map[B1] != NO_PIECE || piece_map[C1] != NO_PIECE || piece_map[D1] != NO_PIECE) return false;
+            if (is_attacked(D1, them)) return false;
+
+        } else if (us == BLACK && to == G8) {
+            if (!(castling_rights & BLACK_SHORT)) return false;
+            if (piece_map[H8] != ROOK || get_color(H8) != us) return false;
+            if (piece_map[F8] != NO_PIECE || piece_map[G8] != NO_PIECE) return false;
+            if (is_attacked(F8, them)) return false;
+
+        } else if (us == BLACK && to == C8) {
+            if (!(castling_rights & BLACK_LONG)) return false;
+            if (piece_map[A8] != ROOK || get_color(A8) != us) return false;
+            if (piece_map[B8] != NO_PIECE || piece_map[C8] != NO_PIECE || piece_map[D8] != NO_PIECE) return false;
+            if (is_attacked(D8, them)) return false;
+
+        } else {
+            return false;
+        }
+
+    // --- En passant ---
+    // EP target must match, to square must be empty, and enemy pawn must be behind it.
+    } else if (flag == EN_PASSANT) {
+        if (piece != PAWN) return false;
+        if (to != en_passant_target) return false;
+        if (piece_map[to] != NO_PIECE) return false;
+        Square cap_sq = us == WHITE ? to + SOUTH : to + NORTH;
+        if (piece_map[cap_sq] != PAWN || get_color(cap_sq) != them) return false;
+
+    // --- Normal moves and promotions ---
+    } else {
+        // Capture must target an enemy piece, quiet must target an empty square
+        if (move.type() == CAPTURE) {
+            if (piece_map[to] == NO_PIECE || get_color(to) != them) return false;
+        } else {
+            if (piece_map[to] != NO_PIECE) return false;
+        }
+
+        // Promotion must be a pawn (unmake_move assumes pawn)
+        if (move.is_promotion() && piece != PAWN) return false;
+
+        // Piece geometry - can the piece actually reach 'to' from 'from'?
+        if (piece == PAWN) {
+            if (move.type() == CAPTURE) {
+                if (!(PAWN_ATTACK_MAPS[them][from] & to_mask)) return false;
+            } else {
+                int dir = us == WHITE ? NORTH : SOUTH;
+                if (to == from + dir) {
+                    // Single push - already verified to is empty above
+                } else if (to == from + dir + dir) {
+                    if (get_rank(from) != (us == WHITE ? RANK_2 : RANK_7)) return false;
+                    if (piece_map[from + dir] != NO_PIECE) return false;
+                } else {
+                    return false;
+                }
+            }
+        } else {
+            Bitboard reachable;
+            switch (piece) {
+                case KNIGHT:
+                    reachable = KNIGHT_ATTACK_MAP[from];
+                    break;
+                case KING:
+                    reachable = KING_ATTACK_MAP[from];
+                    break;
+                case BISHOP:
+                    reachable = generate_sliding_attack_mask<BISHOP>(*this, from);
+                    break;
+                case ROOK:
+                    reachable = generate_sliding_attack_mask<ROOK>(*this, from);
+                    break;
+                case QUEEN:
+                    reachable = generate_sliding_attack_mask<BISHOP>(*this, from) |
+                                generate_sliding_attack_mask<ROOK>(*this, from);
+                    break;
+                default:
+                    return false;
+            }
+            if (!(reachable & to_mask)) return false;
+        }
+    }
+
+    // Final legality check: make the move and check if it leaves our king in check
+    make_move(move);
+    bool legal = !in_check(us);
+    unmake_move(move);
+    return legal;
 }
 
 bool Board::has_repeated() const {
@@ -440,7 +562,6 @@ bool Board::has_repeated() const {
     if (ply < 4 || halfmoves < 4) {
         return false;
     }
-
 
     // Halfmove clock resets everytime we make move that permanently
     // alters the board position so we don't need to lock for repeition

@@ -7,6 +7,7 @@
 #include "check_info.hpp"
 #include "move_generator.hpp"
 #include "search_state.hpp"
+#include "transposition_table.hpp"
 
 // Indexed like CAPTURE_SCORE[attacker][victim]
 // Incentivizes capturing high value pieces with low value pieces
@@ -19,63 +20,107 @@ constexpr std::array<std::array<MoveScore, NUM_PIECES>, NUM_PIECES> CAPTURE_SCOR
     {101, 201, 301, 401, 501, 000},
 }};
 
+// Indexed by move flag
+constexpr int NUM_MOVE_FLAGS = 7;
+constexpr std::array<MoveScore, NUM_MOVE_FLAGS> PROMOTION_BONUS = {
+    0, 0, 0, // Non-promotion flags
+    200, // Bishop
+    300, // Knight
+    200, // Rook
+    600, // Queen
+};
+
 struct MoveSelector {
     MoveSelectorPhase phase;
     CheckInfo checkInfo;
-    MoveList captures;
+    MoveList tactical_moves;
     MoveList quiet_moves;
-    int killer_count;
+    Move prev_best_move;
+    Move tt_move;
+    Move returned_killer_1;
+    Move returned_killer_2;
+    bool tacticals_generated = false;
+    bool quiets_generated = false;
 
-    MoveSelector(Board& b) {
-        phase = TRANSPOSITION;
-        killer_count = 0;
-
+    MoveSelector(Board& b, Move tt_move, Move prev_best_move = NULL_MOVE)
+        : phase(PREVIOUS_BEST), prev_best_move(prev_best_move), tt_move(tt_move) {
         if (b.to_move == WHITE) checkInfo.compute_check_info<WHITE>(b);
         else                    checkInfo.compute_check_info<BLACK>(b);
     }
 
     Move next_move(Board& b, SearchState& ss) {
         switch (phase) {
-            case TRANSPOSITION:
-                // No TT right now - TODO
+            case PREVIOUS_BEST: {
+                if (prev_best_move != NULL_MOVE) {
+                    phase = TRANSPOSITION;
+                    return prev_best_move;
+                }
+
+                phase = TRANSPOSITION;
+            }
+            case TRANSPOSITION: {
+                // Return the TT move if we have one
+                if (
+                    tt_move != NULL_MOVE &&
+                    tt_move != prev_best_move &&
+                    b.is_legal_move(tt_move)
+                ) {
+                    phase = TACTICAL_MOVE;
+                    return tt_move;
+                }
 
                 // If no TT moves, change phase and fall through
-                phase = GOOD_CAPTURE;
-            case GOOD_CAPTURE:
-                // If we just entered the capture phase, generate all captures
-                if (captures.size == 0) generate_captures(b);
+                phase = TACTICAL_MOVE;
+            }
+            case TACTICAL_MOVE: {
+                // If we just entered the tactical phase, generate all tactical moves
+                if (!tacticals_generated) generate_tactical_moves(b);
 
                 // Moves are already sorted by score when generated, so we can pop the next best move
-                Move next_cap = captures.pop();
+                Move next_cap = tactical_moves.pop();
+                while (next_cap != NULL_MOVE && is_already_returned(next_cap)) {
+                    next_cap = tactical_moves.pop();
+                }
                 if (next_cap != NULL_MOVE) {
                     return next_cap;
                 }
 
-                // If we don't have anymore captures, change phase and fall through
+                // If we don't have anymore tactical moves, change phase and fall through
                 phase = KILLER;
-            case KILLER:
-                // We can generate quiet moves in the killer phase
-                // This will be used to determine if the killer move is legal in this position
-                if (quiet_moves.size == 0) generate_quiet_moves(b, ss);
-
+            }
+            case KILLER: {
                 int ply = ss.search_ply(b.ply);
                 Move killer_move_1 = ss.killer_1[ply];
                 Move killer_move_2 = ss.killer_2[ply];
 
-                // Killer count is used to track which killer we've already tried, if any
-                if (killer_count == 0 && mark_killer_if_legal(killer_move_1)) {
-                    killer_count++;
+                if (
+                    killer_move_1 != NULL_MOVE &&
+                    returned_killer_1 == NULL_MOVE && 
+                    !is_already_returned(killer_move_1) && 
+                    b.is_legal_move(killer_move_1)
+                ) {
+                    returned_killer_1 = killer_move_1;
                     return killer_move_1;
-                } else if (killer_count == 1 && mark_killer_if_legal(killer_move_2)) {
-                    killer_count++;
+                }
+
+                if (
+                    killer_move_2 != NULL_MOVE &&
+                    returned_killer_2 == NULL_MOVE && 
+                    !is_already_returned(killer_move_2) && 
+                    b.is_legal_move(killer_move_2)
+                ) {
+                    returned_killer_2 = killer_move_2;
                     return killer_move_2;
                 }
 
                 // If we've tried both killers already or don't have any, fall through to the next phase
                 phase = QUIET_MOVE;
-            case QUIET_MOVE:
+            }
+            case QUIET_MOVE: {
+                if (!quiets_generated) generate_quiet_moves(b, ss);
+
                 Move next_quiet = quiet_moves.pop();
-                while (next_quiet != NULL_MOVE && next_quiet.is_killer) {
+                while (next_quiet != NULL_MOVE && is_already_returned(next_quiet)) {
                     next_quiet = quiet_moves.pop();
                 }
 
@@ -84,20 +129,22 @@ struct MoveSelector {
                 }
 
                 phase = BAD_CAPTURE;
+            }
             case BAD_CAPTURE:
                 // No SEE yet - TODO
-            default: 
+            default:
                 return NULL_MOVE;
         }
     }
 
 private:
 
-    inline void generate_captures(Board& b) {
-        if (b.to_move == WHITE) generate_moves_impl<WHITE, CAPTURES_AND_PROMOTIONS>(b, captures, checkInfo);
-        else                    generate_moves_impl<BLACK, CAPTURES_AND_PROMOTIONS>(b, captures, checkInfo);
+    inline void generate_tactical_moves(Board& b) {
+        if (b.to_move == WHITE) generate_moves_impl<WHITE, CAPTURES_AND_PROMOTIONS>(b, tactical_moves, checkInfo);
+        else                    generate_moves_impl<BLACK, CAPTURES_AND_PROMOTIONS>(b, tactical_moves, checkInfo);
 
-        sort_captures(b);
+        sort_tactical_moves(b);
+        tacticals_generated = true;
     }
 
     inline void generate_quiet_moves(Board& b, SearchState& ss) {
@@ -105,19 +152,28 @@ private:
         else                    generate_moves_impl<BLACK, QUIET_ONLY>(b, quiet_moves, checkInfo);
 
         sort_quiet_moves(b, ss);
+        quiets_generated = true;
     }
 
-    inline void sort_captures(Board& b) {
-        std::sort(captures.begin(), captures.end(), [&b](Move m1, Move m2) {
-            Piece m1_from_piece = b.piece_map[m1.from()];
-            Piece m1_to_piece = b.piece_map[m1.to()];
-            MoveScore m1_score = CAPTURE_SCORE[m1_from_piece][m1_to_piece];
+    inline MoveScore get_tactical_score(const Board& b, Move m) {
+        MoveScore score = 0;
 
-            Piece m2_from_piece = b.piece_map[m2.from()];
-            Piece m2_to_piece = b.piece_map[m2.to()];
-            MoveScore m2_score = CAPTURE_SCORE[m2_from_piece][m2_to_piece];
+        if (m.type() == CAPTURE) {
+            Piece attacker = b.piece_map[m.from()];
+            Piece victim = m.flag() == EN_PASSANT ? PAWN : b.piece_map[m.to()];
+            score += CAPTURE_SCORE[attacker][victim];
+        }
 
-            return m1_score < m2_score;
+        if (m.is_promotion()) {
+            score += PROMOTION_BONUS[m.flag()];
+        }
+
+        return score;
+    }
+
+    inline void sort_tactical_moves(Board& b) {
+        std::sort(tactical_moves.begin(), tactical_moves.end(), [&](Move m1, Move m2) {
+            return get_tactical_score(b, m1) < get_tactical_score(b, m2);
         });
     }
 
@@ -137,14 +193,7 @@ private:
         });
     }
 
-    inline bool mark_killer_if_legal(Move killer_move) {
-        for (Move& move : quiet_moves) {
-            if (move == killer_move) {
-                move.is_killer = true;
-                return true;
-            }
-        }
-
-        return false;
+    inline bool is_already_returned(Move move) {
+        return move == prev_best_move || move == tt_move || move == returned_killer_1 || move == returned_killer_2;
     }
 };

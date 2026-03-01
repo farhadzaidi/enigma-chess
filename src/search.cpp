@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 
 #include "types.hpp"
 #include "search.hpp"
@@ -8,6 +9,7 @@
 #include "evaluate.hpp"
 #include "transposition_table.hpp"
 #include "opening_book.hpp"
+#include "move_selector.hpp"
 
 static SearchState ss;
 static OpeningBook opening_book;
@@ -46,36 +48,36 @@ static inline bool should_stop_search() {
     }
 }
 
-static inline int score_move(Move m) {
-    return m.is_promotion() ? 3 : m.type() == CAPTURE ? 2 : 1;
-}
+// static inline int score_move(Move m) {
+//     return m.is_promotion() ? 3 : m.type() == CAPTURE ? 2 : 1;
+// }
 
-template <bool UsePrevBestMove>
-static inline void order_moves(Board& b, MoveList& moves, Move prev_best_move = NULL_MOVE) {
-    // Store the TT move if we have a hit
-    Move tt_move;
-    TTEntry& tt_entry = TT.get_entry(b.zobrist_hash);
-    if (TT.is_valid_entry(b.zobrist_hash, tt_entry)) {
-        tt_move = tt_entry.best_move;
-    }
+// template <bool UsePrevBestMove>
+// static inline void order_moves(Board& b, MoveList& moves, Move prev_best_move = NULL_MOVE) {
+//     // Store the TT move if we have a hit
+//     Move tt_move;
+//     TTEntry& tt_entry = TT.get_entry(b.zobrist_hash);
+//     if (TT.is_valid_entry(b.zobrist_hash, tt_entry)) {
+//         tt_move = tt_entry.best_move;
+//     }
 
-    // Prioritize promotions, captures, then quiet moves (in that order)
-    std::sort(moves.begin(), moves.end(), [prev_best_move, tt_move](const Move& m1, const Move& m2) {
-        // Always try the previous best move first if we have it
-        if constexpr (UsePrevBestMove) {
-            if (m1 == prev_best_move) return true;
-            if (m2 == prev_best_move) return false;
-        }
+//     // Prioritize promotions, captures, then quiet moves (in that order)
+//     std::sort(moves.begin(), moves.end(), [prev_best_move, tt_move](const Move& m1, const Move& m2) {
+//         // Always try the previous best move first if we have it
+//         if constexpr (UsePrevBestMove) {
+//             if (m1 == prev_best_move) return true;
+//             if (m2 == prev_best_move) return false;
+//         }
 
-        // Then try the TT move if we have one
-        if (tt_move != NULL_MOVE) {
-            if (m1 == tt_move) return true;
-            if (m2 == tt_move) return false;
-        }
+//         // Then try the TT move if we have one
+//         if (tt_move != NULL_MOVE) {
+//             if (m1 == tt_move) return true;
+//             if (m2 == tt_move) return false;
+//         }
 
-        return score_move(m1) > score_move(m2);
-    });
-}
+//         return score_move(m1) > score_move(m2);
+//     });
+// }
 
 // Normalizes checkmate scores from current search ply to relative distance
 // This helps determine how far the mate is from the current ply if this score is retrieved
@@ -98,6 +100,43 @@ static inline PositionScore denormalize_tt_score(PositionScore score, int ply) {
     if (score >= CHECKMATE_SCORE - MAX_SEARCH_PLY) return score - ply;
     if (score <= -CHECKMATE_SCORE + MAX_SEARCH_PLY) return score + ply;
     return score;
+}
+
+static inline void update_killer_table(Move move, int ply) {
+    if (move != ss.killer_1[ply]) {
+        ss.killer_2[ply] = ss.killer_1[ply];
+        ss.killer_1[ply] = move;
+    }
+}
+
+static inline void update_history_tables(Board& b, Move move, MoveScore bonus) {
+    MoveScore clamped_bonus = std::clamp(bonus, MIN_MOVE_SCORE, MAX_MOVE_SCORE);
+    Piece moving_piece = b.piece_map[move.from()];
+
+    MoveScore& color_piece_to_score = ss.color_piece_to[b.to_move][moving_piece][move.to()];
+    color_piece_to_score += clamped_bonus - color_piece_to_score * std::abs(clamped_bonus) / MAX_MOVE_SCORE;
+
+    MoveScore& from_to_score = ss.from_to[move.from()][move.to()];
+    from_to_score += clamped_bonus - from_to_score * std::abs(clamped_bonus) / MAX_MOVE_SCORE;
+}
+
+static inline void update_quiet_heuristic_tables(
+    Board& b,
+    Move cutoff_move,
+    SearchDepth depth,
+    const MoveList& searched_quiet_moves
+) {
+    int ply = ss.search_ply(b.ply);
+    MoveScore bonus = depth * depth;
+
+    update_killer_table(cutoff_move, ply);
+    update_history_tables(b, cutoff_move, bonus);
+
+    // Apply penalty to quiet moves that didn't cause a cutoff
+    MoveScore malus = -(bonus / 2);
+    for (const Move move : searched_quiet_moves) {
+        update_history_tables(b, move, malus);
+    }
 }
 
 template <SearchMode SM>
@@ -178,7 +217,8 @@ static inline PositionScore negamax(Board& b, SearchDepth depth, PositionScore a
 
     // Probe transposition table
     TTEntry& tt_entry = TT.get_entry(b.zobrist_hash);
-    if (TT.is_valid_entry(b.zobrist_hash, tt_entry)) {
+    bool is_valid_tt_entry = TT.is_valid_entry(b.zobrist_hash, tt_entry);
+    if (is_valid_tt_entry) {
         // Denormalize score before returning
         PositionScore tt_score = denormalize_tt_score(tt_entry.score, ss.search_ply(b.ply));
 
@@ -200,27 +240,20 @@ static inline PositionScore negamax(Board& b, SearchDepth depth, PositionScore a
         }
     }
 
-    MoveList moves = generate_moves<ALL>(b);
-    order_moves<false>(b, moves);
-
-    // Side to move has no remaining moves
-    if (moves.is_empty()) {
-        if (b.in_check()) {
-            // If we're in check with no moves, then that is a checkmate
-            // Add ply to the score to incentivize drawing out the game for the
-            // losing side or ending the game quicker for the winning side
-            return -CHECKMATE_SCORE + ss.search_ply(b.ply);
-        } else {
-            // If we're not in check with no moves, then that is a stalemate
-            return STALEMATE_SCORE;
-        }
-    }
-
     // Store original alpha value for this node to determine if it's a fail-low TT node
     PositionScore original_alpha = alpha;
     Move best_move;
+    MoveList searched_quiet_moves;
 
-    for (Move move : moves) {
+    Move tt_move = is_valid_tt_entry ? tt_entry.best_move : NULL_MOVE;
+    MoveSelector move_selector(b, tt_move);
+    bool has_moves = false;
+
+    while (true) {
+        Move move = move_selector.next_move(b, ss);
+        if (move == NULL_MOVE) break;
+        else has_moves = true;
+
         b.make_move(move);
         PositionScore score = -negamax<SM>(b, depth - 1, -beta, -alpha);
         b.unmake_move(move);
@@ -236,8 +269,28 @@ static inline PositionScore negamax(Board& b, SearchDepth depth, PositionScore a
             best_move = move;
         }
 
+        if (move.type() == QUIET) {
+            searched_quiet_moves.add(move);
+        }
+
         if (alpha >= beta) {
+            if (move.type() == QUIET) {
+                searched_quiet_moves.pop();
+                update_quiet_heuristic_tables(b, move, depth, searched_quiet_moves);
+            }
             break;
+        }
+    }
+    
+    if (!has_moves) {
+        if (b.in_check()) {
+            // If we're in check with no moves, then that is a checkmate
+            // Add ply to the score to incentivize drawing out the game for the
+            // losing side or ending the game quicker for the winning side
+            return -CHECKMATE_SCORE + ss.search_ply(b.ply);
+        } else {
+            // If we're not in check with no moves, then that is a stalemate
+            return STALEMATE_SCORE;
         }
     }
 
@@ -273,10 +326,16 @@ static Move search_at_depth(Board& b, SearchDepth depth, Move prev_best_move) {
     // for them than their lower bound)
     PositionScore beta = MAX_SCORE;
 
-    MoveList moves = generate_moves<ALL>(b);
-    order_moves<true>(b, moves, prev_best_move);
+    MoveList searched_quiet_moves;
+    TTEntry& tt_entry = TT.get_entry(b.zobrist_hash);
+    Move tt_move = TT.is_valid_entry(b.zobrist_hash, tt_entry) ? tt_entry.best_move : NULL_MOVE;
+    MoveSelector move_selector(b, tt_move, prev_best_move);
 
-    for (Move move : moves) {
+    while (true) {
+        Move move = move_selector.next_move(b, ss);
+        if (move == NULL_MOVE) break;
+
+
         b.make_move(move);
         PositionScore score = -negamax<SM>(b, depth - 1, -beta, -alpha);
         b.unmake_move(move);
@@ -294,12 +353,20 @@ static Move search_at_depth(Board& b, SearchDepth depth, Move prev_best_move) {
             best_move = move;
         }
 
+        if (move.type() == QUIET) {
+            searched_quiet_moves.add(move);
+        }
+
         // If the move we found is too good and our opponent will not allow it (because
         // they found a better move elsewhere), we can break out of the loop and return
         // early, effectively pruning the branch (aka beta cutoff)
         // In other words, the move we found is worse for the opponent than their current
         // lower bound and so we'll never be allowed to play this move
         if (alpha >= beta) {
+            if (move.type() == QUIET) {
+                searched_quiet_moves.pop();
+                update_quiet_heuristic_tables(b, move, depth, searched_quiet_moves);
+            }
             break;
         }
     }
@@ -328,6 +395,10 @@ Move search(Board& b, const SearchLimits& limits) {
     ss.nodes = 0;
     ss.search_interrupted = false;
     ss.ply_offset = b.ply;
+    ss.killer_1.fill(NULL_MOVE);
+    ss.killer_2.fill(NULL_MOVE);
+    ss.color_piece_to = {};
+    ss.from_to = {};
 
     // Calculate search deadline based on time limit if search mode is TIME
     if constexpr (SM == TIME) {
