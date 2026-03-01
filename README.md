@@ -139,13 +139,9 @@ Planned roadmap items:
 
 ### Search
 
-- Killer moves
 - Principal variation search (PVS) + aspiration windows
-- Enhanced move ordering / move selector (MVV-LVA, history heuristic, phases, SEE)
-- Stack allocation for move lists to speed up move generation
 - Null move pruning
 - Late move reductions (LMR)
-- Endgame tablebase integration
 - Internal iterative deepening when no TT move is available
 - Check extensions
 

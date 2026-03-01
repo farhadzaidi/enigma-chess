@@ -8,6 +8,7 @@
 #include "move_generator.hpp"
 #include "search_state.hpp"
 #include "transposition_table.hpp"
+#include "see.hpp"
 
 // Indexed like CAPTURE_SCORE[attacker][victim]
 // Incentivizes capturing high value pieces with low value pieces
@@ -34,6 +35,7 @@ struct MoveSelector {
     MoveSelectorPhase phase;
     CheckInfo checkInfo;
     MoveList tactical_moves;
+    MoveList bad_captures;
     MoveList quiet_moves;
     Move prev_best_move;
     Move tt_move;
@@ -41,6 +43,7 @@ struct MoveSelector {
     Move returned_killer_2;
     bool tacticals_generated = false;
     bool quiets_generated = false;
+    bool bad_captures_sorted = false;
 
     MoveSelector(Board& b, Move tt_move, Move prev_best_move = NULL_MOVE)
         : phase(PREVIOUS_BEST), prev_best_move(prev_best_move), tt_move(tt_move) {
@@ -77,13 +80,8 @@ struct MoveSelector {
                 if (!tacticals_generated) generate_tactical_moves(b);
 
                 // Moves are already sorted by score when generated, so we can pop the next best move
-                Move next_cap = tactical_moves.pop();
-                while (next_cap != NULL_MOVE && is_already_returned(next_cap)) {
-                    next_cap = tactical_moves.pop();
-                }
-                if (next_cap != NULL_MOVE) {
-                    return next_cap;
-                }
+                Move next_cap = pop_next(tactical_moves);
+                if (next_cap != NULL_MOVE) return next_cap;
 
                 // If we don't have anymore tactical moves, change phase and fall through
                 phase = KILLER;
@@ -119,19 +117,22 @@ struct MoveSelector {
             case QUIET_MOVE: {
                 if (!quiets_generated) generate_quiet_moves(b, ss);
 
-                Move next_quiet = quiet_moves.pop();
-                while (next_quiet != NULL_MOVE && is_already_returned(next_quiet)) {
-                    next_quiet = quiet_moves.pop();
-                }
-
-                if (next_quiet != NULL_MOVE) {
-                    return next_quiet;
-                }
+                Move next_quiet = pop_next(quiet_moves);
+                if (next_quiet != NULL_MOVE) return next_quiet;
 
                 phase = BAD_CAPTURE;
             }
-            case BAD_CAPTURE:
-                // No SEE yet - TODO
+            case BAD_CAPTURE: {
+                // We lazy sort bad captures only once we're at this phase
+                if (!bad_captures_sorted) {
+                    sort_tactical_moves(b, bad_captures);
+                    bad_captures_sorted = true;
+                }
+                
+                Move next_bad = pop_next(bad_captures);
+                if (next_bad != NULL_MOVE) return next_bad;
+                return NULL_MOVE;
+            }
             default:
                 return NULL_MOVE;
         }
@@ -140,10 +141,21 @@ struct MoveSelector {
 private:
 
     inline void generate_tactical_moves(Board& b) {
-        if (b.to_move == WHITE) generate_moves_impl<WHITE, CAPTURES_AND_PROMOTIONS>(b, tactical_moves, checkInfo);
-        else                    generate_moves_impl<BLACK, CAPTURES_AND_PROMOTIONS>(b, tactical_moves, checkInfo);
+        MoveList all_tacticals;
+        if (b.to_move == WHITE) generate_moves_impl<WHITE, CAPTURES_AND_PROMOTIONS>(b, all_tacticals, checkInfo);
+        else                    generate_moves_impl<BLACK, CAPTURES_AND_PROMOTIONS>(b, all_tacticals, checkInfo);
 
-        sort_tactical_moves(b);
+        // Split captures into good tacticals and bad captures based on SEE
+        // Promotions without capture are always good (free material)
+        for (const Move move : all_tacticals) {
+            if (move.type() == CAPTURE && see(b, move) < 0) {
+                bad_captures.add(move);
+            } else {
+                tactical_moves.add(move);
+            }
+        }
+
+        sort_tactical_moves(b, tactical_moves);
         tacticals_generated = true;
     }
 
@@ -171,8 +183,8 @@ private:
         return score;
     }
 
-    inline void sort_tactical_moves(Board& b) {
-        std::sort(tactical_moves.begin(), tactical_moves.end(), [&](Move m1, Move m2) {
+    inline void sort_tactical_moves(Board& b, MoveList& moves) {
+        std::sort(moves.begin(), moves.end(), [&](Move m1, Move m2) {
             return get_tactical_score(b, m1) < get_tactical_score(b, m2);
         });
     }
@@ -191,6 +203,14 @@ private:
 
             return m1_score < m2_score;
         });
+    }
+
+    inline Move pop_next(MoveList& moves) {
+        Move next = moves.pop();
+        while (next != NULL_MOVE && is_already_returned(next)) {
+            next = moves.pop();
+        }
+        return next;
     }
 
     inline bool is_already_returned(Move move) {

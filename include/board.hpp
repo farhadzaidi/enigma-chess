@@ -83,6 +83,7 @@ public:
     void unmake_move(Move move);
     bool in_check(Color side = NO_COLOR) const;
     bool is_attacked(Square sq, Color by) const;
+    Bitboard attackers_to(Square sq, Bitboard occupied) const;
     bool is_legal_move(Move move);
     bool has_repeated() const;
 

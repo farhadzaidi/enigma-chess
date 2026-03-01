@@ -10,11 +10,13 @@
 #include "transposition_table.hpp"
 #include "opening_book.hpp"
 #include "move_selector.hpp"
+#include "see.hpp"
 
 static SearchState ss;
 static OpeningBook opening_book;
 
 constexpr uint64_t TIME_CHECK_PERIOD_MASK = 2047;
+constexpr int SEE_CUTOFF = -200;
 
 // Treats fifty-move rule and twofold repetition as automatic draws for search purposes.
 // In standard chess both require a player claim, and repetition requires threefold occurrence,
@@ -169,9 +171,10 @@ static inline PositionScore quiescence_search(Board& b, PositionScore alpha, Pos
 
     // If we're not in check, search captures and promotions. Otherwise, search all moves (evasions)
     MoveList moves = in_check ? generate_moves<ALL>(b) : generate_moves<CAPTURES_AND_PROMOTIONS>(b);
+
     if (moves.is_empty()) {
         if (in_check) {
-            // In check + no legal moves - checkmate
+            // In check + no legal moves = checkmate
             return -CHECKMATE_SCORE + ss.search_ply(b.ply);
         }
 
@@ -180,6 +183,10 @@ static inline PositionScore quiescence_search(Board& b, PositionScore alpha, Pos
     }
 
     for (Move move : moves) {
+        // Skip losing captures (determined via SEE) unless we're in check
+        // We don't hard-prune on SEE < 0, since our SEE implementation is an approximation
+        if (!in_check && move.type() == CAPTURE && see(b, move) < SEE_CUTOFF) continue;
+
         b.make_move(move);
         PositionScore score = -quiescence_search<SM>(b, -beta, -alpha);
         b.unmake_move(move);

@@ -47,17 +47,18 @@ struct MoveList {
 };
 
 // Expose this function since it's used in board.cpp as well
+// Takes an explicit occupancy bitboard so it can be used with modified occupancy (e.g. SEE)
 template <Piece P>
-inline Bitboard generate_sliding_attack_mask(const Board& b, Square from) {
+inline Bitboard generate_sliding_attack_mask(Square from, Bitboard occupied) {
     // Assign constants based on sliding piece type
-    constexpr auto& attack_table = P == BISHOP ? BISHOP_ATTACK_TABLE : ROOK_ATTACK_TABLE; 
+    constexpr auto& attack_table = P == BISHOP ? BISHOP_ATTACK_TABLE : ROOK_ATTACK_TABLE;
     constexpr auto& blocker_map  = P == BISHOP ? BISHOP_BLOCKER_MAP : ROOK_BLOCKER_MAP;
     constexpr auto& magic        = P == BISHOP ? BISHOP_MAGIC : ROOK_MAGIC;
     constexpr auto& offset       = P == BISHOP ? BISHOP_OFFSET : ROOK_OFFSET;
-        
+
     // Look up sliding piece attacks from attack table based on blocker pattern
     Bitboard blocker_mask = blocker_map[from];
-    Bitboard blockers = b.occupied & blocker_mask;
+    Bitboard blockers = occupied & blocker_mask;
     size_t index = get_attack_table_index(blockers, blocker_mask, magic[from]);
     return attack_table[offset[from] + index];
 }

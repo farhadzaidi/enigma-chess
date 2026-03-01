@@ -128,11 +128,11 @@ private:
             while (piece_bb) {
                 Square from = pop_lsb(piece_bb);
                 if constexpr (P == BISHOP || P == ROOK) {
-                    attack_mask |= generate_sliding_attack_mask<P>(b, from);
+                    attack_mask |= generate_sliding_attack_mask<P>(from, b.occupied);
                 } else if constexpr (P == QUEEN) {
                     attack_mask |=
-                        generate_sliding_attack_mask<BISHOP>(b, from) |
-                        generate_sliding_attack_mask<ROOK>(b, from);
+                        generate_sliding_attack_mask<BISHOP>(from, b.occupied) |
+                        generate_sliding_attack_mask<ROOK>(from, b.occupied);
                 } else if constexpr (P == KNIGHT) {
                     attack_mask |= KNIGHT_ATTACK_MAP[from];
                 } else if constexpr (P == KING) {

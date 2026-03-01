@@ -436,15 +436,24 @@ bool Board::is_attacked(Square sq, Color by) const {
 // Returns a bitboard of all pieces from both sides that attack the given square.
 // Takes an explicit occupancy bitboard for use with modified occupancy (e.g. SEE).
 Bitboard Board::attackers_to(Square sq, Bitboard occupied) const {
-    return
+    Bitboard all_knights = pieces[WHITE][KNIGHT] | pieces[BLACK][KNIGHT];
+    Bitboard all_bishops = pieces[WHITE][BISHOP] | pieces[BLACK][BISHOP];
+    Bitboard all_rooks   = pieces[WHITE][ROOK]   | pieces[BLACK][ROOK];
+    Bitboard all_queens  = pieces[WHITE][QUEEN]  | pieces[BLACK][QUEEN];
+    Bitboard all_kings   = pieces[WHITE][KING]   | pieces[BLACK][KING];
+    Bitboard attackers =
+        // Non-sliding pieces
         (PAWN_ATTACK_MAPS[WHITE][sq] & pieces[WHITE][PAWN]) |
         (PAWN_ATTACK_MAPS[BLACK][sq] & pieces[BLACK][PAWN]) |
-        (KNIGHT_ATTACK_MAP[sq] & (pieces[WHITE][KNIGHT] | pieces[BLACK][KNIGHT])) |
-        (KING_ATTACK_MAP[sq]   & (pieces[WHITE][KING]   | pieces[BLACK][KING]))   |
-        (generate_sliding_attack_mask<ROOK>(sq, occupied)   & (pieces[WHITE][ROOK]   | pieces[BLACK][ROOK]   |
-                                                               pieces[WHITE][QUEEN]  | pieces[BLACK][QUEEN])) |
-        (generate_sliding_attack_mask<BISHOP>(sq, occupied) & (pieces[WHITE][BISHOP] | pieces[BLACK][BISHOP] |
-                                                               pieces[WHITE][QUEEN]  | pieces[BLACK][QUEEN]));
+        (KNIGHT_ATTACK_MAP[sq] & all_knights) |
+        (KING_ATTACK_MAP[sq]   & all_kings)   |
+
+        // Sliding pieces
+        (generate_sliding_attack_mask<ROOK>(sq, occupied)   & (all_rooks   | all_queens)) |
+        (generate_sliding_attack_mask<BISHOP>(sq, occupied) & (all_bishops | all_queens));
+
+    // Honor provided occupancy.
+    return attackers & occupied;
 }
 
 // Checks if a move is legal in the current position. Assumes the move was

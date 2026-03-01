@@ -10,35 +10,7 @@
 #include "move_selector.hpp"
 #include "search_state.hpp"
 #include "utils.hpp"
-
-static bool board_position_equal(const Board& a, const Board& b) {
-    if (a.zobrist_hash != b.zobrist_hash) return false;
-    if (a.occupied != b.occupied) return false;
-    if (a.to_move != b.to_move) return false;
-    if (a.castling_rights != b.castling_rights) return false;
-    if (a.en_passant_target != b.en_passant_target) return false;
-    if (a.halfmoves != b.halfmoves) return false;
-    if (a.fullmoves != b.fullmoves) return false;
-    if (a.ply != b.ply) return false;
-    if (a.game_phase != b.game_phase) return false;
-
-    for (int c = 0; c < NUM_COLORS; c++) {
-        if (a.colors[c] != b.colors[c]) return false;
-        if (a.king_squares[c] != b.king_squares[c]) return false;
-        if (a.early_score[c] != b.early_score[c]) return false;
-        if (a.late_score[c] != b.late_score[c]) return false;
-
-        for (int p = 0; p < NUM_PIECES; p++) {
-            if (a.pieces[c][p] != b.pieces[c][p]) return false;
-        }
-    }
-
-    for (int sq = 0; sq < NUM_SQUARES; sq++) {
-        if (a.piece_map[sq] != b.piece_map[sq]) return false;
-    }
-
-    return true;
-}
+#include "helpers.hpp"
 
 static SearchState make_search_state(const Board& b) {
     SearchState ss{};
@@ -82,7 +54,7 @@ static bool collect_selector_moves(
         }
     }
 
-    if (!board_position_equal(before, b)) {
+    if (!board_position_equal(before, b, true)) {
         std::clog << "[FAILURE] '" << test_name << "' - Board mutated while selecting moves\n";
         std::clog << "Case: " << context << "\n";
         return false;
@@ -184,7 +156,7 @@ static bool assert_all_moves_legal(
             std::clog << "Move: " << decode_move_to_uci(move) << "\n";
             return false;
         }
-        if (!board_position_equal(before, b)) {
+        if (!board_position_equal(before, b, true)) {
             std::clog << "[FAILURE] '" << test_name << "' - Board mutated while validating legality\n";
             std::clog << "Case: " << context << "\n";
             std::clog << "Move: " << decode_move_to_uci(move) << "\n";
@@ -436,6 +408,137 @@ static bool test_move_selector_quiet_history_order(Board& b) {
     return true;
 }
 
+static bool test_move_selector_see_phase_split(Board& b) {
+    b.reset();
+    b.load_from_fen("4k3/8/2p5/3p4/4P3/8/8/3QK3 w - - 0 1");
+    SearchState ss = make_search_state(b);
+
+    Move good_capture = encode_move_from_uci(b, "e4d5");
+    Move bad_capture = encode_move_from_uci(b, "d1d5");
+
+    if (!b.is_legal_move(good_capture) || !b.is_legal_move(bad_capture)) {
+        std::clog << "[FAILURE] 'move_selector_see_phase_split' - Setup captures must be legal\n";
+        return false;
+    }
+
+    int good_see = see(b, good_capture);
+    int bad_see = see(b, bad_capture);
+    if (good_see < 0 || bad_see >= 0) {
+        std::clog << "[FAILURE] 'move_selector_see_phase_split' - Setup must produce one good and one bad capture\n";
+        std::clog << "good_see(e4d5)=" << good_see << " bad_see(d1d5)=" << bad_see << "\n";
+        return false;
+    }
+
+    MoveList selected;
+    if (!collect_selector_moves(
+        b,
+        ss,
+        selected,
+        "move_selector_see_phase_split",
+        "good captures should come before quiets, bad captures after quiets"
+    )) {
+        return false;
+    }
+
+    int good_index = find_move_index(selected, good_capture);
+    int bad_index = find_move_index(selected, bad_capture);
+    if (good_index == -1 || bad_index == -1) {
+        std::clog << "[FAILURE] 'move_selector_see_phase_split' - Expected captures not found in selector output\n";
+        return false;
+    }
+
+    if (good_index >= bad_index) {
+        std::clog << "[FAILURE] 'move_selector_see_phase_split' - Good capture should precede bad capture\n";
+        std::clog << "good index=" << good_index << " bad index=" << bad_index << "\n";
+        return false;
+    }
+
+    int first_quiet = -1;
+    int last_quiet = -1;
+    for (int i = 0; i < selected.size; i++) {
+        if (selected[i].type() == QUIET) {
+            if (first_quiet == -1) first_quiet = i;
+            last_quiet = i;
+        }
+    }
+
+    if (first_quiet == -1) {
+        std::clog << "[FAILURE] 'move_selector_see_phase_split' - Expected at least one quiet move in setup\n";
+        return false;
+    }
+
+    if (good_index > first_quiet) {
+        std::clog << "[FAILURE] 'move_selector_see_phase_split' - Good capture should be before first quiet\n";
+        std::clog << "good index=" << good_index << " first quiet index=" << first_quiet << "\n";
+        return false;
+    }
+
+    if (bad_index < last_quiet) {
+        std::clog << "[FAILURE] 'move_selector_see_phase_split' - Bad capture should be after quiet phase\n";
+        std::clog << "bad index=" << bad_index << " last quiet index=" << last_quiet << "\n";
+        return false;
+    }
+
+    for (int i = bad_index + 1; i < selected.size; i++) {
+        if (selected[i].type() == QUIET) {
+            std::clog << "[FAILURE] 'move_selector_see_phase_split' - Quiet move appeared after bad capture phase\n";
+            std::clog << "Quiet move: " << decode_move_to_uci(selected[i]) << " at index " << i << "\n";
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool test_move_selector_bad_capture_ordering(Board& b) {
+    b.reset();
+    b.load_from_fen("4k3/8/1pp5/p2p4/8/8/8/R2QK3 w - - 0 1");
+    SearchState ss = make_search_state(b);
+
+    Move rook_bad = encode_move_from_uci(b, "a1a5");
+    Move queen_bad = encode_move_from_uci(b, "d1d5");
+
+    if (!b.is_legal_move(rook_bad) || !b.is_legal_move(queen_bad)) {
+        std::clog << "[FAILURE] 'move_selector_bad_capture_ordering' - Setup captures must be legal\n";
+        return false;
+    }
+
+    int rook_see = see(b, rook_bad);
+    int queen_see = see(b, queen_bad);
+    if (rook_see >= 0 || queen_see >= 0) {
+        std::clog << "[FAILURE] 'move_selector_bad_capture_ordering' - Setup captures should both be SEE-negative\n";
+        std::clog << "rook_see(a1a5)=" << rook_see << " queen_see(d1d5)=" << queen_see << "\n";
+        return false;
+    }
+
+    MoveList selected;
+    if (!collect_selector_moves(
+        b,
+        ss,
+        selected,
+        "move_selector_bad_capture_ordering",
+        "bad captures should still be tactical-score ordered in BAD_CAPTURE phase"
+    )) {
+        return false;
+    }
+
+    int rook_index = find_move_index(selected, rook_bad);
+    int queen_index = find_move_index(selected, queen_bad);
+    if (rook_index == -1 || queen_index == -1) {
+        std::clog << "[FAILURE] 'move_selector_bad_capture_ordering' - Expected bad captures not found\n";
+        return false;
+    }
+
+    if (rook_index >= queen_index) {
+        std::clog << "[FAILURE] 'move_selector_bad_capture_ordering' - Bad capture ordering mismatch\n";
+        std::clog << "Expected a1a5 before d1d5 based on tactical score\n";
+        std::clog << "a1a5 index=" << rook_index << " d1d5 index=" << queen_index << "\n";
+        return false;
+    }
+
+    return true;
+}
+
 static bool test_move_selector_in_check(Board& b) {
     b.reset();
     b.load_from_fen("4k3/8/8/4Q3/8/8/8/4K3 b - - 0 1");
@@ -482,6 +585,8 @@ bool test_move_selector(Board& b) {
     if (!test_move_selector_hint_deduplication(b)) return false;
     if (!test_move_selector_stale_hint_rejection(b)) return false;
     if (!test_move_selector_quiet_history_order(b)) return false;
+    if (!test_move_selector_see_phase_split(b)) return false;
+    if (!test_move_selector_bad_capture_ordering(b)) return false;
     if (!test_move_selector_in_check(b)) return false;
     return true;
 }

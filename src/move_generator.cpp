@@ -51,10 +51,10 @@ static inline void generate_piece_moves(Board& b, MoveList& moves, CheckInfo& ch
         Bitboard attack_mask = 
             P == KING   ? KING_ATTACK_MAP[from] & ~checkInfo.unsafe     :
             P == KNIGHT ? KNIGHT_ATTACK_MAP[from]                       :
-            P == BISHOP ? generate_sliding_attack_mask<BISHOP>(b, from) :
-            P == ROOK   ? generate_sliding_attack_mask<ROOK>  (b, from) :
-            P == QUEEN  ? generate_sliding_attack_mask<BISHOP>(b, from) |
-                          generate_sliding_attack_mask<ROOK>  (b, from) :
+            P == BISHOP ? generate_sliding_attack_mask<BISHOP>(from, b.occupied) :
+            P == ROOK   ? generate_sliding_attack_mask<ROOK>  (from, b.occupied) :
+            P == QUEEN  ? generate_sliding_attack_mask<BISHOP>(from, b.occupied) |
+                          generate_sliding_attack_mask<ROOK>  (from, b.occupied) :
                           0;
 
         attack_mask &= ~us;

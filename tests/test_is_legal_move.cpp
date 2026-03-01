@@ -8,32 +8,7 @@
 #include "move.hpp"
 #include "move_generator.hpp"
 #include "utils.hpp"
-
-static bool board_position_equal(const Board& a, const Board& b) {
-    if (a.zobrist_hash != b.zobrist_hash) return false;
-    if (a.occupied != b.occupied) return false;
-    if (a.to_move != b.to_move) return false;
-    if (a.castling_rights != b.castling_rights) return false;
-    if (a.en_passant_target != b.en_passant_target) return false;
-    if (a.halfmoves != b.halfmoves) return false;
-    if (a.fullmoves != b.fullmoves) return false;
-    if (a.ply != b.ply) return false;
-
-    for (int c = 0; c < NUM_COLORS; c++) {
-        if (a.colors[c] != b.colors[c]) return false;
-        if (a.king_squares[c] != b.king_squares[c]) return false;
-
-        for (int p = 0; p < NUM_PIECES; p++) {
-            if (a.pieces[c][p] != b.pieces[c][p]) return false;
-        }
-    }
-
-    for (int sq = 0; sq < NUM_SQUARES; sq++) {
-        if (a.piece_map[sq] != b.piece_map[sq]) return false;
-    }
-
-    return true;
-}
+#include "helpers.hpp"
 
 static bool assert_legal_result(Board& b, Move move, bool expected, const std::string& test_name, const std::string& fen, const std::string& move_uci, const std::string& context) {
     Board before = b;
