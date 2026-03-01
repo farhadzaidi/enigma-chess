@@ -124,7 +124,7 @@ def build_cmd(engine_a, engine_b, engine_a_name, engine_b_name, **options):
         str(CUTECHESS_CLI_BINARY_PATH),
         '-engine', f'cmd={engine_a}', f'name={engine_a_name}',
         '-engine', f'cmd={engine_b}', f'name={engine_b_name}',
-        '-each', 'proto=uci', 'ponder=off'
+        '-each', 'proto=uci', 'ponder=off', 'option.OwnBook=false'
     ]
 
     # Time control

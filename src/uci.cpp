@@ -15,6 +15,7 @@
 
 std::thread search_thread;
 std::atomic<bool> stop_requested(false);
+bool use_own_book = true;
 
 // Stops the search and joins the thread to prevent any dangling threads/race conditions
 static void clean_up_thread() {
@@ -40,11 +41,24 @@ static void print(const std::string& str) {
 static void cmd_uci() {
     print("id name Enigma");
     print("id author Syed Zaidi");
+    print("option name OwnBook type check default true");
     print("uciok");
 }
 
-static void cmd_setoption(const std::string&) {
-    // No runtime engine options currently exposed.
+static void cmd_setoption(const std::string& cmd) {
+    std::istringstream iss(cmd);
+    std::string token, name, value;
+
+    // Parse: setoption name <name> value <value>
+    iss >> token; // "setoption"
+    iss >> token; // "name"
+    iss >> name;
+    iss >> token; // "value"
+    iss >> value;
+
+    if (name == "OwnBook") {
+        use_own_book = (value == "true");
+    }
 }
 
 static void cmd_isready() {

@@ -17,6 +17,7 @@
 // --- Globals ---
 
 extern std::atomic<bool> stop_requested;
+extern bool use_own_book;
 inline std::filesystem::path FEN_DIR = std::filesystem::path(PROJECT_ROOT) / "fen";
 
 // --- FEN/EPD Files ---

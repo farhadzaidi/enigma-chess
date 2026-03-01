@@ -427,10 +427,12 @@ Move search(Board& b, const SearchLimits& limits) {
 
     // Return move from opening book if we can (only after validating that it's legal)
     // We have to validate just in case we have a position hash collision in the book
-    Move book_move = opening_book.pick_move(b);
-    for (const Move move: moves) {
-        if (book_move == move) {
-            return book_move;
+    if (use_own_book) {
+        Move book_move = opening_book.pick_move(b);
+        for (const Move move: moves) {
+            if (book_move == move) {
+                return book_move;
+            }
         }
     }
 
