@@ -139,9 +139,9 @@ Planned roadmap items:
 
 ### Search
 
-- Principal variation search (PVS) + aspiration windows
 - Null move pruning
 - Late move reductions (LMR)
+- Futility pruning
 - Internal iterative deepening when no TT move is available
 - Check extensions
 
@@ -149,8 +149,11 @@ Planned roadmap items:
 
 - Pawn structure terms (passed, isolated, stacked pawns, pawn hash ideas)
 - King safety terms (pawn shield, open files, nearby attackers)
-- Rooks on open files
-- Bishop pair bonus
+- Rooks (on 2nd/7th rank, behind passed pawn, connected rooks)
+- Piece mobility (open files/diagnols for rooks, bishops, queens)
+- Bishop pair
+- Knight outpost
+
 
 ## License
 

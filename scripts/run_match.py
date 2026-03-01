@@ -4,7 +4,7 @@ import argparse
 import subprocess
 import re
 
-from paths import CUTECHESS_CLI_BINARY_PATH, VERSIONS_DIR, BINARY_PATH, MIXED_EPD_PATH, require_env
+from paths import CUTECHESS_CLI_BINARY_PATH, VERSIONS_DIR, BINARY_PATH, require_env
 
 require_env('cutechess_cli_binary')
 
@@ -216,9 +216,6 @@ parser.add_argument('-g', '--games', type=int, help='Number of games (custom mod
 parser.add_argument('-c', '--concurrency', type=int, help='Concurrency level (custom mode only)')
 parser.add_argument('-m', '--timemargin', type=int, help='Time margin in ms (custom mode only)')
 
-# Position selection
-parser.add_argument('--shuffle', action='store_true', help='Use mixed.epd positions instead of startpos (repeat enabled for fairness)')
-
 args = parser.parse_args()
 
 # Guard: custom parameters cannot be used with preset modes
@@ -397,15 +394,6 @@ else:  # custom mode
             'Timemargin': timemargin_str
         }
     )
-
-# Apply shuffle: use mixed.epd positions and ensure repeat for fairness
-if args.shuffle:
-    cmd.extend(['-openings', f'file={MIXED_EPD_PATH}', 'format=epd', 'order=random'])
-    if '-repeat' not in cmd:
-        cmd.append('-repeat')
-    print(f'Positions: {MIXED_EPD_PATH} (shuffle mode)\n')
-else:
-    print('Positions: startpos\n')
 
 # Print command and confirm run
 print("Command:")

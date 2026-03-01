@@ -77,8 +77,6 @@ using ColorPieceToHistory = std::array<std::array<std::array<MoveScore, NUM_SQUA
 using FromToHistory = std::array<std::array<MoveScore, NUM_SQUARES>, NUM_SQUARES>;
 
 // --- Scores ---
-constexpr PositionScore MAX_SCORE          =  30'000;
-constexpr PositionScore MIN_SCORE          = -MAX_SCORE;
 constexpr PositionScore CHECKMATE_SCORE    =  32'000;
 constexpr PositionScore STALEMATE_SCORE    =  0;
 constexpr PositionScore DUMMY_SCORE        = -32'700;

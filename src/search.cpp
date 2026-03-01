@@ -17,6 +17,12 @@ static OpeningBook opening_book;
 
 constexpr uint64_t TIME_CHECK_PERIOD_MASK = 2047;
 constexpr int SEE_CUTOFF = -200;
+constexpr int ASPIRATION_WINDOW = 25;
+
+struct SearchResult {
+    Move best_move;
+    PositionScore score;
+};
 
 // Treats fifty-move rule and twofold repetition as automatic draws for search purposes.
 // In standard chess both require a player claim, and repetition requires threefold occurrence,
@@ -165,7 +171,7 @@ static inline PositionScore quiescence_search(Board& b, PositionScore alpha, Pos
         PositionScore static_eval = evaluate(b);
         alpha = std::max(alpha, static_eval);
         if (alpha >= beta) {
-            return beta;
+            return alpha;
         }
     }
 
@@ -249,12 +255,14 @@ static inline PositionScore negamax(Board& b, SearchDepth depth, PositionScore a
 
     // Store original alpha value for this node to determine if it's a fail-low TT node
     PositionScore original_alpha = alpha;
+    PositionScore best_score = DUMMY_SCORE;
     Move best_move;
     MoveList searched_quiet_moves;
 
     Move tt_move = is_valid_tt_entry ? tt_entry.best_move : NULL_MOVE;
     MoveSelector move_selector(b, tt_move);
     bool has_moves = false;
+    bool is_first_move = true;
 
     while (true) {
         Move move = move_selector.next_move(b, ss);
@@ -262,7 +270,18 @@ static inline PositionScore negamax(Board& b, SearchDepth depth, PositionScore a
         else has_moves = true;
 
         b.make_move(move);
-        PositionScore score = -negamax<SM>(b, depth - 1, -beta, -alpha);
+
+        PositionScore score;
+        if (is_first_move) {
+            score = -negamax<SM>(b, depth - 1, -beta, -alpha);
+            is_first_move = false;
+        } else {
+            score = -negamax<SM>(b, depth - 1, -alpha - 1, -alpha);
+            if (score > alpha && score < beta) {
+                score = -negamax<SM>(b, depth - 1, -beta, -alpha);
+            }
+        }
+
         b.unmake_move(move);
 
         // Discard the score and return early if the search has been interrupted
@@ -270,10 +289,14 @@ static inline PositionScore negamax(Board& b, SearchDepth depth, PositionScore a
             return SEARCH_INTERRUPTED;
         }
 
+        if (score > best_score) {
+            best_score = score;
+            best_move = move;
+        }
+
         // Update lower bound and determine if we need to prune this branch
         if (score > alpha) {
             alpha = score;
-            best_move = move;
         }
 
         if (move.type() == QUIET) {
@@ -303,61 +326,73 @@ static inline PositionScore negamax(Board& b, SearchDepth depth, PositionScore a
 
     // Determine the type of entry based on the final score
     TTNode tt_node;
-    if (alpha >= beta) {
+    if (best_score >= beta) {
         tt_node = FAIL_HIGH;
-    } else if (alpha <= original_alpha) {
+    } else if (best_score <= original_alpha) {
         tt_node = FAIL_LOW;
     } else {
         tt_node = EXACT;
     }
 
     // Normalize score before storing
-    PositionScore tt_score = normalize_tt_score(alpha, ss.search_ply(b.ply));
+    PositionScore tt_score = normalize_tt_score(best_score, ss.search_ply(b.ply));
 
     // Store TT entry
     TT.add_entry(TTEntry{b.zobrist_hash, best_move, depth, tt_score, tt_node});
 
-    return alpha;
+    return best_score;
 }
 
 // Searches all root moves at a given depth and returns the best move
 template <SearchMode SM>
-static Move search_at_depth(Board& b, SearchDepth depth, Move prev_best_move) {
+static SearchResult search_at_depth(
+    Board& b,
+    SearchDepth depth,
+    Move prev_best_move,
+    PositionScore alpha,
+    PositionScore beta
+) {
     Move best_move;
-
-    // Alpha will serve as our lower bound (best score so far at this depth)
-    PositionScore alpha = MIN_SCORE;
-
-    // Beta will serve as our upper bound - if we find a move better than beta
-    // then that move is too good and our opponent won't allow it (it's worse
-    // for them than their lower bound)
-    PositionScore beta = MAX_SCORE;
-
+    PositionScore best_score = DUMMY_SCORE;
     MoveList searched_quiet_moves;
     TTEntry& tt_entry = TT.get_entry(b.zobrist_hash);
     Move tt_move = TT.is_valid_entry(b.zobrist_hash, tt_entry) ? tt_entry.best_move : NULL_MOVE;
     MoveSelector move_selector(b, tt_move, prev_best_move);
+    bool is_first_move = true;
 
     while (true) {
         Move move = move_selector.next_move(b, ss);
         if (move == NULL_MOVE) break;
 
-
         b.make_move(move);
-        PositionScore score = -negamax<SM>(b, depth - 1, -beta, -alpha);
+
+        PositionScore score;
+        if (is_first_move) {
+            score = -negamax<SM>(b, depth - 1, -beta, -alpha);
+            is_first_move = false;
+        } else {
+            score = -negamax<SM>(b, depth - 1, -alpha - 1, -alpha);
+            if (score > alpha && score < beta) {
+                score = -negamax<SM>(b, depth - 1, -beta, -alpha);
+            }
+        }
+
         b.unmake_move(move);
 
         // Same here - return early if the search is interrutpted, otherwise negate
         // the score to process it for the parent
         if (ss.search_interrupted) {
-            return NULL_MOVE;
+            return {NULL_MOVE, 0};
         }
 
-        // If we found a move better than the current best move at this depth,
-        // update the best score (alpha) and the best move at this depth
+        if (score > best_score) {
+            best_score = score;
+            best_move = move;
+        }
+
+        // Update lower bound used for pruning
         if (score > alpha) {
             alpha = score;
-            best_move = move;
         }
 
         if (move.type() == QUIET) {
@@ -378,7 +413,7 @@ static Move search_at_depth(Board& b, SearchDepth depth, Move prev_best_move) {
         }
     }
 
-    return best_move;
+    return {best_move, best_score};
 }
 
 // Initializes search globals and performs iterative deepening search
@@ -388,6 +423,7 @@ Move search(Board& b, const SearchLimits& limits) {
     // Useful for checking legality of book moves and also returning any legal
     // move at the end if we didn't have the time to find one
     MoveList moves = generate_moves<ALL>(b);
+    if (moves.is_empty()) return NULL_MOVE;
 
     // Return move from opening book if we can (only after validating that it's legal)
     // We have to validate just in case we have a position hash collision in the book
@@ -414,6 +450,7 @@ Move search(Board& b, const SearchLimits& limits) {
 
     SearchDepth depth = 1;
     Move best_move;
+    int prev_score = 0;
 
     // Iterative search loop
     while (!should_stop_search<SM>()) {
@@ -422,13 +459,41 @@ Move search(Board& b, const SearchLimits& limits) {
             if (depth > ss.limits.depth) break;
         }
 
-        Move best_move_at_depth = search_at_depth<SM>(b, depth, best_move);
+        // Use aspiration windows after the first search
+        int alpha, beta;
+        int alpha_delta = ASPIRATION_WINDOW, beta_delta = ASPIRATION_WINDOW;
+        if (depth == 1) {
+            alpha = -CHECKMATE_SCORE;
+            beta = CHECKMATE_SCORE;
+        } else {
+            alpha = std::max(prev_score - alpha_delta, -static_cast<int>(CHECKMATE_SCORE));
+            beta = std::min(prev_score + beta_delta, static_cast<int>(CHECKMATE_SCORE));
+        }
 
-        if (best_move_at_depth != NULL_MOVE) {
-            best_move = best_move_at_depth;
+        SearchResult search_result;
+        while (true) {
+            if (ss.search_interrupted) break;
+
+            search_result = search_at_depth<SM>(b, depth, best_move, alpha, beta);
+            if (search_result.score <= alpha) {
+                alpha_delta *= 2;
+                alpha = std::max(prev_score - alpha_delta, -static_cast<int>(CHECKMATE_SCORE));
+            } else if (search_result.score >= beta) {
+                beta_delta *= 2;
+                beta = std::min(prev_score + beta_delta, static_cast<int>(CHECKMATE_SCORE));
+            } else {
+                // Score is within window
+                break;
+            }
         }
 
         if (ss.search_interrupted) break;
+
+        prev_score = search_result.score;
+        if (search_result.best_move != NULL_MOVE) {
+            best_move = search_result.best_move;
+        }
+
         depth++;
     }
 
