@@ -4,7 +4,7 @@ import argparse
 import subprocess
 import re
 
-from paths import CUTECHESS_CLI_BINARY_PATH, VERSIONS_DIR, BINARY_PATH, require_env
+from paths import CUTECHESS_CLI_BINARY_PATH, VERSIONS_DIR, BINARY_PATH, OPENINGS_PATH, require_env
 
 require_env('cutechess_cli_binary')
 
@@ -175,6 +175,9 @@ def build_cmd(engine_a, engine_b, engine_a_name, engine_b_name, **options):
 
     if options.get('debug', False):
         cmd.append('-debug')
+
+    # Use external opening book for all matches
+    cmd.extend(['-openings', f'file={OPENINGS_PATH}', 'format=pgn', 'order=random'])
 
     return cmd
 

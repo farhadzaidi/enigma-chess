@@ -408,6 +408,37 @@ void Board::unmake_move(Move move) {
     zobrist_hash = positions[ply];
 }
 
+// Skips the current side's turn and updates board state accordingly
+// Useful for implementing null move reductions in search
+void Board::make_null_move() {
+    // Preserve irreversible board state for unmake_null_move
+    states[ply] = State(en_passant_target, castling_rights, halfmoves, NO_PIECE);
+
+    // Clear en passant
+    xor_en_passant();
+    en_passant_target = NO_SQUARE;
+
+    // Toggle side to move and increment ply
+    toggle_side_to_move();
+    ply++;
+
+    // Update positions array
+    positions[ply] = zobrist_hash;
+}
+
+void Board::unmake_null_move() {
+    ply -= 1;
+
+    // We only need to bring back the en passant target from the previous
+    // state since we didn't change anything else
+    const State& prev_state = states[ply];
+    en_passant_target = prev_state.en_passant_target;
+
+    // Toggle side back and revert the zobrist hash
+    toggle_side_to_move();
+    zobrist_hash = positions[ply];
+}
+
 bool Board::in_check(Color side) const {
     Color us = side == NO_COLOR ? to_move : side;
     return is_attacked(king_squares[us], us ^ 1);

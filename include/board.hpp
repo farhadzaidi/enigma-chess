@@ -81,6 +81,8 @@ public:
     void debug();
     void make_move(Move move);
     void unmake_move(Move move);
+    void make_null_move();
+    void unmake_null_move();
     bool in_check(Color side = NO_COLOR) const;
     bool is_attacked(Square sq, Color by) const;
     Bitboard attackers_to(Square sq, Bitboard occupied) const;

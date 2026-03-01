@@ -18,6 +18,7 @@ static OpeningBook opening_book;
 constexpr uint64_t TIME_CHECK_PERIOD_MASK = 2047;
 constexpr int SEE_CUTOFF = -200;
 constexpr int ASPIRATION_WINDOW = 25;
+constexpr SearchDepth MINIMUM_NULL_MOVE_DEPTH = 3;
 
 struct SearchResult {
     Move best_move;
@@ -211,7 +212,13 @@ static inline PositionScore quiescence_search(Board& b, PositionScore alpha, Pos
 }
 
 template <SearchMode SM>
-static inline PositionScore negamax(Board& b, SearchDepth depth, PositionScore alpha, PositionScore beta) {
+static inline PositionScore negamax(
+    Board& b,
+    SearchDepth depth,
+    PositionScore alpha,
+    PositionScore beta,
+    bool allow_null_move = true
+) {
     ss.nodes++;
 
     if (should_stop_search<SM>()) {
@@ -263,6 +270,36 @@ static inline PositionScore negamax(Board& b, SearchDepth depth, PositionScore a
     MoveSelector move_selector(b, tt_move);
     bool has_moves = false;
     bool is_first_move = true;
+
+    bool in_check = b.in_check();
+    bool is_pv_node = beta - alpha > 1; 
+    bool has_non_pawn_material = (
+        b.pieces[b.to_move][KNIGHT] |
+        b.pieces[b.to_move][BISHOP] |
+        b.pieces[b.to_move][ROOK]   |
+        b.pieces[b.to_move][QUEEN]
+    );
+
+    // Try null move first if we can
+    if (
+        allow_null_move &&
+        !in_check &&
+        depth >= MINIMUM_NULL_MOVE_DEPTH &&
+        !is_pv_node &&
+        has_non_pawn_material
+    ) {
+        int R = 2 + (depth >= 6);
+        b.make_null_move();
+        PositionScore score = -negamax<SM>(b, depth - R, -beta, -beta + 1, false);
+        b.unmake_null_move();
+
+        if (ss.search_interrupted) return SEARCH_INTERRUPTED;
+
+        // Position is so good that even giving the oppent a free move
+        // doesn't drop our score below beta - we prune this since our
+        // opponent would never let us play here
+        if (score >= beta) return score;
+    }
 
     while (true) {
         Move move = move_selector.next_move(b, ss);

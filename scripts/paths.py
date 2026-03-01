@@ -20,3 +20,4 @@ def require_env(name):
 CUTECHESS_CLI_BINARY_PATH = _env_path('cutechess_cli_binary')
 BINARY_PATH = Path('build') / 'enigma'
 VERSIONS_DIR = Path('versions')
+OPENINGS_PATH = Path('fen') / 'openings.pgn'
