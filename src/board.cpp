@@ -428,9 +428,23 @@ bool Board::is_attacked(Square sq, Color by) const {
         (KING_ATTACK_MAP[sq] & their_pieces[KING]) |
 
         // Sliding pieces
-        (generate_sliding_attack_mask<ROOK>(*this, sq) & (their_pieces[ROOK] | their_pieces[QUEEN])) |
-        (generate_sliding_attack_mask<BISHOP>(*this, sq) & (their_pieces[BISHOP] | their_pieces[QUEEN]))
+        (generate_sliding_attack_mask<ROOK>(sq, occupied) & (their_pieces[ROOK] | their_pieces[QUEEN])) |
+        (generate_sliding_attack_mask<BISHOP>(sq, occupied) & (their_pieces[BISHOP] | their_pieces[QUEEN]))
     );
+}
+
+// Returns a bitboard of all pieces from both sides that attack the given square.
+// Takes an explicit occupancy bitboard for use with modified occupancy (e.g. SEE).
+Bitboard Board::attackers_to(Square sq, Bitboard occupied) const {
+    return
+        (PAWN_ATTACK_MAPS[WHITE][sq] & pieces[WHITE][PAWN]) |
+        (PAWN_ATTACK_MAPS[BLACK][sq] & pieces[BLACK][PAWN]) |
+        (KNIGHT_ATTACK_MAP[sq] & (pieces[WHITE][KNIGHT] | pieces[BLACK][KNIGHT])) |
+        (KING_ATTACK_MAP[sq]   & (pieces[WHITE][KING]   | pieces[BLACK][KING]))   |
+        (generate_sliding_attack_mask<ROOK>(sq, occupied)   & (pieces[WHITE][ROOK]   | pieces[BLACK][ROOK]   |
+                                                               pieces[WHITE][QUEEN]  | pieces[BLACK][QUEEN])) |
+        (generate_sliding_attack_mask<BISHOP>(sq, occupied) & (pieces[WHITE][BISHOP] | pieces[BLACK][BISHOP] |
+                                                               pieces[WHITE][QUEEN]  | pieces[BLACK][QUEEN]));
 }
 
 // Checks if a move is legal in the current position. Assumes the move was
@@ -494,8 +508,10 @@ bool Board::is_legal_move(Move move) {
         if (piece != PAWN) return false;
         if (to != en_passant_target) return false;
         if (piece_map[to] != NO_PIECE) return false;
+
         Square cap_sq = us == WHITE ? to + SOUTH : to + NORTH;
-        if (piece_map[cap_sq] != PAWN || get_color(cap_sq) != them) return false;
+        bool enemy_pawn_behind = piece_map[cap_sq] == PAWN && get_color(cap_sq) == them;
+        if (!enemy_pawn_behind) return false;
 
     // --- Normal moves and promotions ---
     } else {
@@ -512,17 +528,20 @@ bool Board::is_legal_move(Move move) {
         // Piece geometry - can the piece actually reach 'to' from 'from'?
         if (piece == PAWN) {
             if (move.type() == CAPTURE) {
-                if (!(PAWN_ATTACK_MAPS[them][from] & to_mask)) return false;
+                bool valid_attack = PAWN_ATTACK_MAPS[them][from] & to_mask;
+                if (!valid_attack) return false;
             } else {
                 int dir = us == WHITE ? NORTH : SOUTH;
-                if (to == from + dir) {
-                    // Single push - already verified to is empty above
-                } else if (to == from + dir + dir) {
-                    if (get_rank(from) != (us == WHITE ? RANK_2 : RANK_7)) return false;
-                    if (piece_map[from + dir] != NO_PIECE) return false;
-                } else {
-                    return false;
-                }
+                Square single_push = from + dir;
+                Square double_push = from + dir + dir;
+                Rank start_rank = us == WHITE ? RANK_2 : RANK_7;
+
+                bool is_single = to == single_push;
+                bool is_double = to == double_push
+                              && get_rank(from) == start_rank
+                              && piece_map[single_push] == NO_PIECE;
+
+                if (!is_single && !is_double) return false;
             }
         } else {
             Bitboard reachable;
@@ -534,14 +553,14 @@ bool Board::is_legal_move(Move move) {
                     reachable = KING_ATTACK_MAP[from];
                     break;
                 case BISHOP:
-                    reachable = generate_sliding_attack_mask<BISHOP>(*this, from);
+                    reachable = generate_sliding_attack_mask<BISHOP>(from, occupied);
                     break;
                 case ROOK:
-                    reachable = generate_sliding_attack_mask<ROOK>(*this, from);
+                    reachable = generate_sliding_attack_mask<ROOK>(from, occupied);
                     break;
                 case QUEEN:
-                    reachable = generate_sliding_attack_mask<BISHOP>(*this, from) |
-                                generate_sliding_attack_mask<ROOK>(*this, from);
+                    reachable = generate_sliding_attack_mask<BISHOP>(from, occupied) |
+                                generate_sliding_attack_mask<ROOK>(from, occupied);
                     break;
                 default:
                     return false;
