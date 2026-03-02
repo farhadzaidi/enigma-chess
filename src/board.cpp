@@ -22,6 +22,7 @@ void Board::reset() {
     piece_map.fill(NO_PIECE);
     king_squares.fill(NO_SQUARE);
     positions.fill(0);
+    pawns.fill(0);
 
     early_score.fill(0);
     late_score.fill(0);
@@ -35,6 +36,7 @@ void Board::reset() {
     fullmoves = 0;
     ply = 0;
     zobrist_hash = 0;
+    pawn_hash = 0;
 }
 
 void Board::load_from_fen(const std::string& fen) {
@@ -151,6 +153,7 @@ void Board::load_from_fen(const std::string& fen) {
 
     // Initialize root position hash
     positions[0] = zobrist_hash;
+    pawns[0] = pawn_hash;
 }
 
 void Board::print_board() const {
@@ -322,6 +325,7 @@ void Board::make_move(Move move) {
     states[ply] = state;
     ply += 1;
     positions[ply] = zobrist_hash;
+    pawns[ply] = pawn_hash;
 }
 
 void Board::unmake_move(Move move) {
@@ -406,6 +410,7 @@ void Board::unmake_move(Move move) {
     // Some of the functions above will modify the hash but it
     // doesn't matter since we'll overwrite it here anyway
     zobrist_hash = positions[ply];
+    pawn_hash = pawns[ply];
 }
 
 // Skips the current side's turn and updates board state accordingly
@@ -422,8 +427,9 @@ void Board::make_null_move() {
     toggle_side_to_move();
     ply++;
 
-    // Update positions array
+    // Update hash stacks
     positions[ply] = zobrist_hash;
+    pawns[ply] = pawn_hash;
 }
 
 void Board::unmake_null_move() {
@@ -434,9 +440,10 @@ void Board::unmake_null_move() {
     const State& prev_state = states[ply];
     en_passant_target = prev_state.en_passant_target;
 
-    // Toggle side back and revert the zobrist hash
+    // Toggle side back and revert hashes
     toggle_side_to_move();
     zobrist_hash = positions[ply];
+    pawn_hash = pawns[ply];
 }
 
 bool Board::in_check(Color side) const {

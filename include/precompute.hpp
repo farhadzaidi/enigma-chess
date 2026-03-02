@@ -531,3 +531,56 @@ static inline const auto LMR_TABLE = []() {
     }
     return table;
 }();
+
+constexpr auto ADJACENT_FILE_MASKS = []() {
+    std::array<Bitboard, NUM_SQUARES> adjacent_file_masks = {};
+    for (Square sq = 0; sq < NUM_SQUARES; sq++) {
+        int file = get_file(sq);
+        // Left/right file masks from white's perspective (perspective doesn't matter
+        // though since we compute both)
+        Bitboard left_file = file - 1 >= A_FILE ? FILE_MASKS[file - 1] : EMPTY_BITBOARD;
+        Bitboard right_file = file + 1 <= H_FILE ? FILE_MASKS[file + 1] : EMPTY_BITBOARD;
+        adjacent_file_masks[sq] = left_file | right_file;
+    }
+    
+    return adjacent_file_masks;
+}();
+
+// Includes the indexed square's file as well
+constexpr auto ADJACENT_FILE_MASKS_INCLUSIVE = []() {
+    std::array<Bitboard, NUM_SQUARES> adjacent_file_masks_inclusive = {};
+    for (Square sq = 0; sq < NUM_SQUARES; sq++) {
+        int file = get_file(sq);
+        adjacent_file_masks_inclusive[sq] = ADJACENT_FILE_MASKS[sq] | FILE_MASKS[file];
+    }
+    
+    return adjacent_file_masks_inclusive;
+}();
+
+constexpr auto PASSED_PAWN_MASKS = []() {
+    std::array<std::array<Bitboard, NUM_SQUARES>, NUM_COLORS> passed_pawn_masks = {};
+    
+    // White pawns
+    for (Square sq = 0; sq < NUM_SQUARES; sq++) {
+        int rank = get_rank(sq);
+        Bitboard ranks_in_front = EMPTY_BITBOARD;
+        for (int r = rank + 1; r < BOARD_SIZE; r++) {
+            ranks_in_front |= RANK_MASKS[r];
+        }
+
+        passed_pawn_masks[WHITE][sq] = ranks_in_front & ADJACENT_FILE_MASKS_INCLUSIVE[sq];
+    }
+
+    // Black pawns
+    for (Square sq = 0; sq < NUM_SQUARES; sq++) {
+        int rank = get_rank(sq);
+        Bitboard ranks_in_front = EMPTY_BITBOARD; // From black's perspective
+        for (int r = rank - 1; r >= RANK_1; r--) {
+            ranks_in_front |= RANK_MASKS[r];
+        }
+
+        passed_pawn_masks[BLACK][sq] = ranks_in_front & ADJACENT_FILE_MASKS_INCLUSIVE[sq];
+    }
+
+    return passed_pawn_masks;
+}();

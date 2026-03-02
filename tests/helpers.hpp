@@ -8,6 +8,7 @@
 // include_eval_state=true also checks incremental eval bookkeeping fields.
 inline bool board_position_equal(const Board& a, const Board& b, bool include_eval_state = false) {
     if (a.zobrist_hash != b.zobrist_hash) return false;
+    if (a.pawn_hash != b.pawn_hash) return false;
     if (a.occupied != b.occupied) return false;
     if (a.to_move != b.to_move) return false;
     if (a.castling_rights != b.castling_rights) return false;

@@ -38,7 +38,7 @@ using PieceMap          = std::array<Piece, NUM_SQUARES>;
 using KingSquares       = std::array<Square, NUM_COLORS>;
 using MoveStack         = std::array<Move, MAX_GAME_PLY>;
 using StateStack        = std::array<State, MAX_GAME_PLY>;
-using PositionStack     = std::array<ZobristHash, MAX_GAME_PLY + 1>;
+using HashStack         = std::array<ZobristHash, MAX_GAME_PLY + 1>;
 using Score             = std::array<int, NUM_COLORS>;
 
 class Board {
@@ -47,7 +47,9 @@ public:
     PieceBitboards pieces;
     ColorBitboards colors;
     PieceMap piece_map;
+
     ZobristHash zobrist_hash;
+    ZobristHash pawn_hash;
 
     // Additional information 
     KingSquares king_squares;
@@ -70,7 +72,8 @@ public:
     int ply;
     MoveStack moves; // Keeps track of made moves
     StateStack states; // Keeps track of irreversible board state
-    PositionStack positions; // Position hash for each ply (used for repetition detection)
+    HashStack positions; // Position hash for each ply (used for repetition detection)
+    HashStack pawns; // Zobrist hash for pawn configuration
 
     // ### PUBLIC API
 
@@ -112,7 +115,11 @@ private:
         }
 
         // XOR piece into hash
-        zobrist_hash ^= ZOBRIST_PIECES[color][piece][square];
+        uint64_t zobrist_number = ZOBRIST_PIECES[color][piece][square];
+        zobrist_hash ^= zobrist_number;
+        if (piece == PAWN) {
+            pawn_hash ^= zobrist_number;
+        }
 
         // Update scores
         early_score[color] += EARLY_EVAL_TABLE[color][piece][square];
@@ -132,7 +139,11 @@ private:
         // No need to clear king square here as it will be updated in place_piece
 
         // XOR piece out of hash
-        zobrist_hash ^= ZOBRIST_PIECES[color][piece][square];
+        uint64_t zobrist_number = ZOBRIST_PIECES[color][piece][square];
+        zobrist_hash ^= zobrist_number;
+        if (piece == PAWN) {
+            pawn_hash ^= zobrist_number;
+        }
 
         // Updates score
         early_score[color] -= EARLY_EVAL_TABLE[color][piece][square];

@@ -234,6 +234,28 @@ constexpr Bitboard F_FILE_MASK = 0x2020202020202020ULL;
 constexpr Bitboard G_FILE_MASK = 0x4040404040404040ULL;
 constexpr Bitboard H_FILE_MASK = 0x8080808080808080ULL;
 
+constexpr std::array<Bitboard, BOARD_SIZE> FILE_MASKS = {
+    A_FILE_MASK,
+    B_FILE_MASK,
+    C_FILE_MASK,
+    D_FILE_MASK,
+    E_FILE_MASK,
+    F_FILE_MASK,
+    G_FILE_MASK,
+    H_FILE_MASK
+};
+
+constexpr std::array<Bitboard, BOARD_SIZE> RANK_MASKS = {
+    RANK_1_MASK,
+    RANK_2_MASK,
+    RANK_3_MASK,
+    RANK_4_MASK,
+    RANK_5_MASK,
+    RANK_6_MASK,
+    RANK_7_MASK,
+    RANK_8_MASK
+};
+
 // --- Sentinel Values ---
 
 constexpr Bitboard EMPTY_BITBOARD = 0;

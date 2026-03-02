@@ -12,6 +12,7 @@
 #include "utils.hpp"
 #include "move.hpp"
 #include "transposition_table.hpp"
+#include "pawn_table.hpp"
 
 std::thread search_thread;
 std::atomic<bool> stop_requested(false);
@@ -69,6 +70,7 @@ static void cmd_ucinewgame(Board& b) {
     clean_up_thread();
     b.reset();
     TT.clear();
+    PT.clear();
 }
 
 static void cmd_position(const std::string& cmd, Board& b) {

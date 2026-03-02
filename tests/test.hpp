@@ -23,10 +23,11 @@ bool test_opening_book(Board& b);
 bool test_game_end(Board& b);
 bool test_transposition_table();
 bool test_null_move(Board& b);
+bool test_pawn_table(Board& b);
 
 inline const std::vector<std::string> TEST_NAMES = {
     "in_check", "is_legal_move", "move_selector", "see", "san_parsing", "zobrist", "opening_book",
-    "game_end", "transposition_table", "null_move"
+    "game_end", "transposition_table", "null_move", "pawn_table"
 };
 
 inline int run_tests(const std::vector<std::string>& selected) {
@@ -44,6 +45,7 @@ inline int run_tests(const std::vector<std::string>& selected) {
         {"game_end",            [&]() { return test_game_end(b); }},
         {"transposition_table", [&]() { return test_transposition_table(); }},
         {"null_move",           [&]() { return test_null_move(b); }},
+        {"pawn_table",          [&]() { return test_pawn_table(b); }},
     };
 
     for (const auto& test : tests) {
