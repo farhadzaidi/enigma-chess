@@ -139,8 +139,6 @@ Planned roadmap items:
 
 ### Search
 
-- Late move reductions (LMR)
-- Futility pruning
 - Internal iterative deepening when no TT move is available
 - Check extensions
 

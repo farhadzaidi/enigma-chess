@@ -19,6 +19,7 @@ constexpr uint64_t TIME_CHECK_PERIOD_MASK = 2047;
 constexpr int SEE_CUTOFF = -200;
 constexpr int ASPIRATION_WINDOW = 25;
 constexpr SearchDepth MINIMUM_NULL_MOVE_DEPTH = 3;
+constexpr SearchDepth FUTILITY_CUTOFF_DEPTH = 4;
 
 struct SearchResult {
     Move best_move;
@@ -271,10 +272,39 @@ static inline PositionScore negamax(
         if (score >= beta) return score;
     }
 
+    bool is_close_to_mate = (
+        std::abs(alpha) >= CHECKMATE_SCORE - MAX_SEARCH_PLY || 
+        std::abs(beta) >= CHECKMATE_SCORE - MAX_SEARCH_PLY
+    );
+
+    bool can_use_futility_pruning = (
+        !is_close_to_mate && 
+        !is_pv_node && 
+        !in_check && 
+        depth < FUTILITY_CUTOFF_DEPTH
+    );
+
+    // Compute static eval for futility pruning
+    PositionScore static_eval;
+    if (can_use_futility_pruning) {
+        static_eval = evaluate(b);
+    }
+    PositionScore futility_margin = 90*depth + 40;
+    
     while (true) {
         Move move = move_selector.next_move(b, ss);
         if (move == NULL_MOVE) break;
         else has_moves = true;
+
+        // Futility pruning - if this position is so bad that a quiet
+        // move cannot seemingly save it, then we skip the exploring the move
+        if (
+            can_use_futility_pruning && 
+            num_moves > 0 && // Ensure we don't prune when if we haven't explored any moves
+            move_selector.phase == QUIET_MOVE
+        ) {
+            if (static_eval + futility_margin < alpha) continue;
+        }
 
         b.make_move(move);
         num_moves++;
