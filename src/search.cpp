@@ -15,11 +15,19 @@
 static SearchState ss;
 static OpeningBook opening_book;
 
+IIDStats get_last_iid_stats() {
+    return {
+        .attempts = ss.iid_attempts,
+        .tt_hits = ss.iid_tt_hits,
+    };
+}
+
 constexpr uint64_t TIME_CHECK_PERIOD_MASK = 2047;
 constexpr int SEE_CUTOFF = -200;
 constexpr int ASPIRATION_WINDOW = 25;
 constexpr SearchDepth MINIMUM_NULL_MOVE_DEPTH = 3;
 constexpr SearchDepth FUTILITY_CUTOFF_DEPTH = 4;
+constexpr SearchDepth MINIMUM_IID_DEPTH = 4;
 
 struct SearchResult {
     Move best_move;
@@ -205,12 +213,17 @@ static inline PositionScore negamax(
         return quiescence_search<SM>(b, alpha, beta);
     }
 
+    bool is_pv_node = beta - alpha > 1; 
+
     // Probe transposition table
     TTEntry& tt_entry = TT.get_entry(b.zobrist_hash);
-    bool is_valid_tt_entry = TT.is_valid_entry(b.zobrist_hash, tt_entry);
-    if (is_valid_tt_entry) {
+    Move tt_move = NULL_MOVE;
+    if (TT.is_valid_entry(b.zobrist_hash, tt_entry)) {
         // Denormalize score before returning
         PositionScore tt_score = denormalize_tt_score(tt_entry.score, ss.search_ply(b.ply));
+
+        // Save the TT move
+        tt_move = tt_entry.best_move;
 
         // We can use the TT entry score to cutoff early if the depth of the entry
         // is greater than or equal to the current depth of this node.
@@ -228,6 +241,18 @@ static inline PositionScore negamax(
         ) {
             return tt_score;
         }
+    } else if (is_pv_node && depth >= MINIMUM_IID_DEPTH) {
+        // If we didn't get a hit in the PV, we do a shallow search to get a TT move anyway
+        ss.iid_attempts++;
+        SearchDepth shallow = std::max(0, depth / 2);
+        negamax<SM>(b, shallow, alpha, beta);
+
+        // Probe TT to get the move
+        tt_entry = TT.get_entry(b.zobrist_hash);
+        if (TT.is_valid_entry(b.zobrist_hash, tt_entry)) {
+            ss.iid_tt_hits++;
+            tt_move = tt_entry.best_move;
+        }
     }
 
     // Store original alpha value for this node to determine if it's a fail-low TT node
@@ -236,14 +261,12 @@ static inline PositionScore negamax(
     Move best_move;
     MoveList searched_quiet_moves;
 
-    Move tt_move = is_valid_tt_entry ? tt_entry.best_move : NULL_MOVE;
     MoveSelector move_selector(b, tt_move);
     bool has_moves = false;
     bool is_first_move = true;
     int num_moves = 0;
 
     bool in_check = b.in_check();
-    bool is_pv_node = beta - alpha > 1; 
     bool has_non_pawn_material = (
         b.pieces[b.to_move][KNIGHT] |
         b.pieces[b.to_move][BISHOP] |
@@ -495,6 +518,8 @@ Move search(Board& b, const SearchLimits& limits) {
 
     ss.limits = limits;
     ss.nodes = 0;
+    ss.iid_attempts = 0;
+    ss.iid_tt_hits = 0;
     ss.search_interrupted = false;
     ss.ply_offset = b.ply;
     ss.killer_1.fill(NULL_MOVE);

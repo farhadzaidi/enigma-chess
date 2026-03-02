@@ -16,6 +16,8 @@ struct SearchState {
     SearchLimits limits;
     std::chrono::steady_clock::time_point deadline;
     uint64_t nodes;
+    uint64_t iid_attempts;
+    uint64_t iid_tt_hits;
     int ply_offset;
     bool search_interrupted;
 

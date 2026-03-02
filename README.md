@@ -139,7 +139,6 @@ Planned roadmap items:
 
 ### Search
 
-- Internal iterative deepening when no TT move is available
 - Check extensions
 
 ### Evaluation
