@@ -40,16 +40,6 @@ FAST_SPRT_ALPHA = 0.05
 FAST_SPRT_BETA = 0.05
 FAST_GAMES = 1000
 
-# Smoke preset
-SMOKE_TIME = 15
-SMOKE_INCREMENT = 0
-SMOKE_DRAW_MOVENUMBER = 50
-SMOKE_DRAW_MOVECOUNT = 6
-SMOKE_DRAW_SCORE = 6
-SMOKE_RESIGN_MOVECOUNT = 6
-SMOKE_RESIGN_SCORE = 700
-SMOKE_GAMES = 300
-
 # Debug preset
 DEBUG_TIME = 60
 DEBUG_INCREMENT = 0
@@ -206,9 +196,8 @@ parser.add_argument('engine_b_version', nargs='?', help='Engine B version (e.g. 
 
 # Mode selection (mutually exclusive, required)
 mode_group = parser.add_mutually_exclusive_group(required=True)
-mode_group.add_argument('--confident', action='store_true', help='Run confident SPRT test (elo1=5, tc=60+0)')
-mode_group.add_argument('--fast', action='store_true', help='Run fast SPRT test (elo1=10, tc=50+0)')
-mode_group.add_argument('--smoke', action='store_true', help='Run smoke test (400 games, tc=30+0)')
+mode_group.add_argument('--confident', action='store_true', help='Run confident SPRT test (elo1=10, tc=60+0)')
+mode_group.add_argument('--fast', action='store_true', help='Run fast SPRT test (elo1=20, tc=30+0)')
 mode_group.add_argument('--debug', action='store_true', help='Run debug mode (2 games, no adjudication)')
 mode_group.add_argument('--custom', action='store_true', help='Run custom test with specified parameters')
 
@@ -232,8 +221,6 @@ if args.confident:
     mode = 'confident'
 elif args.fast:
     mode = 'fast'
-elif args.smoke:
-    mode = 'smoke'
 elif args.debug:
     mode = 'debug'
 else:
@@ -314,32 +301,6 @@ elif mode == 'fast':
             'SPRT': f'elo0={FAST_SPRT_ELO0}, elo1={FAST_SPRT_ELO1}, alpha={FAST_SPRT_ALPHA}, beta={FAST_SPRT_BETA}',
             'Draw': f'movenumber={FAST_DRAW_MOVENUMBER}, movecount={FAST_DRAW_MOVECOUNT}, score={FAST_DRAW_SCORE}',
             'Resign': f'movecount={FAST_RESIGN_MOVECOUNT}, score={FAST_RESIGN_SCORE}',
-            'Concurrency': CONCURRENCY
-        }
-    )
-
-elif mode == 'smoke':
-    cmd = build_cmd(
-        engine_a, engine_b, engine_a_name, engine_b_name,
-        tc=f'{SMOKE_TIME}+{SMOKE_INCREMENT}',
-        timemargin=TIMEMARGIN,
-        draw={'movenumber': SMOKE_DRAW_MOVENUMBER, 'movecount': SMOKE_DRAW_MOVECOUNT, 'score': SMOKE_DRAW_SCORE},
-        resign={'movecount': SMOKE_RESIGN_MOVECOUNT, 'score': SMOKE_RESIGN_SCORE},
-        games=SMOKE_GAMES,
-        repeat=True,
-        concurrency=CONCURRENCY
-    )
-
-    print_config(
-        'Smoke Test',
-        engine_a_name,
-        engine_b_name,
-        **{
-            'Time Control': f'{SMOKE_TIME}+{SMOKE_INCREMENT}',
-            'Timemargin': f'{TIMEMARGIN}ms',
-            'Games': SMOKE_GAMES,
-            'Draw': f'movenumber={SMOKE_DRAW_MOVENUMBER}, movecount={SMOKE_DRAW_MOVECOUNT}, score={SMOKE_DRAW_SCORE}',
-            'Resign': f'movecount={SMOKE_RESIGN_MOVECOUNT}, score={SMOKE_RESIGN_SCORE}',
             'Concurrency': CONCURRENCY
         }
     )

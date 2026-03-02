@@ -341,24 +341,30 @@ static inline PositionScore negamax(
         if (in_check) R = 0;
         if (move_selector.phase < QUIET_MOVE) R = 0;
 
+        // If this move checks the opponent, then we extend the search depth here
+        // Note that we're not using the earlier in_check boolean that is used to
+        // determine if the moving side is in check, but rather we're recomputing
+        // here for the other side after making our move
+        int extension = b.in_check() ? 1 : 0;
+
         // Clamp the reduction constant to prevent overflow/underflow
         R = std::clamp(R, 0, depth - 1);
 
         PositionScore score;
         if (is_first_move) {
-            score = -negamax<SM>(b, depth - 1, -beta, -alpha);
+            score = -negamax<SM>(b, depth - 1 + extension, -beta, -alpha);
             is_first_move = false;
         } else {
-            score = -negamax<SM>(b, depth - 1 - R, -alpha - 1, -alpha);
+            score = -negamax<SM>(b, depth - 1 - R + extension, -alpha - 1, -alpha);
 
             // Re-search at full depth but reduced window since we beat alpha at the reduced depth
             if (score > alpha && R > 0) {
-                score = -negamax<SM>(b, depth - 1, -alpha - 1, -alpha);
+                score = -negamax<SM>(b, depth - 1 + extension, -alpha - 1, -alpha);
             }
 
             // Re-search at full depth and full window if we still beat alpha
             if (score > alpha && score < beta) {
-                score = -negamax<SM>(b, depth - 1, -beta, -alpha);
+                score = -negamax<SM>(b, depth - 1 + extension, -beta, -alpha);
             }
         }
 
