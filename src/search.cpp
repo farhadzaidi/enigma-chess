@@ -57,37 +57,6 @@ static inline bool should_stop_search() {
     }
 }
 
-// static inline int score_move(Move m) {
-//     return m.is_promotion() ? 3 : m.type() == CAPTURE ? 2 : 1;
-// }
-
-// template <bool UsePrevBestMove>
-// static inline void order_moves(Board& b, MoveList& moves, Move prev_best_move = NULL_MOVE) {
-//     // Store the TT move if we have a hit
-//     Move tt_move;
-//     TTEntry& tt_entry = TT.get_entry(b.zobrist_hash);
-//     if (TT.is_valid_entry(b.zobrist_hash, tt_entry)) {
-//         tt_move = tt_entry.best_move;
-//     }
-
-//     // Prioritize promotions, captures, then quiet moves (in that order)
-//     std::sort(moves.begin(), moves.end(), [prev_best_move, tt_move](const Move& m1, const Move& m2) {
-//         // Always try the previous best move first if we have it
-//         if constexpr (UsePrevBestMove) {
-//             if (m1 == prev_best_move) return true;
-//             if (m2 == prev_best_move) return false;
-//         }
-
-//         // Then try the TT move if we have one
-//         if (tt_move != NULL_MOVE) {
-//             if (m1 == tt_move) return true;
-//             if (m2 == tt_move) return false;
-//         }
-
-//         return score_move(m1) > score_move(m2);
-//     });
-// }
-
 // Normalizes checkmate scores from current search ply to relative distance
 // This helps determine how far the mate is from the current ply if this score is retrieved
 // from the transposition table
@@ -270,6 +239,7 @@ static inline PositionScore negamax(
     MoveSelector move_selector(b, tt_move);
     bool has_moves = false;
     bool is_first_move = true;
+    int num_moves = 0;
 
     bool in_check = b.in_check();
     bool is_pv_node = beta - alpha > 1; 
@@ -307,13 +277,33 @@ static inline PositionScore negamax(
         else has_moves = true;
 
         b.make_move(move);
+        num_moves++;
+
+        // Late move reduction setting
+        int R = LMR_TABLE[depth][num_moves]; 
+        if (is_pv_node) R -= 1;
+
+        // Don't reduce depth if we're in check or searching good moves
+        // i.e. no quiet moves or losing captures
+        if (in_check) R = 0;
+        if (move_selector.phase < QUIET_MOVE) R = 0;
+
+        // Clamp the reduction constant to prevent overflow/underflow
+        R = std::clamp(R, 0, depth - 1);
 
         PositionScore score;
         if (is_first_move) {
             score = -negamax<SM>(b, depth - 1, -beta, -alpha);
             is_first_move = false;
         } else {
-            score = -negamax<SM>(b, depth - 1, -alpha - 1, -alpha);
+            score = -negamax<SM>(b, depth - 1 - R, -alpha - 1, -alpha);
+
+            // Re-search at full depth but reduced window since we beat alpha at the reduced depth
+            if (score > alpha && R > 0) {
+                score = -negamax<SM>(b, depth - 1, -alpha - 1, -alpha);
+            }
+
+            // Re-search at full depth and full window if we still beat alpha
             if (score > alpha && score < beta) {
                 score = -negamax<SM>(b, depth - 1, -beta, -alpha);
             }

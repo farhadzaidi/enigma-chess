@@ -516,3 +516,18 @@ constexpr auto LINES = []() {
 
     return lines;
 }();
+
+// Late Move Reduction table
+// R(depth, move_index) ≈ floor(ln(depth + 1) * ln(move_index + 1) / tuning_constant)
+constexpr int LMR_MAX_MOVES = 128;
+constexpr int TUNING_CONSTANT = 2.0;
+
+static inline const auto LMR_TABLE = []() {
+    std::array<std::array<int, LMR_MAX_MOVES>, MAX_SEARCH_PLY> table{};
+    for (int d = 0; d < MAX_SEARCH_PLY; d++) {
+        for (int m = 0; m < LMR_MAX_MOVES; m++) {
+            table[d][m] = std::log(d + 1) * std::log(m + 1) / TUNING_CONSTANT;
+        }
+    }
+    return table;
+}();
