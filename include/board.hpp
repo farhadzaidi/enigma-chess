@@ -7,6 +7,7 @@
 #include "move.hpp"
 #include "utils.hpp"
 #include "precompute.hpp"
+#include "zobrist.hpp"
 #include "transposition_table.hpp"
 
 // This struct contains important board state information which is useful for undoing moves
