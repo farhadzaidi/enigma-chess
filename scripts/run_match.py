@@ -12,33 +12,47 @@ require_env('cutechess_cli_binary')
 CONCURRENCY = 8
 TIMEMARGIN = 50
 
-# Confident preset
-CONFIDENT_TIME = 60
-CONFIDENT_INCREMENT = 0
-CONFIDENT_DRAW_MOVENUMBER = 70
-CONFIDENT_DRAW_MOVECOUNT = 10
-CONFIDENT_DRAW_SCORE = 4
-CONFIDENT_RESIGN_MOVECOUNT = 10
-CONFIDENT_RESIGN_SCORE = 700
-CONFIDENT_SPRT_ELO0 = 0
-CONFIDENT_SPRT_ELO1 = 10
-CONFIDENT_SPRT_ALPHA = 0.05
-CONFIDENT_SPRT_BETA = 0.05
-CONFIDENT_GAMES = 5000
+# Quick preset (expected 30+ Elo gains)
+QUICK_TIME = 10
+QUICK_INCREMENT = 0
+QUICK_DRAW_MOVENUMBER = 60
+QUICK_DRAW_MOVECOUNT = 8
+QUICK_DRAW_SCORE = 5
+QUICK_RESIGN_MOVECOUNT = 8
+QUICK_RESIGN_SCORE = 600
+QUICK_SPRT_ELO0 = 0
+QUICK_SPRT_ELO1 = 30
+QUICK_SPRT_ALPHA = 0.05
+QUICK_SPRT_BETA = 0.05
+QUICK_GAMES = 1000
 
-# Fast preset
-FAST_TIME = 30
-FAST_INCREMENT = 0
-FAST_DRAW_MOVENUMBER = 60
-FAST_DRAW_MOVECOUNT = 8
-FAST_DRAW_SCORE = 5
-FAST_RESIGN_MOVECOUNT = 8
-FAST_RESIGN_SCORE = 600
-FAST_SPRT_ELO0 = 0
-FAST_SPRT_ELO1 = 20
-FAST_SPRT_ALPHA = 0.05
-FAST_SPRT_BETA = 0.05
-FAST_GAMES = 1000
+# Standard preset (expected ~20 Elo gains)
+STANDARD_TIME = 30
+STANDARD_INCREMENT = 0
+STANDARD_DRAW_MOVENUMBER = 60
+STANDARD_DRAW_MOVECOUNT = 8
+STANDARD_DRAW_SCORE = 5
+STANDARD_RESIGN_MOVECOUNT = 8
+STANDARD_RESIGN_SCORE = 600
+STANDARD_SPRT_ELO0 = 0
+STANDARD_SPRT_ELO1 = 20
+STANDARD_SPRT_ALPHA = 0.05
+STANDARD_SPRT_BETA = 0.05
+STANDARD_GAMES = 2000
+
+# Precise preset (expected ~10 Elo gains)
+PRECISE_TIME = 45
+PRECISE_INCREMENT = 0
+PRECISE_DRAW_MOVENUMBER = 70
+PRECISE_DRAW_MOVECOUNT = 10
+PRECISE_DRAW_SCORE = 4
+PRECISE_RESIGN_MOVECOUNT = 10
+PRECISE_RESIGN_SCORE = 700
+PRECISE_SPRT_ELO0 = 0
+PRECISE_SPRT_ELO1 = 10
+PRECISE_SPRT_ALPHA = 0.05
+PRECISE_SPRT_BETA = 0.05
+PRECISE_GAMES = 5000
 
 # Debug preset
 DEBUG_TIME = 60
@@ -196,8 +210,9 @@ parser.add_argument('engine_b_version', nargs='?', help='Engine B version (e.g. 
 
 # Mode selection (mutually exclusive, required)
 mode_group = parser.add_mutually_exclusive_group(required=True)
-mode_group.add_argument('--confident', action='store_true', help='Run confident SPRT test (elo1=10, tc=60+0)')
-mode_group.add_argument('--fast', action='store_true', help='Run fast SPRT test (elo1=20, tc=30+0)')
+mode_group.add_argument('--quick', action='store_true', help='Run quick SPRT test for 30+ Elo gains (elo1=30, tc=10+0)')
+mode_group.add_argument('--standard', action='store_true', help='Run standard SPRT test for ~20 Elo gains (elo1=20, tc=30+0)')
+mode_group.add_argument('--precise', action='store_true', help='Run precise SPRT test for ~10 Elo gains (elo1=10, tc=45+0)')
 mode_group.add_argument('--debug', action='store_true', help='Run debug mode (2 games, no adjudication)')
 mode_group.add_argument('--custom', action='store_true', help='Run custom test with specified parameters')
 
@@ -217,10 +232,12 @@ if not args.custom:
         exit(1)
 
 # Determine mode
-if args.confident:
-    mode = 'confident'
-elif args.fast:
-    mode = 'fast'
+if args.quick:
+    mode = 'quick'
+elif args.standard:
+    mode = 'standard'
+elif args.precise:
+    mode = 'precise'
 elif args.debug:
     mode = 'debug'
 else:
@@ -249,58 +266,86 @@ elif args.engine_a_version is not None and args.engine_b_version is not None:
     engine_b_name = engine_b.name
 
 # Build command based on mode
-if mode == 'confident':
+if mode == 'quick':
     cmd = build_cmd(
         engine_a, engine_b, engine_a_name, engine_b_name,
-        tc=f'{CONFIDENT_TIME}+{CONFIDENT_INCREMENT}',
+        tc=f'{QUICK_TIME}+{QUICK_INCREMENT}',
         timemargin=TIMEMARGIN,
-        draw={'movenumber': CONFIDENT_DRAW_MOVENUMBER, 'movecount': CONFIDENT_DRAW_MOVECOUNT, 'score': CONFIDENT_DRAW_SCORE},
-        resign={'movecount': CONFIDENT_RESIGN_MOVECOUNT, 'score': CONFIDENT_RESIGN_SCORE},
-        sprt={'elo0': CONFIDENT_SPRT_ELO0, 'elo1': CONFIDENT_SPRT_ELO1, 'alpha': CONFIDENT_SPRT_ALPHA, 'beta': CONFIDENT_SPRT_BETA},
-        games=CONFIDENT_GAMES,
+        draw={'movenumber': QUICK_DRAW_MOVENUMBER, 'movecount': QUICK_DRAW_MOVECOUNT, 'score': QUICK_DRAW_SCORE},
+        resign={'movecount': QUICK_RESIGN_MOVECOUNT, 'score': QUICK_RESIGN_SCORE},
+        sprt={'elo0': QUICK_SPRT_ELO0, 'elo1': QUICK_SPRT_ELO1, 'alpha': QUICK_SPRT_ALPHA, 'beta': QUICK_SPRT_BETA},
+        games=QUICK_GAMES,
         repeat=True,
         concurrency=CONCURRENCY
     )
 
     print_config(
-        'Confident SPRT',
+        'Quick SPRT (30+ Elo)',
         engine_a_name,
         engine_b_name,
         **{
-            'Time Control': f'{CONFIDENT_TIME}+{CONFIDENT_INCREMENT}',
+            'Time Control': f'{QUICK_TIME}+{QUICK_INCREMENT}',
             'Timemargin': f'{TIMEMARGIN}ms',
-            'Games': CONFIDENT_GAMES,
-            'SPRT': f'elo0={CONFIDENT_SPRT_ELO0}, elo1={CONFIDENT_SPRT_ELO1}, alpha={CONFIDENT_SPRT_ALPHA}, beta={CONFIDENT_SPRT_BETA}',
-            'Draw': f'movenumber={CONFIDENT_DRAW_MOVENUMBER}, movecount={CONFIDENT_DRAW_MOVECOUNT}, score={CONFIDENT_DRAW_SCORE}',
-            'Resign': f'movecount={CONFIDENT_RESIGN_MOVECOUNT}, score={CONFIDENT_RESIGN_SCORE}',
+            'Games': QUICK_GAMES,
+            'SPRT': f'elo0={QUICK_SPRT_ELO0}, elo1={QUICK_SPRT_ELO1}, alpha={QUICK_SPRT_ALPHA}, beta={QUICK_SPRT_BETA}',
+            'Draw': f'movenumber={QUICK_DRAW_MOVENUMBER}, movecount={QUICK_DRAW_MOVECOUNT}, score={QUICK_DRAW_SCORE}',
+            'Resign': f'movecount={QUICK_RESIGN_MOVECOUNT}, score={QUICK_RESIGN_SCORE}',
             'Concurrency': CONCURRENCY
         }
     )
 
-elif mode == 'fast':
+elif mode == 'standard':
     cmd = build_cmd(
         engine_a, engine_b, engine_a_name, engine_b_name,
-        tc=f'{FAST_TIME}+{FAST_INCREMENT}',
+        tc=f'{STANDARD_TIME}+{STANDARD_INCREMENT}',
         timemargin=TIMEMARGIN,
-        draw={'movenumber': FAST_DRAW_MOVENUMBER, 'movecount': FAST_DRAW_MOVECOUNT, 'score': FAST_DRAW_SCORE},
-        resign={'movecount': FAST_RESIGN_MOVECOUNT, 'score': FAST_RESIGN_SCORE},
-        sprt={'elo0': FAST_SPRT_ELO0, 'elo1': FAST_SPRT_ELO1, 'alpha': FAST_SPRT_ALPHA, 'beta': FAST_SPRT_BETA},
-        games=FAST_GAMES,
+        draw={'movenumber': STANDARD_DRAW_MOVENUMBER, 'movecount': STANDARD_DRAW_MOVECOUNT, 'score': STANDARD_DRAW_SCORE},
+        resign={'movecount': STANDARD_RESIGN_MOVECOUNT, 'score': STANDARD_RESIGN_SCORE},
+        sprt={'elo0': STANDARD_SPRT_ELO0, 'elo1': STANDARD_SPRT_ELO1, 'alpha': STANDARD_SPRT_ALPHA, 'beta': STANDARD_SPRT_BETA},
+        games=STANDARD_GAMES,
         repeat=True,
         concurrency=CONCURRENCY
     )
 
     print_config(
-        'Fast SPRT',
+        'Standard SPRT (~20 Elo)',
         engine_a_name,
         engine_b_name,
         **{
-            'Time Control': f'{FAST_TIME}+{FAST_INCREMENT}',
+            'Time Control': f'{STANDARD_TIME}+{STANDARD_INCREMENT}',
             'Timemargin': f'{TIMEMARGIN}ms',
-            'Games': FAST_GAMES,
-            'SPRT': f'elo0={FAST_SPRT_ELO0}, elo1={FAST_SPRT_ELO1}, alpha={FAST_SPRT_ALPHA}, beta={FAST_SPRT_BETA}',
-            'Draw': f'movenumber={FAST_DRAW_MOVENUMBER}, movecount={FAST_DRAW_MOVECOUNT}, score={FAST_DRAW_SCORE}',
-            'Resign': f'movecount={FAST_RESIGN_MOVECOUNT}, score={FAST_RESIGN_SCORE}',
+            'Games': STANDARD_GAMES,
+            'SPRT': f'elo0={STANDARD_SPRT_ELO0}, elo1={STANDARD_SPRT_ELO1}, alpha={STANDARD_SPRT_ALPHA}, beta={STANDARD_SPRT_BETA}',
+            'Draw': f'movenumber={STANDARD_DRAW_MOVENUMBER}, movecount={STANDARD_DRAW_MOVECOUNT}, score={STANDARD_DRAW_SCORE}',
+            'Resign': f'movecount={STANDARD_RESIGN_MOVECOUNT}, score={STANDARD_RESIGN_SCORE}',
+            'Concurrency': CONCURRENCY
+        }
+    )
+
+elif mode == 'precise':
+    cmd = build_cmd(
+        engine_a, engine_b, engine_a_name, engine_b_name,
+        tc=f'{PRECISE_TIME}+{PRECISE_INCREMENT}',
+        timemargin=TIMEMARGIN,
+        draw={'movenumber': PRECISE_DRAW_MOVENUMBER, 'movecount': PRECISE_DRAW_MOVECOUNT, 'score': PRECISE_DRAW_SCORE},
+        resign={'movecount': PRECISE_RESIGN_MOVECOUNT, 'score': PRECISE_RESIGN_SCORE},
+        sprt={'elo0': PRECISE_SPRT_ELO0, 'elo1': PRECISE_SPRT_ELO1, 'alpha': PRECISE_SPRT_ALPHA, 'beta': PRECISE_SPRT_BETA},
+        games=PRECISE_GAMES,
+        repeat=True,
+        concurrency=CONCURRENCY
+    )
+
+    print_config(
+        'Precise SPRT (~10 Elo)',
+        engine_a_name,
+        engine_b_name,
+        **{
+            'Time Control': f'{PRECISE_TIME}+{PRECISE_INCREMENT}',
+            'Timemargin': f'{TIMEMARGIN}ms',
+            'Games': PRECISE_GAMES,
+            'SPRT': f'elo0={PRECISE_SPRT_ELO0}, elo1={PRECISE_SPRT_ELO1}, alpha={PRECISE_SPRT_ALPHA}, beta={PRECISE_SPRT_BETA}',
+            'Draw': f'movenumber={PRECISE_DRAW_MOVENUMBER}, movecount={PRECISE_DRAW_MOVECOUNT}, score={PRECISE_DRAW_SCORE}',
+            'Resign': f'movecount={PRECISE_RESIGN_MOVECOUNT}, score={PRECISE_RESIGN_SCORE}',
             'Concurrency': CONCURRENCY
         }
     )

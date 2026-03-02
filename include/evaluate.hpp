@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <bit>
 
 #include "board.hpp"
 #include "precompute.hpp"
@@ -8,7 +9,7 @@
 #include "utils.hpp"
 #include "pawn_table.hpp"
 
-// --- Pawn Terms ---
+// --- Pawn Bonuses ---
 
 constexpr auto EARLY_PASSED_PAWN_BONUS = []() {
     std::array<PositionScore, BOARD_SIZE> bonus = { 0, 0, 3, 8, 15, 25, 40, 0 };
@@ -37,6 +38,12 @@ constexpr PositionScore LATE_ISOLATED_PAWN_PENALTY  = -12;
 
 constexpr PositionScore EARLY_STACKED_PAWN_PENALTY  =  -8;
 constexpr PositionScore LATE_STACKED_PAWN_PENALTY   = -10;
+
+// --- Bishop Bonuses ---
+
+constexpr PositionScore EARLY_BISHOP_PAIR_BONUS = 20;
+constexpr PositionScore LATE_BISHOP_PAIR_BONUS = 40;
+
 
 inline PawnTableEntry get_pawn_score(Board& b) {
     // Check pawn table before computing
@@ -103,12 +110,36 @@ inline PositionScore evaluate(Board& b) {
     Color us = b.to_move;
     Color them = us ^ 1;
 
+    // Pawn structure
     PawnTableEntry pt_entry = get_pawn_score(b);
     PositionScore early_pawn_score = pt_entry.early_pawn_score[us] - pt_entry.early_pawn_score[them];
     PositionScore late_pawn_score = pt_entry.late_pawn_score[us] - pt_entry.late_pawn_score[them];
 
-    PositionScore net_early_score = b.early_score[us] - b.early_score[them] + early_pawn_score;
-    PositionScore net_late_score = b.late_score[us] - b.late_score[them] + late_pawn_score;
+    // Bishop pair
+    PositionScore early_bishop_pair_score = 0;
+    PositionScore late_bishop_pair_score = 0;
+
+    if (std::popcount(b.pieces[us][BISHOP]) >= 2) {
+        early_bishop_pair_score += EARLY_BISHOP_PAIR_BONUS;
+        late_bishop_pair_score += LATE_BISHOP_PAIR_BONUS;
+    }
+
+    if (std::popcount(b.pieces[them][BISHOP]) >= 2) {
+        early_bishop_pair_score -= EARLY_BISHOP_PAIR_BONUS;
+        late_bishop_pair_score -= LATE_BISHOP_PAIR_BONUS;
+    }
+
+    PositionScore net_early_score = (
+        b.early_score[us] - b.early_score[them] + 
+        early_pawn_score + 
+        early_bishop_pair_score
+    );
+
+    PositionScore net_late_score = (
+        b.late_score[us] - b.late_score[them] + 
+        late_pawn_score +
+        late_bishop_pair_score
+    );
 
     // Clamp early game phase multiplier in case of early promotion
     int early_multiplier = std::min(b.game_phase, MAX_GAME_PHASE);
