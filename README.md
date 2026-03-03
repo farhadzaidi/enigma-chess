@@ -1,17 +1,22 @@
 # Enigma Chess
 
-Enigma is a UCI-compatible chess engine written in C++20.
+Enigma is a UCI-compatible chess engine written in C++.  
+[Play against it on Lichess!](https://lichess.org/@/enigma-chess-bot)
+
+#### Lichess Ratings (as of 03/03/2026)
+- Bullet: **2339** (95.6th percentile)
+- Blitz: **2362** (98.8th percentile)
 
 ## Requirements
 
 - CMake 3.16+
-- A C++20 compiler (GCC, Clang, or MSVC)
+- A C++20 compiler
 
 ## Build
 
 ```bash
-cmake -S . -B build
-cmake --build build -j
+cmake -B build
+cmake --build build
 ```
 
 Binary path:
@@ -101,15 +106,6 @@ Runs the built-in test suite.
 - With no names, all tests run.
 - With one or more names, only those tests run.
 
-Available test names:
-
-- `in_check`
-- `san_parsing`
-- `zobrist`
-- `opening_book`
-- `game_end`
-- `transposition_table`
-
 Examples:
 
 ```bash
@@ -132,17 +128,6 @@ Example:
 ```bash
 ./build/enigma debug
 ```
-
-## Future Enhancements
-
-Planned roadmap items:
-
-
-### Evaluation
-
-- Rooks (on 2nd/7th rank, behind passed pawn, connected rooks)
-- Knight outpost
-
 
 ## License
 
