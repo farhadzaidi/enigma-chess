@@ -137,15 +137,10 @@ Example:
 
 Planned roadmap items:
 
-### Search
-
-- Check extensions
 
 ### Evaluation
 
-- King safety terms (pawn shield, open files, nearby attackers)
 - Rooks (on 2nd/7th rank, behind passed pawn, connected rooks)
-- Piece mobility (open files/diagnols for rooks, bishops, queens)
 - Knight outpost
 
 

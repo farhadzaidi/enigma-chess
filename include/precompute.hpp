@@ -584,3 +584,21 @@ constexpr auto PASSED_PAWN_MASKS = []() {
 
     return passed_pawn_masks;
 }();
+
+// --- KING SAFETY ---
+constexpr auto KING_SHIELD_MASKS = []() {
+    std::array<std::array<Bitboard, NUM_SQUARES>, NUM_COLORS> king_shield_masks = {};
+
+    for (Square sq = 0; sq < NUM_SQUARES; sq++) {
+        int rank = get_rank(sq);
+        Bitboard white_rank_in_front = rank < RANK_8 ? RANK_MASKS[rank + 1] : 0;
+        Bitboard white_shield_mask = ADJACENT_FILE_MASKS_INCLUSIVE[sq] & white_rank_in_front;
+        king_shield_masks[WHITE][sq] = white_shield_mask;
+
+        Bitboard black_rank_in_front = rank > RANK_1 ? RANK_MASKS[rank - 1] : 0;
+        Bitboard black_shield_mask = ADJACENT_FILE_MASKS_INCLUSIVE[sq] & black_rank_in_front;
+        king_shield_masks[BLACK][sq] = black_shield_mask;
+    }
+
+    return king_shield_masks;
+}();
