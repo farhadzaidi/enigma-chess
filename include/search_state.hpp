@@ -16,6 +16,7 @@ struct SearchLimits {
 struct SearchState {
     SearchLimits limits;
     std::chrono::steady_clock::time_point deadline;
+    std::chrono::steady_clock::time_point soft_deadline;
     uint64_t nodes;
     uint64_t iid_attempts;
     uint64_t iid_tt_hits;
@@ -34,3 +35,5 @@ struct SearchState {
         return board_ply - ply_offset;
     }
 };
+
+extern SearchState ss;

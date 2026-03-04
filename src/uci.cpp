@@ -9,6 +9,7 @@
 #include "types.hpp"
 #include "board.hpp"
 #include "search.hpp"
+#include "search_state.hpp"
 #include "utils.hpp"
 #include "move.hpp"
 #include "transposition_table.hpp"
@@ -16,7 +17,9 @@
 
 std::thread search_thread;
 std::atomic<bool> stop_requested(false);
+std::atomic<bool> pondering(false);
 bool use_own_book = true;
+bool enable_ponder = false;
 
 struct SearchTime {
     int soft_limit;
@@ -26,6 +29,7 @@ struct SearchTime {
 // Stops the search and joins the thread to prevent any dangling threads/race conditions
 static void clean_up_thread() {
     stop_requested = true;
+    pondering = false;
 
     if (search_thread.joinable()) {
         search_thread.join();
@@ -59,6 +63,7 @@ static void print(const std::string& str) {
 static void cmd_uci() {
     print("id name Enigma");
     print("id author Syed Zaidi");
+    print("option name Ponder type check default false");
     print("option name OwnBook type check default true");
     print("uciok");
 }
@@ -76,6 +81,8 @@ static void cmd_setoption(const std::string& cmd) {
 
     if (name == "OwnBook") {
         use_own_book = (value == "true");
+    } else if (name == "Ponder") {
+        enable_ponder = (value == "true");
     }
 }
 
@@ -128,13 +135,13 @@ static void cmd_go(std::string& cmd, Board& b) {
     int movestogo = -1;
     int nodes = -1, depth = -1;
     bool infinite = false;
+    bool is_ponder_search = false;
     std::istringstream iss(cmd);
     std::string token;
 
     int soft_time = -1;
     int hard_time = -1;
 
-    // TODO: implement remaining go options
     iss >> token;
     while (iss >> token) {
         if (token == "wtime") {
@@ -155,8 +162,12 @@ static void cmd_go(std::string& cmd, Board& b) {
             iss >> depth;
         } else if (token == "infinite") {
             infinite = true;
+        } else if (token == "ponder") {
+            is_ponder_search = true;
         }
     }
+
+    bool do_ponder = enable_ponder && is_ponder_search;
 
     SearchMode search_mode;
     if (hard_time != -1) {
@@ -190,6 +201,8 @@ static void cmd_go(std::string& cmd, Board& b) {
 
     // Create new search thread and start the search
     clean_up_thread();
+    pondering = do_ponder;
+
     search_thread = std::thread([&b, search_mode, soft_time, hard_time, nodes, depth]() {
         Move best_move;
 
@@ -203,7 +216,23 @@ static void cmd_go(std::string& cmd, Board& b) {
             best_move = search_infinite(b);
         }
 
-        print("bestmove " + decode_move_to_uci(best_move));
+        // Extract ponder move by probing TT after making bestmove
+        std::string ponder_str;
+        if (best_move != NULL_MOVE) {
+            b.make_move(best_move);
+            TTEntry* tt_entry = TT.get_entry(b.zobrist_hash);
+            if (tt_entry && tt_entry->best_move != NULL_MOVE) {
+                ponder_str = " ponder " + decode_move_to_uci(tt_entry->best_move);
+            }
+            b.unmake_move(best_move);
+        }
+
+        // Wait while pondering — ponderhit or stop will release us
+        while (pondering && !stop_requested) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+
+        print("bestmove " + decode_move_to_uci(best_move) + ponder_str);
     });
 }
 
@@ -216,7 +245,14 @@ static void cmd_register() {
 }
 
 static void cmd_ponderhit() {
-    // TODO
+    // Reset deadlines relative to now, then release the pondering flag.
+    // Write ordering matters: deadline before pondering (release-acquire).
+    auto now = std::chrono::steady_clock::now();
+    ss.deadline = now + std::chrono::milliseconds(ss.limits.hard_time);
+    if (ss.limits.soft_time != -1) {
+        ss.soft_deadline = now + std::chrono::milliseconds(ss.limits.soft_time);
+    }
+    pondering = false;
 }
 
 static void cmd_stop() {

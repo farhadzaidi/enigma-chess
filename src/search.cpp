@@ -12,7 +12,7 @@
 #include "move_selector.hpp"
 #include "see.hpp"
 
-static SearchState ss;
+SearchState ss;
 static OpeningBook opening_book;
 
 constexpr uint64_t TIME_CHECK_PERIOD_MASK = 2047;
@@ -45,8 +45,10 @@ static inline bool should_stop_search() {
     if constexpr (SM == TIME) {
         // Check if the search has exceeded its time limit (if search mode is TIME)
         // Only check every N nodes (where N = TIME_CHECK_PERIOD_MASK + 1)
+        // Skip time check while pondering
         return (
-            (ss.nodes & TIME_CHECK_PERIOD_MASK) == 0
+            !pondering
+            && (ss.nodes & TIME_CHECK_PERIOD_MASK) == 0
             && std::chrono::steady_clock::now() >= ss.deadline
         );
     } else if constexpr (SM == NODES) {
@@ -528,12 +530,12 @@ Move search(Board& b, const SearchLimits& limits) {
     ss.from_to = {};
 
     // Calculate search deadline based on time limit if search mode is TIME
-    auto soft_deadline = std::chrono::steady_clock::time_point::max();
+    ss.soft_deadline = std::chrono::steady_clock::time_point::max();
     if constexpr (SM == TIME) {
         auto now = std::chrono::steady_clock::now();
         ss.deadline = now + std::chrono::milliseconds(limits.hard_time);
         if (limits.soft_time != -1) {
-            soft_deadline = now + std::chrono::milliseconds(limits.soft_time);
+            ss.soft_deadline = now + std::chrono::milliseconds(limits.soft_time);
         }
     }
 
@@ -555,7 +557,8 @@ Move search(Board& b, const SearchLimits& limits) {
 
         if constexpr (SM == TIME) {
             // Check if we hit our soft time limit and if so whether we should continue
-            if (std::chrono::steady_clock::now() >= soft_deadline) {
+            // Skip while pondering
+            if (!pondering && std::chrono::steady_clock::now() >= ss.soft_deadline) {
                 bool score_dropped = (prev_score - score) > SCORE_DROP_THRESHOLD;
                 if (score_dropped || best_move_stability == 0) {
                     // Extend search past soft time limit
