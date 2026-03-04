@@ -70,11 +70,12 @@ def find_latest_version():
 
 
 def build_cmd(engine_a, engine_b, engine_a_name, engine_b_name, **options):
+    use_book = options.pop('use_book', False)
     cmd = [
         str(CUTECHESS_CLI_BINARY_PATH),
         '-engine', f'cmd={engine_a}', f'name={engine_a_name}',
         '-engine', f'cmd={engine_b}', f'name={engine_b_name}',
-        '-each', 'proto=uci', 'ponder=off', 'option.OwnBook=false'
+        '-each', 'proto=uci', 'ponder=off', f'option.OwnBook={"true" if use_book else "false"}'
     ]
 
     if 'tc' in options:
@@ -122,7 +123,8 @@ def build_cmd(engine_a, engine_b, engine_a_name, engine_b_name, **options):
     if options.get('debug', False):
         cmd.append('-debug')
 
-    cmd.extend(['-openings', f'file={OPENINGS_PATH}', 'format=pgn', 'order=random'])
+    if not use_book:
+        cmd.extend(['-openings', f'file={OPENINGS_PATH}', 'format=pgn', 'order=random'])
 
     return cmd
 
@@ -157,6 +159,7 @@ mode_group.add_argument('--custom', action='store_true', help='Run custom test w
 # Custom mode parameters
 parser.add_argument('-t', '--tc', type=str, help='Time control as time+inc (custom mode only)')
 parser.add_argument('-g', '--games', type=int, help='Number of games (custom mode only)')
+parser.add_argument('--use-book', action='store_true', help='Use engine\'s own opening book instead of cutechess openings')
 
 args = parser.parse_args()
 
@@ -196,7 +199,8 @@ if args.elo:
         sprt={'elo0': 0, 'elo1': args.elo, 'alpha': SPRT_ALPHA, 'beta': SPRT_BETA},
         games=MAX_GAMES,
         repeat=True,
-        concurrency=CONCURRENCY
+        concurrency=CONCURRENCY,
+        use_book=args.use_book
     )
 
     print_config(
@@ -243,7 +247,8 @@ else:  # custom mode
         timemargin=TIMEMARGIN,
         games=games,
         repeat=True,
-        concurrency=CONCURRENCY
+        concurrency=CONCURRENCY,
+        use_book=args.use_book
     )
 
     tc_str = tc + (' (default)' if args.tc is None else '')

@@ -18,6 +18,11 @@ This directory contains various chess position files used for testing different 
 
 - [Chris Whittington's Chess EPDs Repository](https://github.com/ChrisWhittington/Chess-EPDs/tree/master)
 - [Chess Programming Wiki – Perft Results](https://www.chessprogramming.org/Perft_Results)
-- [Yottachess – Hikaru Nakamura](https://www.yottachess.com/player/nakamura,%20hikaru)
-- [Yottachess – Magnus Carlsen](https://www.yottachess.com/player/carlsen,%20magnus)
+- [Yottachess](https://www.yottachess.com/)
+    - [Hikaru Nakamura](https://www.yottachess.com/player/nakamura,%20hikaru)
+    - [Magnus Carlsen](https://www.yottachess.com/player/carlsen,%20magnus)
+    - [Fabiano Caruana](https://www.yottachess.com/player/2020009)
+    - [Alireza Firouzja](https://www.yottachess.com/player/Firouzja,%20Alireza)
 - [Stockfish Opening Books](https://github.com/official-stockfish/books)
+
+t!cZYrm@fUK612
