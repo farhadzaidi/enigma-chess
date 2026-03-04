@@ -239,14 +239,12 @@ static inline PositionScore negamax(
         }
     } else if (is_pv_node && depth >= MINIMUM_IID_DEPTH) {
         // If we didn't get a hit in the PV, we do a shallow search to get a TT move anyway
-        ss.iid_attempts++;
         SearchDepth shallow = std::max(0, depth / 2);
         negamax<SM>(b, shallow, alpha, beta);
 
         // Probe TT to get the move
         tt_entry = TT.get_entry(b.zobrist_hash);
         if (tt_entry) {
-            ss.iid_tt_hits++;
             tt_move = tt_entry->best_move;
         }
     }
@@ -520,8 +518,6 @@ Move search(Board& b, const SearchLimits& limits) {
 
     ss.limits = limits;
     ss.nodes = 0;
-    ss.iid_attempts = 0;
-    ss.iid_tt_hits = 0;
     ss.search_interrupted = false;
     ss.ply_offset = b.ply;
     ss.killer_1.fill(NULL_MOVE);
