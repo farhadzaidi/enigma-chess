@@ -47,14 +47,14 @@ inline SearchTime calc_time_limit(Board& b, int remaining, int increment, int mo
 
 // Stops the search and joins the thread to prevent any dangling threads/race conditions
 inline void clean_up_thread() {
-    stop_requested = true;
-    pondering = false;
+    g_stop_requested = true;
+    g_pondering = false;
 
-    if (search_thread.joinable()) {
-        search_thread.join();
+    if (g_search_thread.joinable()) {
+        g_search_thread.join();
     }
 
-    stop_requested = false;
+    g_stop_requested = false;
 }
 
 inline void print(const std::string& str) {
@@ -84,9 +84,9 @@ inline void cmd_setoption(const std::string& cmd) {
     iss >> value;
 
     if (name == "OwnBook") {
-        use_own_book = (value == "true");
+        g_use_own_book = (value == "true");
     } else if (name == "Ponder") {
-        enable_ponder = (value == "true");
+        g_enable_ponder = (value == "true");
     }
 }
 
@@ -97,8 +97,8 @@ inline void cmd_isready() {
 inline void cmd_ucinewgame(Board& b) {
     clean_up_thread();
     b.reset();
-    transposition_table.clear();
-    pawn_table.clear();
+    g_transposition_table.clear();
+    g_pawn_table.clear();
 }
 
 inline void cmd_position(const std::string& cmd, Board& b) {
@@ -132,7 +132,7 @@ inline void cmd_position(const std::string& cmd, Board& b) {
 }
 
 inline void cmd_go(std::string& cmd, Board& b) {
-    transposition_table.generation++;
+    g_transposition_table.generation++;
 
     // Parse go command
     int wtime = -1, btime = -1, winc = 0, binc = 0;
@@ -171,7 +171,7 @@ inline void cmd_go(std::string& cmd, Board& b) {
         }
     }
 
-    bool do_ponder = enable_ponder && is_ponder_search;
+    bool do_ponder = g_enable_ponder && is_ponder_search;
 
     SearchMode search_mode;
     if (hard_time != -1) {
@@ -205,9 +205,9 @@ inline void cmd_go(std::string& cmd, Board& b) {
 
     // Create new search thread and start the search
     clean_up_thread();
-    pondering = do_ponder;
+    g_pondering = do_ponder;
 
-    search_thread = std::thread([&b, search_mode, soft_time, hard_time, nodes, depth]() {
+    g_search_thread = std::thread([&b, search_mode, soft_time, hard_time, nodes, depth]() {
         Move best_move;
 
         if (search_mode == SearchMode::Time) {
@@ -224,7 +224,7 @@ inline void cmd_go(std::string& cmd, Board& b) {
         std::string ponder_str;
         if (best_move != NULL_MOVE) {
             b.make_move(best_move);
-            TTEntry* tt_entry = transposition_table.get_entry(b.position_hash);
+            TTEntry* tt_entry = g_transposition_table.get_entry(b.position_hash);
             if (tt_entry && tt_entry->best_move != NULL_MOVE) {
                 ponder_str = " ponder " + decode_move_to_uci(tt_entry->best_move);
             }
@@ -232,7 +232,7 @@ inline void cmd_go(std::string& cmd, Board& b) {
         }
 
         // Wait while pondering -- ponderhit or stop will release us
-        while (pondering && !stop_requested) {
+        while (g_pondering && !g_stop_requested) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
 
@@ -244,11 +244,11 @@ inline void cmd_ponderhit() {
     // Reset deadlines relative to now, then release the pondering flag.
     // Write ordering matters: deadline before pondering (release-acquire).
     auto now = std::chrono::steady_clock::now();
-    search_state.deadline = now + std::chrono::milliseconds(search_state.limits.hard_time);
-    if (search_state.limits.soft_time != -1) {
-        search_state.soft_deadline = now + std::chrono::milliseconds(search_state.limits.soft_time);
+    g_search_state.deadline = now + std::chrono::milliseconds(g_search_state.limits.hard_time);
+    if (g_search_state.limits.soft_time != -1) {
+        g_search_state.soft_deadline = now + std::chrono::milliseconds(g_search_state.limits.soft_time);
     }
-    pondering = false;
+    g_pondering = false;
 }
 
 inline void cmd_stop() {

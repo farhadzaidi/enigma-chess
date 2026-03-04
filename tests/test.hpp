@@ -49,7 +49,6 @@ inline bool test_matches_selector(const TestEntry& test, const std::string& sele
 
     return (
         normalized == test.group
-        || normalized == test.name
         || normalized == (test.group + "/" + test.name)
     );
 }

@@ -31,13 +31,13 @@ inline SearchResult search_at_depth(
     Move best_move;
     PositionScore best_score = DUMMY_SCORE;
     MoveList searched_quiet_moves;
-    TTEntry* tt_entry = transposition_table.get_entry(b.position_hash);
+    TTEntry* tt_entry = g_transposition_table.get_entry(b.position_hash);
     Move tt_move = tt_entry ? tt_entry->best_move : NULL_MOVE;
     MoveSelector move_selector(b, tt_move, prev_best_move);
     bool is_first_move = true;
 
     while (true) {
-        Move move = move_selector.next_move(b, search_state);
+        Move move = move_selector.next_move(b, g_search_state);
         if (move == NULL_MOVE) break;
 
         b.make_move(move);
@@ -57,7 +57,7 @@ inline SearchResult search_at_depth(
 
         // Same here - return early if the search is interrutpted, otherwise negate
         // the score to process it for the parent
-        if (search_state.search_interrupted) {
+        if (g_search_state.search_interrupted) {
             return {NULL_MOVE, 0};
         }
 
@@ -101,8 +101,8 @@ inline Move search(Board& b, const SearchLimits& limits) {
 
     // Return move from opening book if we can (only after validating that it's legal)
     // We have to validate just in case we have a position hash collision in the book
-    if (use_own_book) {
-        Move book_move = opening_book.pick_move(b);
+    if (g_use_own_book) {
+        Move book_move = g_opening_book.pick_move(b);
         for (const Move move: moves) {
             if (book_move == move) {
                 return book_move;
@@ -112,21 +112,21 @@ inline Move search(Board& b, const SearchLimits& limits) {
 
     // --- Search state initialization ---
 
-    search_state.limits = limits;
-    search_state.nodes = 0;
-    search_state.search_interrupted = false;
-    search_state.ply_offset = b.ply;
-    search_state.killer_1.fill(NULL_MOVE);
-    search_state.killer_2.fill(NULL_MOVE);
-    search_state.side_piece_to_history = {};
-    search_state.from_to_history = {};
+    g_search_state.limits = limits;
+    g_search_state.nodes = 0;
+    g_search_state.search_interrupted = false;
+    g_search_state.ply_offset = b.ply;
+    g_search_state.killer_1.fill(NULL_MOVE);
+    g_search_state.killer_2.fill(NULL_MOVE);
+    g_search_state.side_piece_to_history = {};
+    g_search_state.from_to_history = {};
 
-    search_state.soft_deadline = std::chrono::steady_clock::time_point::max();
+    g_search_state.soft_deadline = std::chrono::steady_clock::time_point::max();
     if constexpr (SM == SearchMode::Time) {
         auto now = std::chrono::steady_clock::now();
-        search_state.deadline = now + std::chrono::milliseconds(limits.hard_time);
+        g_search_state.deadline = now + std::chrono::milliseconds(limits.hard_time);
         if (limits.soft_time != -1) {
-            search_state.soft_deadline = now + std::chrono::milliseconds(limits.soft_time);
+            g_search_state.soft_deadline = now + std::chrono::milliseconds(limits.soft_time);
         }
     }
 
@@ -143,13 +143,13 @@ inline Move search(Board& b, const SearchLimits& limits) {
 
     while (!should_stop_search<SM>()) {
         if constexpr (SM == SearchMode::Depth) {
-            if (depth > search_state.limits.depth) break;
+            if (depth > g_search_state.limits.depth) break;
         }
 
         // Soft time management: continue past soft limit only if score dropped
         // or best move is unstable. Skip while pondering.
         if constexpr (SM == SearchMode::Time) {
-            if (!pondering && std::chrono::steady_clock::now() >= search_state.soft_deadline) {
+            if (!g_pondering && std::chrono::steady_clock::now() >= g_search_state.soft_deadline) {
                 bool score_dropped = (prev_score - score) > SCORE_DROP_THRESHOLD;
                 if (!score_dropped && best_move_stability > 0) break;
             }
@@ -169,7 +169,7 @@ inline Move search(Board& b, const SearchLimits& limits) {
 
         SearchResult search_result;
         while (true) {
-            if (search_state.search_interrupted) break;
+            if (g_search_state.search_interrupted) break;
 
             search_result = search_at_depth<SM>(b, depth, best_move, alpha, beta);
             if (search_result.score <= alpha) {
@@ -183,7 +183,7 @@ inline Move search(Board& b, const SearchLimits& limits) {
             }
         }
 
-        if (search_state.search_interrupted) break;
+        if (g_search_state.search_interrupted) break;
 
         // --- Update iteration state ---
 

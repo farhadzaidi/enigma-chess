@@ -11,14 +11,14 @@
 // --- Mutable Global State ---
 
 // UCI control flags
-inline std::atomic<bool> stop_requested(false);
-inline std::atomic<bool> pondering(false);
-inline bool use_own_book = true;
-inline bool enable_ponder = false;
-inline std::thread search_thread;
+inline std::atomic<bool> g_stop_requested(false);
+inline std::atomic<bool> g_pondering(false);
+inline bool g_use_own_book = true;
+inline bool g_enable_ponder = false;
+inline std::thread g_search_thread;
 
 // Core engine state
-inline TranspositionTable transposition_table;
-inline PawnTable pawn_table;
-inline SearchState search_state;
-inline OpeningBook opening_book;
+inline TranspositionTable g_transposition_table;
+inline PawnTable g_pawn_table;
+inline SearchState g_search_state;
+inline OpeningBook g_opening_book;

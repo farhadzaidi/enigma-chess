@@ -99,19 +99,23 @@ Examples:
 
 ---
 
-#### `test [test_name...]`
+#### `test [selector...]`
 
 Runs the built-in test suite.
 
-- With no names, all tests run.
-- With one or more names, only those tests run.
+- With no selectors, all tests run.
+- Supported selectors include groups (`core`, `search`, `protocol`, `behavior`),
+  and full selectors (`group/name`).
 
 Examples:
 
 ```bash
 ./build/enigma test
-./build/enigma test zobrist transposition_table
+./build/enigma test core
+./build/enigma test core/zobrist search/move_selector
 ```
+
+See [`tests/README.md`](tests/README.md) for test layout and selector details.
 
 ---
 

@@ -41,8 +41,8 @@ constexpr PositionScore LATE_STACKED_PAWN_PENALTY   = -10;
 
 inline PawnTableEntry get_pawn_score(const Board& b) {
     // Check pawn table before computing
-    PawnTableEntry pt_entry = pawn_table.get_entry(b.pawn_hash);
-    if (pawn_table.is_valid_entry(b.pawn_hash, pt_entry)) {
+    PawnTableEntry pt_entry = g_pawn_table.get_entry(b.pawn_hash);
+    if (g_pawn_table.is_valid_entry(b.pawn_hash, pt_entry)) {
         return pt_entry;
     }
 
@@ -95,6 +95,6 @@ inline PawnTableEntry get_pawn_score(const Board& b) {
     }
 
     // Store results in pawn table and return
-    pawn_table.add_entry(new_pt_entry);
+    g_pawn_table.add_entry(new_pt_entry);
     return new_pt_entry;
 }

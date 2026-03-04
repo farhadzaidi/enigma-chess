@@ -19,7 +19,7 @@ constexpr uint64_t TIME_CHECK_PERIOD_MASK = 2047;
 template <SearchMode SM>
 inline bool should_stop_search() {
     // Stop when the search interrupted flag is set or if stop is requested via UCI
-    if (search_state.search_interrupted || stop_requested) {
+    if (g_search_state.search_interrupted || g_stop_requested) {
         return true;
     }
 
@@ -28,13 +28,13 @@ inline bool should_stop_search() {
         // Only check every N nodes (where N = TIME_CHECK_PERIOD_MASK + 1)
         // Skip time check while pondering
         return (
-            !pondering
-            && (search_state.nodes & TIME_CHECK_PERIOD_MASK) == 0
-            && std::chrono::steady_clock::now() >= search_state.deadline
+            !g_pondering
+            && (g_search_state.nodes & TIME_CHECK_PERIOD_MASK) == 0
+            && std::chrono::steady_clock::now() >= g_search_state.deadline
         );
     } else if constexpr (SM == SearchMode::Nodes) {
         // Check if search has exceeded the number of nodes to search (if search mode is NODE)
-        return search_state.nodes >= search_state.limits.nodes;
+        return g_search_state.nodes >= g_search_state.limits.nodes;
     } else {
         // In all other cases, we shouldn't stop the search
         // INFINITE = keep going forever (or until stop flag)
@@ -51,9 +51,9 @@ inline bool is_engine_draw(const Board& b) {
 }
 
 inline void update_killer_table(Move move, int ply) {
-    if (move != search_state.killer_1[ply]) {
-        search_state.killer_2[ply] = search_state.killer_1[ply];
-        search_state.killer_1[ply] = move;
+    if (move != g_search_state.killer_1[ply]) {
+        g_search_state.killer_2[ply] = g_search_state.killer_1[ply];
+        g_search_state.killer_1[ply] = move;
     }
 }
 
@@ -61,10 +61,10 @@ inline void update_history_tables(Board& b, Move move, MoveScore bonus) {
     MoveScore clamped_bonus = std::clamp(bonus, MIN_MOVE_SCORE, MAX_MOVE_SCORE);
     Piece moving_piece = b.piece_map[move.from()];
 
-    MoveScore& side_piece_to_history_score = search_state.side_piece_to_history[b.to_move][moving_piece][move.to()];
+    MoveScore& side_piece_to_history_score = g_search_state.side_piece_to_history[b.to_move][moving_piece][move.to()];
     side_piece_to_history_score += clamped_bonus - side_piece_to_history_score * std::abs(clamped_bonus) / MAX_MOVE_SCORE;
 
-    MoveScore& from_to_history_score = search_state.from_to_history[move.from()][move.to()];
+    MoveScore& from_to_history_score = g_search_state.from_to_history[move.from()][move.to()];
     from_to_history_score += clamped_bonus - from_to_history_score * std::abs(clamped_bonus) / MAX_MOVE_SCORE;
 }
 
@@ -83,7 +83,7 @@ inline void handle_beta_cutoff(
     // the beta check, but shouldn't receive a penalty
     searched_quiet_moves.pop();
 
-    int ply = search_state.search_ply(b.ply);
+    int ply = g_search_state.search_ply(b.ply);
     MoveScore bonus = depth * depth;
 
     update_killer_table(cutoff_move, ply);
@@ -122,8 +122,8 @@ inline void store_tt_result(
     else if (best_score <= original_alpha) tt_node = TTNode::FailLow;
     else                                   tt_node = TTNode::Exact;
 
-    PositionScore tt_score = normalize_tt_score(best_score, search_state.search_ply(b.ply));
-    transposition_table.add_entry(TTEntry{b.position_hash, best_move, depth, tt_score, tt_node});
+    PositionScore tt_score = normalize_tt_score(best_score, g_search_state.search_ply(b.ply));
+    g_transposition_table.add_entry(TTEntry{b.position_hash, best_move, depth, tt_score, tt_node});
 }
 
 struct TTProbeResult {
