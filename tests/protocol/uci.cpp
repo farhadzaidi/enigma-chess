@@ -57,43 +57,43 @@ static bool test_calc_time_limit_phase_branch(Board& b) {
 }
 
 static bool test_cmd_setoption_toggles() {
-    bool old_book = use_own_book;
-    bool old_ponder = enable_ponder;
+    bool old_book = g_use_own_book;
+    bool old_ponder = g_enable_ponder;
 
     cmd_setoption("setoption name OwnBook value false");
-    if (use_own_book) {
+    if (g_use_own_book) {
         std::clog << "[FAILURE] 'uci_helpers_setoption' - OwnBook false not applied\n";
-        use_own_book = old_book;
-        enable_ponder = old_ponder;
+        g_use_own_book = old_book;
+        g_enable_ponder = old_ponder;
         return false;
     }
 
     cmd_setoption("setoption name OwnBook value true");
-    if (!use_own_book) {
+    if (!g_use_own_book) {
         std::clog << "[FAILURE] 'uci_helpers_setoption' - OwnBook true not applied\n";
-        use_own_book = old_book;
-        enable_ponder = old_ponder;
+        g_use_own_book = old_book;
+        g_enable_ponder = old_ponder;
         return false;
     }
 
     cmd_setoption("setoption name Ponder value true");
-    if (!enable_ponder) {
+    if (!g_enable_ponder) {
         std::clog << "[FAILURE] 'uci_helpers_setoption' - Ponder true not applied\n";
-        use_own_book = old_book;
-        enable_ponder = old_ponder;
+        g_use_own_book = old_book;
+        g_enable_ponder = old_ponder;
         return false;
     }
 
     cmd_setoption("setoption name Ponder value false");
-    if (enable_ponder) {
+    if (g_enable_ponder) {
         std::clog << "[FAILURE] 'uci_helpers_setoption' - Ponder false not applied\n";
-        use_own_book = old_book;
-        enable_ponder = old_ponder;
+        g_use_own_book = old_book;
+        g_enable_ponder = old_ponder;
         return false;
     }
 
-    use_own_book = old_book;
-    enable_ponder = old_ponder;
+    g_use_own_book = old_book;
+    g_enable_ponder = old_ponder;
     return true;
 }
 
@@ -131,16 +131,16 @@ static bool test_cmd_ucinewgame_clears_state(Board& b) {
     ZobristHash saved_position_hash = b.position_hash;
     ZobristHash saved_pawn_hash = b.pawn_hash;
 
-    transposition_table.clear();
-    transposition_table.generation = 3;
-    transposition_table.add_entry(TTEntry(saved_position_hash, encode_move_from_uci(b, "e2e4"), 6, 120, TTNode::Exact));
+    g_transposition_table.clear();
+    g_transposition_table.generation = 3;
+    g_transposition_table.add_entry(TTEntry(saved_position_hash, encode_move_from_uci(b, "e2e4"), 6, 120, TTNode::Exact));
 
-    pawn_table.clear();
+    g_pawn_table.clear();
     PawnTableEntry pt;
     pt.hash = saved_pawn_hash;
     pt.early_pawn_score = {12, -12};
     pt.late_pawn_score = {20, -20};
-    pawn_table.add_entry(pt);
+    g_pawn_table.add_entry(pt);
 
     cmd_ucinewgame(b);
 
@@ -149,13 +149,13 @@ static bool test_cmd_ucinewgame_clears_state(Board& b) {
         return false;
     }
 
-    if (transposition_table.generation != 0 || transposition_table.get_entry(saved_position_hash) != nullptr) {
+    if (g_transposition_table.generation != 0 || g_transposition_table.get_entry(saved_position_hash) != nullptr) {
         std::clog << "[FAILURE] 'uci_helpers_ucinewgame' - TT should be cleared\n";
         return false;
     }
 
-    PawnTableEntry& probed = pawn_table.get_entry(saved_pawn_hash);
-    if (pawn_table.is_valid_entry(saved_pawn_hash, probed)) {
+    PawnTableEntry& probed = g_pawn_table.get_entry(saved_pawn_hash);
+    if (g_pawn_table.is_valid_entry(saved_pawn_hash, probed)) {
         std::clog << "[FAILURE] 'uci_helpers_ucinewgame' - Pawn table should be cleared\n";
         return false;
     }

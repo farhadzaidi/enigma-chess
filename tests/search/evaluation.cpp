@@ -23,7 +23,7 @@ static constexpr const char* BARE_KINGS_BLACK_TO_MOVE =
     "4k3/8/8/8/8/8/8/4K3 b - - 0 1";
 
 static bool test_evaluate_side_to_move_negation(Board& b) {
-    pawn_table.clear();
+    g_pawn_table.clear();
 
     b.load_from_fen(MIDGAME_WHITE_TO_MOVE);
     PositionScore white_score = evaluate(b);
@@ -41,7 +41,7 @@ static bool test_evaluate_side_to_move_negation(Board& b) {
 }
 
 static bool test_evaluate_bare_kings_drawish(Board& b) {
-    pawn_table.clear();
+    g_pawn_table.clear();
 
     b.load_from_fen(BARE_KINGS_WHITE_TO_MOVE);
     PositionScore white_score = evaluate(b);
@@ -59,7 +59,7 @@ static bool test_evaluate_bare_kings_drawish(Board& b) {
 }
 
 static bool test_pawn_eval_passed_vs_blocked(Board& b) {
-    pawn_table.clear();
+    g_pawn_table.clear();
 
     b.load_from_fen(PASSED_WHITE_PAWN_FEN);
     PawnTableEntry passed = get_pawn_score(b);
@@ -88,7 +88,7 @@ bool test_eval(Board& b) {
     if (!test_evaluate_side_to_move_negation(b)) return false;
     if (!test_evaluate_bare_kings_drawish(b)) return false;
     if (!test_pawn_eval_passed_vs_blocked(b)) return false;
-    pawn_table.clear();
+    g_pawn_table.clear();
     return true;
 }
 #include <iostream>
@@ -105,7 +105,7 @@ bool test_eval(Board& b) {
 
 static bool test_quiescence_stand_pat_cutoff(Board& b) {
     b.load_from_fen("4k3/8/8/8/8/8/8/4K3 w - - 0 1");
-    reset_search_state_for_test(b);
+    reset_g_search_state_for_test(b);
 
     Board before = b;
     PositionScore score = quiescence_search<SearchMode::Depth>(b, -50, -10);
@@ -121,9 +121,9 @@ static bool test_quiescence_stand_pat_cutoff(Board& b) {
         return false;
     }
 
-    if (search_state.nodes != 1) {
+    if (g_search_state.nodes != 1) {
         std::clog << "[FAILURE] 'quiescence_stand_pat_cutoff' - Expected single-node cutoff\n";
-        std::clog << "Nodes: " << search_state.nodes << "\n";
+        std::clog << "Nodes: " << g_search_state.nodes << "\n";
         return false;
     }
 
@@ -132,9 +132,9 @@ static bool test_quiescence_stand_pat_cutoff(Board& b) {
 
 static bool test_quiescence_in_check_mate_score(Board& b) {
     b.load_from_fen("rnb1kbnr/pppp1ppp/4p3/8/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3");
-    reset_search_state_for_test(b);
+    reset_g_search_state_for_test(b);
 
-    PositionScore expected = -CHECKMATE_SCORE + search_state.search_ply(b.ply);
+    PositionScore expected = -CHECKMATE_SCORE + g_search_state.search_ply(b.ply);
     PositionScore score = quiescence_search<SearchMode::Depth>(b, -CHECKMATE_SCORE, CHECKMATE_SCORE);
 
     if (score != expected) {
@@ -148,7 +148,7 @@ static bool test_quiescence_in_check_mate_score(Board& b) {
 
 static bool test_quiescence_see_bad_capture_pruning(Board& b) {
     b.load_from_fen("4k3/8/2p5/3p4/3Q4/8/8/4K3 w - - 0 1");
-    reset_search_state_for_test(b);
+    reset_g_search_state_for_test(b);
 
     Move bad_capture = encode_move_from_uci(b, "d4d5");
     MoveList tacticals = generate_moves<MoveGenMode::TacticalOnly>(b);
@@ -181,9 +181,9 @@ static bool test_quiescence_see_bad_capture_pruning(Board& b) {
         return false;
     }
 
-    if (search_state.nodes != 1) {
+    if (g_search_state.nodes != 1) {
         std::clog << "[FAILURE] 'quiescence_see_pruning' - Expected no recursive search on pruned capture\n";
-        std::clog << "Nodes: " << search_state.nodes << "\n";
+        std::clog << "Nodes: " << g_search_state.nodes << "\n";
         return false;
     }
 
@@ -192,7 +192,7 @@ static bool test_quiescence_see_bad_capture_pruning(Board& b) {
 
 static bool test_quiescence_draw_detection(Board& b) {
     b.load_from_fen("4k3/8/8/8/8/8/8/4K3 w - - 100 50");
-    reset_search_state_for_test(b);
+    reset_g_search_state_for_test(b);
 
     PositionScore score_halfmove = quiescence_search<SearchMode::Depth>(b, -CHECKMATE_SCORE, CHECKMATE_SCORE);
     if (score_halfmove != STALEMATE_SCORE) {
@@ -211,7 +211,7 @@ static bool test_quiescence_draw_detection(Board& b) {
         return false;
     }
 
-    reset_search_state_for_test(b);
+    reset_g_search_state_for_test(b);
     PositionScore score_rep = quiescence_search<SearchMode::Depth>(b, -CHECKMATE_SCORE, CHECKMATE_SCORE);
     if (score_rep != STALEMATE_SCORE) {
         std::clog << "[FAILURE] 'quiescence_draw_detection' - Repetition draw not detected\n";
@@ -266,28 +266,28 @@ static bool test_tt_score_normalization_round_trip() {
 
 static bool test_store_tt_result_node_classification(Board& b) {
     b.load_from_fen(START_POS_FEN);
-    reset_search_state_for_test(b);
-    transposition_table.clear();
-    transposition_table.generation = 12;
+    reset_g_search_state_for_test(b);
+    g_transposition_table.clear();
+    g_transposition_table.generation = 12;
 
     Move m = encode_move_from_uci(b, "e2e4");
 
     store_tt_result(b, m, 5, 150, 100, 200);
-    TTEntry* exact = transposition_table.get_entry(b.position_hash);
+    TTEntry* exact = g_transposition_table.get_entry(b.position_hash);
     if (!exact || exact->node != TTNode::Exact || exact->best_move != m) {
         std::clog << "[FAILURE] 'search_helpers_store_tt' - Exact node classification failed\n";
         return false;
     }
 
     store_tt_result(b, m, 5, 250, 100, 200);
-    TTEntry* fail_high = transposition_table.get_entry(b.position_hash);
+    TTEntry* fail_high = g_transposition_table.get_entry(b.position_hash);
     if (!fail_high || fail_high->node != TTNode::FailHigh) {
         std::clog << "[FAILURE] 'search_helpers_store_tt' - FailHigh classification failed\n";
         return false;
     }
 
     store_tt_result(b, m, 5, 90, 100, 200);
-    TTEntry* fail_low = transposition_table.get_entry(b.position_hash);
+    TTEntry* fail_low = g_transposition_table.get_entry(b.position_hash);
     if (!fail_low || fail_low->node != TTNode::FailLow) {
         std::clog << "[FAILURE] 'search_helpers_store_tt' - FailLow classification failed\n";
         return false;
@@ -298,26 +298,26 @@ static bool test_store_tt_result_node_classification(Board& b) {
 
 static bool test_update_killer_table_rotation(Board& b) {
     b.load_from_fen(START_POS_FEN);
-    reset_search_state_for_test(b);
+    reset_g_search_state_for_test(b);
 
     Move m1 = encode_move_from_uci(b, "e2e4");
     Move m2 = encode_move_from_uci(b, "d2d4");
     const int ply = 0;
 
     update_killer_table(m1, ply);
-    if (search_state.killer_1[ply] != m1 || search_state.killer_2[ply] != NULL_MOVE) {
+    if (g_search_state.killer_1[ply] != m1 || g_search_state.killer_2[ply] != NULL_MOVE) {
         std::clog << "[FAILURE] 'search_helpers_killer' - First insertion failed\n";
         return false;
     }
 
     update_killer_table(m2, ply);
-    if (search_state.killer_1[ply] != m2 || search_state.killer_2[ply] != m1) {
+    if (g_search_state.killer_1[ply] != m2 || g_search_state.killer_2[ply] != m1) {
         std::clog << "[FAILURE] 'search_helpers_killer' - Rotation failed\n";
         return false;
     }
 
     update_killer_table(m2, ply);
-    if (search_state.killer_1[ply] != m2 || search_state.killer_2[ply] != m1) {
+    if (g_search_state.killer_1[ply] != m2 || g_search_state.killer_2[ply] != m1) {
         std::clog << "[FAILURE] 'search_helpers_killer' - Duplicate insert should not rotate\n";
         return false;
     }
@@ -327,7 +327,7 @@ static bool test_update_killer_table_rotation(Board& b) {
 
 static bool test_handle_beta_cutoff_updates(Board& b) {
     b.load_from_fen(START_POS_FEN);
-    reset_search_state_for_test(b);
+    reset_g_search_state_for_test(b);
 
     Move quiet_penalized = encode_move_from_uci(b, "e2e4");
     Move quiet_cutoff = encode_move_from_uci(b, "d2d4");
@@ -341,16 +341,16 @@ static bool test_handle_beta_cutoff_updates(Board& b) {
 
     handle_beta_cutoff(b, quiet_cutoff, 4, searched_quiets);
 
-    int ply = search_state.search_ply(b.ply);
-    if (search_state.killer_1[ply] != quiet_cutoff) {
+    int ply = g_search_state.search_ply(b.ply);
+    if (g_search_state.killer_1[ply] != quiet_cutoff) {
         std::clog << "[FAILURE] 'search_helpers_beta_cutoff' - Quiet cutoff should update killer_1\n";
         return false;
     }
 
-    MoveScore cutoff_hist = search_state.side_piece_to_history[b.to_move][cutoff_piece][quiet_cutoff.to()]
-        + search_state.from_to_history[quiet_cutoff.from()][quiet_cutoff.to()];
-    MoveScore penalized_hist = search_state.side_piece_to_history[b.to_move][penalty_piece][quiet_penalized.to()]
-        + search_state.from_to_history[quiet_penalized.from()][quiet_penalized.to()];
+    MoveScore cutoff_hist = g_search_state.side_piece_to_history[b.to_move][cutoff_piece][quiet_cutoff.to()]
+        + g_search_state.from_to_history[quiet_cutoff.from()][quiet_cutoff.to()];
+    MoveScore penalized_hist = g_search_state.side_piece_to_history[b.to_move][penalty_piece][quiet_penalized.to()]
+        + g_search_state.from_to_history[quiet_penalized.from()][quiet_penalized.to()];
 
     if (cutoff_hist <= 0) {
         std::clog << "[FAILURE] 'search_helpers_beta_cutoff' - Cutoff move should get positive history bonus\n";
@@ -362,12 +362,12 @@ static bool test_handle_beta_cutoff_updates(Board& b) {
         return false;
     }
 
-    reset_search_state_for_test(b);
+    reset_g_search_state_for_test(b);
     MoveList empty;
     Move tactical(A1, A2, MoveType::Capture, MoveFlag::Normal);
     handle_beta_cutoff(b, tactical, 4, empty);
 
-    if (search_state.killer_1[ply] != NULL_MOVE || search_state.killer_2[ply] != NULL_MOVE) {
+    if (g_search_state.killer_1[ply] != NULL_MOVE || g_search_state.killer_2[ply] != NULL_MOVE) {
         std::clog << "[FAILURE] 'search_helpers_beta_cutoff' - Tactical cutoff should not update killers\n";
         return false;
     }
@@ -381,6 +381,6 @@ bool test_search_helpers() {
     if (!test_store_tt_result_node_classification(b)) return false;
     if (!test_update_killer_table_rotation(b)) return false;
     if (!test_handle_beta_cutoff_updates(b)) return false;
-    transposition_table.clear();
+    g_transposition_table.clear();
     return true;
 }
