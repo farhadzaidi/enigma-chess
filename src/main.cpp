@@ -90,14 +90,7 @@ int main(int argc, char* argv[]) {
             perft<true>(b, depth);
         } else {
             Move best_move = search_depth(b, depth);
-            IIDStats iid_stats = get_last_iid_stats();
-            double iid_hit_rate = iid_stats.attempts == 0
-                ? 0.0
-                : (100.0 * iid_stats.tt_hits) / iid_stats.attempts;
-
             std::cout << "Best move: " << decode_move_to_uci(best_move) << "\n";
-            std::cout << "IID hit rate: " << iid_stats.tt_hits << "/" << iid_stats.attempts
-                      << " (" << std::fixed << std::setprecision(1) << iid_hit_rate << "%)\n";
         }
     } 
     

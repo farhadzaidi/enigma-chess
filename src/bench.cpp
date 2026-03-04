@@ -113,7 +113,7 @@ EngineBenchResult run_engine_bench(bool verbose, bool fast) {
         }
 
         // Search the position
-        Move best_move = search_time(b, ENGINE_SEARCH_TIME_MS);
+        Move best_move = search_time(b, -1, ENGINE_SEARCH_TIME_MS);
         positions_tested++;
 
         // Compare moves

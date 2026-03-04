@@ -18,6 +18,11 @@ std::thread search_thread;
 std::atomic<bool> stop_requested(false);
 bool use_own_book = true;
 
+struct SearchTime {
+    int soft_limit;
+    int hard_limit;
+};
+
 // Stops the search and joins the thread to prevent any dangling threads/race conditions
 static void clean_up_thread() {
     stop_requested = true;
@@ -30,8 +35,20 @@ static void clean_up_thread() {
 }
 
 // Calculates how much time to spend on the search in milliseconds
-static int calc_time_limit(int remaining, int increment) {
-    return remaining / 20 + increment / 2;
+static SearchTime calc_time_limit(Board& b, int remaining, int increment, int movestogo) {
+    int moves_left;
+    if (movestogo > 0) {
+        moves_left = movestogo;
+    } else {
+        float phase_ratio = (float)b.game_phase / MAX_GAME_PHASE;
+        moves_left = 10 + (int)(30 * phase_ratio);
+    }
+
+    int base = remaining / moves_left + increment / 2;
+    int soft_limit = base * 0.6;
+    int hard_limit = std::min((int)(base * 2.5), remaining / 3);
+
+    return {soft_limit, hard_limit};
 }
 
 static void print(const std::string& str) {
@@ -106,10 +123,14 @@ static void cmd_position(const std::string& cmd, Board& b) {
 static void cmd_go(std::string& cmd, Board& b) {
     // Parse go command
     int wtime = -1, btime = -1, winc = 0, binc = 0;
-    int movetime = -1, nodes = -1, depth = -1;
+    int movestogo = -1;
+    int nodes = -1, depth = -1;
     bool infinite = false;
     std::istringstream iss(cmd);
     std::string token;
+
+    int soft_time = -1;
+    int hard_time = -1;
 
     // TODO: implement remaining go options
     iss >> token;
@@ -122,8 +143,10 @@ static void cmd_go(std::string& cmd, Board& b) {
             iss >> winc;
         } else if (token == "binc") {
             iss >> binc;
+        } else if (token == "movestogo") {
+            iss >> movestogo;
         } else if (token == "movetime") {
-            iss >> movetime;
+            iss >> hard_time;
         } else if (token == "nodes") {
             iss >> nodes;
         } else if (token == "depth") {
@@ -134,7 +157,7 @@ static void cmd_go(std::string& cmd, Board& b) {
     }
 
     SearchMode search_mode;
-    if (movetime != -1) {
+    if (hard_time != -1) {
         search_mode = TIME;
     } else if (nodes != -1) {
         search_mode = NODES;
@@ -149,23 +172,27 @@ static void cmd_go(std::string& cmd, Board& b) {
 
         // Default time limit in milliseconds in case time controls
         // haven't been specified
-        movetime = 50;
+        hard_time = 50;
 
         // Determine how long to search for
         if (b.to_move == WHITE && wtime != -1) {
-            movetime = calc_time_limit(wtime, winc);
+            auto result = calc_time_limit(b, wtime, winc, movestogo);
+            soft_time = result.soft_limit;
+            hard_time = result.hard_limit;
         } else if (b.to_move == BLACK && btime != -1) {
-            movetime = calc_time_limit(btime, binc);
+            auto result = calc_time_limit(b, btime, binc, movestogo);
+            soft_time = result.soft_limit;
+            hard_time = result.hard_limit;
         }
     }
 
     // Create new search thread and start the search
     clean_up_thread();
-    search_thread = std::thread([&b, search_mode, movetime, nodes, depth]() {
+    search_thread = std::thread([&b, search_mode, soft_time, hard_time, nodes, depth]() {
         Move best_move;
 
         if (search_mode == TIME) {
-            best_move = search_time(b, movetime);
+            best_move = search_time(b, soft_time, hard_time);
         } else if (search_mode == NODES) {
             best_move = search_nodes(b, nodes);
         } else if (search_mode == DEPTH) {

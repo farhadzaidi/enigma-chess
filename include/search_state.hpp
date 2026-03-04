@@ -7,7 +7,8 @@
 #include "move.hpp"
 
 struct SearchLimits {
-    int time;
+    int soft_time;
+    int hard_time;
     uint64_t nodes;
     SearchDepth depth;
 };

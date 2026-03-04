@@ -15,19 +15,13 @@
 static SearchState ss;
 static OpeningBook opening_book;
 
-IIDStats get_last_iid_stats() {
-    return {
-        .attempts = ss.iid_attempts,
-        .tt_hits = ss.iid_tt_hits,
-    };
-}
-
 constexpr uint64_t TIME_CHECK_PERIOD_MASK = 2047;
 constexpr int SEE_CUTOFF = -200;
 constexpr int ASPIRATION_WINDOW = 25;
 constexpr SearchDepth MINIMUM_NULL_MOVE_DEPTH = 3;
 constexpr SearchDepth FUTILITY_CUTOFF_DEPTH = 4;
 constexpr SearchDepth MINIMUM_IID_DEPTH = 4;
+constexpr int SCORE_DROP_THRESHOLD = 50;
 
 struct SearchResult {
     Move best_move;
@@ -534,19 +528,41 @@ Move search(Board& b, const SearchLimits& limits) {
     ss.from_to = {};
 
     // Calculate search deadline based on time limit if search mode is TIME
+    auto soft_deadline = std::chrono::steady_clock::time_point::max();
     if constexpr (SM == TIME) {
-        ss.deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(limits.time);
+        auto now = std::chrono::steady_clock::now();
+        ss.deadline = now + std::chrono::milliseconds(limits.hard_time);
+        if (limits.soft_time != -1) {
+            soft_deadline = now + std::chrono::milliseconds(limits.soft_time);
+        }
     }
 
     SearchDepth depth = 1;
+
+    Move prev_best_move;
     Move best_move;
+    int best_move_stability = 0;
+
     int prev_score = 0;
+    int score = 0;
 
     // Iterative search loop
     while (!should_stop_search<SM>()) {
         // Check if we've hit the max depth if search mode is DEPTH
         if constexpr (SM == DEPTH) {
             if (depth > ss.limits.depth) break;
+        }
+
+        if constexpr (SM == TIME) {
+            // Check if we hit our soft time limit and if so whether we should continue
+            if (std::chrono::steady_clock::now() >= soft_deadline) {
+                bool score_dropped = (prev_score - score) > SCORE_DROP_THRESHOLD;
+                if (score_dropped || best_move_stability == 0) {
+                    // Extend search past soft time limit
+                } else {
+                    break;
+                }
+            }
         }
 
         // Use aspiration windows after the first search
@@ -556,21 +572,22 @@ Move search(Board& b, const SearchLimits& limits) {
             alpha = -CHECKMATE_SCORE;
             beta = CHECKMATE_SCORE;
         } else {
-            alpha = std::max(prev_score - alpha_delta, -static_cast<int>(CHECKMATE_SCORE));
-            beta = std::min(prev_score + beta_delta, static_cast<int>(CHECKMATE_SCORE));
+            alpha = std::max(score - alpha_delta, -static_cast<int>(CHECKMATE_SCORE));
+            beta = std::min(score + beta_delta, static_cast<int>(CHECKMATE_SCORE));
         }
 
         SearchResult search_result;
         while (true) {
             if (ss.search_interrupted) break;
 
+            // Aspiration window widening
             search_result = search_at_depth<SM>(b, depth, best_move, alpha, beta);
             if (search_result.score <= alpha) {
                 alpha_delta *= 2;
-                alpha = std::max(prev_score - alpha_delta, -static_cast<int>(CHECKMATE_SCORE));
+                alpha = std::max(score - alpha_delta, -static_cast<int>(CHECKMATE_SCORE));
             } else if (search_result.score >= beta) {
                 beta_delta *= 2;
-                beta = std::min(prev_score + beta_delta, static_cast<int>(CHECKMATE_SCORE));
+                beta = std::min(score + beta_delta, static_cast<int>(CHECKMATE_SCORE));
             } else {
                 // Score is within window
                 break;
@@ -579,9 +596,18 @@ Move search(Board& b, const SearchLimits& limits) {
 
         if (ss.search_interrupted) break;
 
-        prev_score = search_result.score;
+        prev_score = score;
+        score = search_result.score;
         if (search_result.best_move != NULL_MOVE) {
+            prev_best_move = best_move;
             best_move = search_result.best_move;
+        }
+
+        // Update best move stability
+        if (best_move == prev_best_move) {
+            best_move_stability++;
+        } else {
+            best_move_stability = 0;
         }
 
         depth++;
