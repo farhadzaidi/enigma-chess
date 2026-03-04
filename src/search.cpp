@@ -210,14 +210,14 @@ static inline PositionScore negamax(
     bool is_pv_node = beta - alpha > 1; 
 
     // Probe transposition table
-    TTEntry& tt_entry = TT.get_entry(b.zobrist_hash);
+    TTEntry* tt_entry = TT.get_entry(b.zobrist_hash);
     Move tt_move = NULL_MOVE;
-    if (TT.is_valid_entry(b.zobrist_hash, tt_entry)) {
+    if (tt_entry) {
         // Denormalize score before returning
-        PositionScore tt_score = denormalize_tt_score(tt_entry.score, ss.search_ply(b.ply));
+        PositionScore tt_score = denormalize_tt_score(tt_entry->score, ss.search_ply(b.ply));
 
         // Save the TT move
-        tt_move = tt_entry.best_move;
+        tt_move = tt_entry->best_move;
 
         // We can use the TT entry score to cutoff early if the depth of the entry
         // is greater than or equal to the current depth of this node.
@@ -226,11 +226,11 @@ static inline PositionScore negamax(
         // - FAIL_HIGH: lower bound, usable when it exceeds beta
         // - FAIL_LOW: upper bound, usable when it is below alpha
         if (
-            tt_entry.depth >= depth
+            tt_entry->depth >= depth
             && (
-                tt_entry.node == EXACT
-                || (tt_entry.node == FAIL_HIGH && tt_score >= beta)
-                || (tt_entry.node == FAIL_LOW && tt_score <= alpha)
+                tt_entry->node == EXACT
+                || (tt_entry->node == FAIL_HIGH && tt_score >= beta)
+                || (tt_entry->node == FAIL_LOW && tt_score <= alpha)
             )
         ) {
             return tt_score;
@@ -243,9 +243,9 @@ static inline PositionScore negamax(
 
         // Probe TT to get the move
         tt_entry = TT.get_entry(b.zobrist_hash);
-        if (TT.is_valid_entry(b.zobrist_hash, tt_entry)) {
+        if (tt_entry) {
             ss.iid_tt_hits++;
-            tt_move = tt_entry.best_move;
+            tt_move = tt_entry->best_move;
         }
     }
 
@@ -435,8 +435,8 @@ static SearchResult search_at_depth(
     Move best_move;
     PositionScore best_score = DUMMY_SCORE;
     MoveList searched_quiet_moves;
-    TTEntry& tt_entry = TT.get_entry(b.zobrist_hash);
-    Move tt_move = TT.is_valid_entry(b.zobrist_hash, tt_entry) ? tt_entry.best_move : NULL_MOVE;
+    TTEntry* tt_entry = TT.get_entry(b.zobrist_hash);
+    Move tt_move = tt_entry ? tt_entry->best_move : NULL_MOVE;
     MoveSelector move_selector(b, tt_move, prev_best_move);
     bool is_first_move = true;
 

@@ -121,6 +121,8 @@ static void cmd_position(const std::string& cmd, Board& b) {
 }
 
 static void cmd_go(std::string& cmd, Board& b) {
+    TT.generation++;
+
     // Parse go command
     int wtime = -1, btime = -1, winc = 0, binc = 0;
     int movestogo = -1;

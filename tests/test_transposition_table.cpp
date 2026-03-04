@@ -1,151 +1,258 @@
+#include <array>
 #include <iostream>
 
-#include "types.hpp"
 #include "move.hpp"
 #include "transposition_table.hpp"
+#include "types.hpp"
 
-// Store an entry and probe it back, verify all fields match
+static constexpr uint64_t TT_INDEX_MASK = TRANSPOSITION_TABLE_SIZE - 1;
+static constexpr uint64_t COLLIDING_SLOT = 0x12345ULL;
+
+static ZobristHash colliding_hash(uint64_t variant) {
+    return (COLLIDING_SLOT & TT_INDEX_MASK) | (variant << 20);
+}
+
+static bool entry_matches(
+    const TTEntry& entry,
+    ZobristHash hash,
+    Move best_move,
+    SearchDepth depth,
+    PositionScore score,
+    TTNode node,
+    uint16_t age
+) {
+    return (
+        entry.hash == hash
+        && entry.best_move == best_move
+        && entry.depth == depth
+        && entry.score == score
+        && entry.node == node
+        && entry.age == age
+    );
+}
+
+// Store an entry and probe it back, verify all fields match and age is stamped.
 static bool test_tt_store_probe() {
     TT.clear();
+    TT.generation = 7;
 
     ZobristHash hash = 0xDEADBEEF12345678ULL;
     Move move(E2, E4, QUIET, NORMAL);
     TTEntry entry(hash, move, 10, 150, EXACT);
 
     TT.add_entry(entry);
-    TTEntry& probed = TT.get_entry(hash);
-
-    if (!TT.is_valid_entry(hash, probed)) {
-        std::clog << "[FAILURE] 'tt_store_probe' - Entry not valid after store\n";
+    TTEntry* probed = TT.get_entry(hash);
+    if (!probed) {
+        std::clog << "[FAILURE] 'tt_store_probe' - Expected stored entry to be found\n";
         return false;
     }
 
-    if (probed.hash != hash || probed.depth != 10 || probed.score != 150 || probed.node != EXACT) {
-        std::clog << "[FAILURE] 'tt_store_probe' - Field mismatch\n";
-        std::clog << "Hash: " << probed.hash << " (expected " << hash << ")\n";
-        std::clog << "Depth: " << (int)probed.depth << " Score: " << probed.score << " Node: " << (int)probed.node << "\n";
-        return false;
-    }
-
-    if (probed.best_move != move) {
-        std::clog << "[FAILURE] 'tt_store_probe' - Move mismatch\n";
+    if (!entry_matches(*probed, hash, move, 10, 150, EXACT, 7)) {
+        std::clog << "[FAILURE] 'tt_store_probe' - Stored entry fields mismatch\n";
         return false;
     }
 
     return true;
 }
 
-// Probing an empty or mismatched hash should return invalid
+// Probing an empty or mismatched hash should return nullptr.
 static bool test_tt_invalid_probe() {
     TT.clear();
 
-    ZobristHash hash = 0x1234567890ABCDEFULL;
-    TTEntry& probed = TT.get_entry(hash);
-
-    if (TT.is_valid_entry(hash, probed)) {
-        std::clog << "[FAILURE] 'tt_invalid_probe' - Empty entry should not be valid\n";
+    ZobristHash empty_hash = 0x1234567890ABCDEFULL;
+    if (TT.get_entry(empty_hash)) {
+        std::clog << "[FAILURE] 'tt_invalid_probe' - Empty probe should return nullptr\n";
         return false;
     }
 
-    // Store an entry, then probe with a different hash that maps to a different index
-    ZobristHash stored_hash = 0xAAAABBBBCCCCDDDDULL;
+    ZobristHash stored_hash = colliding_hash(1);
+    ZobristHash wrong_hash = colliding_hash(2);
     TT.add_entry(TTEntry(stored_hash, NULL_MOVE, 5, 100, EXACT));
 
-    ZobristHash wrong_hash = 0x1111222233334444ULL;
-    TTEntry& wrong_probed = TT.get_entry(wrong_hash);
-
-    if (TT.is_valid_entry(wrong_hash, wrong_probed)) {
-        std::clog << "[FAILURE] 'tt_invalid_probe' - Mismatched hash should not be valid\n";
+    if (TT.get_entry(wrong_hash)) {
+        std::clog << "[FAILURE] 'tt_invalid_probe' - Mismatched hash should not be found\n";
         return false;
     }
 
     return true;
 }
 
-// clear() should reset previously stored entries
+// clear() should invalidate entries and reset generation.
 static bool test_tt_clear() {
     TT.clear();
+    TT.generation = 3;
 
     ZobristHash hash = 0xABCDEF0123456789ULL;
     TT.add_entry(TTEntry(hash, Move(E2, E4, QUIET, NORMAL), 6, 42, EXACT));
     TT.clear();
 
-    TTEntry& probed = TT.get_entry(hash);
-    if (TT.is_valid_entry(hash, probed)) {
-        std::clog << "[FAILURE] 'tt_clear' - Entry should be invalid after clear()\n";
+    if (TT.get_entry(hash)) {
+        std::clog << "[FAILURE] 'tt_clear' - Entry should not exist after clear()\n";
+        return false;
+    }
+
+    if (TT.generation != 0) {
+        std::clog << "[FAILURE] 'tt_clear' - Generation should reset to 0 after clear()\n";
         return false;
     }
 
     return true;
 }
 
-// Two hashes mapping to the same slot should overwrite, and hash verification should prevent false hits
-static bool test_tt_collision_overwrite() {
+// Up to bucket size colliding hashes should coexist in the same bucket.
+static bool test_tt_bucket_collisions_fit() {
     TT.clear();
+    TT.generation = 4;
 
-    ZobristHash hash_a = 0x0000000000001234ULL;
-    ZobristHash hash_b = hash_a ^ (1ULL << 63); // Same low bits, different high bit
+    std::array<TTEntry, TRANSPOSITION_TABLE_BUCKET_SIZE> entries = {
+        TTEntry(colliding_hash(1), Move(E2, E4, QUIET, NORMAL), 4, 10, EXACT),
+        TTEntry(colliding_hash(2), Move(D2, D4, QUIET, NORMAL), 5, 20, FAIL_HIGH),
+        TTEntry(colliding_hash(3), Move(G1, F3, QUIET, NORMAL), 6, 30, FAIL_LOW),
+        TTEntry(colliding_hash(4), Move(C2, C4, QUIET, NORMAL), 7, 40, EXACT),
+    };
 
-    TTEntry& slot_a = TT.get_entry(hash_a);
-    TTEntry& slot_b = TT.get_entry(hash_b);
-    if (&slot_a != &slot_b) {
-        std::clog << "[FAILURE] 'tt_collision_overwrite' - Expected hashes to collide in same TT slot\n";
-        return false;
+    for (const auto& entry : entries) {
+        TT.add_entry(entry);
     }
 
-    TTEntry entry_a(hash_a, Move(E2, E4, QUIET, NORMAL), 4, 80, EXACT);
-    TTEntry entry_b(hash_b, Move(G1, F3, QUIET, NORMAL), 7, 140, FAIL_HIGH);
+    for (const auto& entry : entries) {
+        TTEntry* probed = TT.get_entry(entry.hash);
+        if (!probed) {
+            std::clog << "[FAILURE] 'tt_bucket_collisions_fit' - Missing colliding entry in bucket\n";
+            return false;
+        }
 
-    TT.add_entry(entry_a);
-    TTEntry& probed_a_before = TT.get_entry(hash_a);
-    if (!TT.is_valid_entry(hash_a, probed_a_before)) {
-        std::clog << "[FAILURE] 'tt_collision_overwrite' - First entry should be valid before overwrite\n";
-        return false;
-    }
-
-    TT.add_entry(entry_b);
-
-    TTEntry& probed_a_after = TT.get_entry(hash_a);
-    if (TT.is_valid_entry(hash_a, probed_a_after)) {
-        std::clog << "[FAILURE] 'tt_collision_overwrite' - Old colliding entry should be invalid after overwrite\n";
-        return false;
-    }
-
-    TTEntry& probed_b_after = TT.get_entry(hash_b);
-    if (!TT.is_valid_entry(hash_b, probed_b_after)) {
-        std::clog << "[FAILURE] 'tt_collision_overwrite' - New colliding entry should be valid\n";
-        return false;
-    }
-
-    if (probed_b_after.best_move != entry_b.best_move || probed_b_after.depth != entry_b.depth
-        || probed_b_after.score != entry_b.score || probed_b_after.node != entry_b.node) {
-        std::clog << "[FAILURE] 'tt_collision_overwrite' - Overwritten slot fields mismatch\n";
-        return false;
+        if (!entry_matches(*probed, entry.hash, entry.best_move, entry.depth, entry.score, entry.node, 4)) {
+            std::clog << "[FAILURE] 'tt_bucket_collisions_fit' - Colliding entry fields mismatch\n";
+            return false;
+        }
     }
 
     return true;
 }
 
-// Writing the same hash again should replace its stored data
+// Writing the same hash again should replace the existing record in-place.
 static bool test_tt_replace_same_hash() {
     TT.clear();
-
     ZobristHash hash = 0x5555AAAA1234FEDCULL;
-    TTEntry entry_1(hash, Move(B1, C3, QUIET, NORMAL), 3, 50, FAIL_LOW);
-    TTEntry entry_2(hash, Move(B1, A3, QUIET, NORMAL), 8, 220, EXACT);
 
-    TT.add_entry(entry_1);
-    TT.add_entry(entry_2);
+    TT.generation = 1;
+    TT.add_entry(TTEntry(hash, Move(B1, C3, QUIET, NORMAL), 3, 50, FAIL_LOW));
 
-    TTEntry& probed = TT.get_entry(hash);
-    if (!TT.is_valid_entry(hash, probed)) {
-        std::clog << "[FAILURE] 'tt_replace_same_hash' - Entry should be valid after replacement\n";
+    TT.generation = 5;
+    TT.add_entry(TTEntry(hash, Move(B1, A3, QUIET, NORMAL), 8, 220, EXACT));
+
+    TTEntry* probed = TT.get_entry(hash);
+    if (!probed) {
+        std::clog << "[FAILURE] 'tt_replace_same_hash' - Replaced entry should exist\n";
         return false;
     }
 
-    if (probed.best_move != entry_2.best_move || probed.depth != entry_2.depth
-        || probed.score != entry_2.score || probed.node != entry_2.node) {
+    if (!entry_matches(*probed, hash, Move(B1, A3, QUIET, NORMAL), 8, 220, EXACT, 5)) {
         std::clog << "[FAILURE] 'tt_replace_same_hash' - Replaced entry fields mismatch\n";
+        return false;
+    }
+
+    uint64_t index = hash & TT_INDEX_MASK;
+    int matches = 0;
+    for (const auto& bucket_entry : TT.table[index]) {
+        if (bucket_entry.hash == hash && bucket_entry.node != NO_TT_ENTRY) {
+            matches++;
+        }
+    }
+    if (matches != 1) {
+        std::clog << "[FAILURE] 'tt_replace_same_hash' - Bucket should contain exactly one copy of hash\n";
+        return false;
+    }
+
+    return true;
+}
+
+// With a full bucket and same age, lowest depth should be replaced.
+static bool test_tt_bucket_replacement_by_depth() {
+    TT.clear();
+    TT.generation = 0;
+
+    std::array<TTEntry, TRANSPOSITION_TABLE_BUCKET_SIZE> entries = {
+        TTEntry(colliding_hash(11), Move(A2, A3, QUIET, NORMAL), 8, 10, EXACT),
+        TTEntry(colliding_hash(12), Move(B2, B3, QUIET, NORMAL), 4, 11, EXACT),
+        TTEntry(colliding_hash(13), Move(C2, C3, QUIET, NORMAL), 12, 12, EXACT),
+        TTEntry(colliding_hash(14), Move(D2, D3, QUIET, NORMAL), 10, 13, EXACT),
+    };
+
+    for (const auto& entry : entries) {
+        TT.add_entry(entry);
+    }
+
+    ZobristHash should_be_replaced = entries[1].hash; // Lowest depth = 4
+    TT.add_entry(TTEntry(colliding_hash(15), Move(E2, E3, QUIET, NORMAL), 6, 99, FAIL_HIGH));
+
+    if (TT.get_entry(should_be_replaced)) {
+        std::clog << "[FAILURE] 'tt_bucket_replacement_by_depth' - Lowest depth entry should be replaced\n";
+        return false;
+    }
+
+    TTEntry* replacement = TT.get_entry(colliding_hash(15));
+    if (!replacement) {
+        std::clog << "[FAILURE] 'tt_bucket_replacement_by_depth' - Replacement entry missing\n";
+        return false;
+    }
+
+    if (!entry_matches(*replacement, colliding_hash(15), Move(E2, E3, QUIET, NORMAL), 6, 99, FAIL_HIGH, 0)) {
+        std::clog << "[FAILURE] 'tt_bucket_replacement_by_depth' - Replacement entry fields mismatch\n";
+        return false;
+    }
+
+    return true;
+}
+
+// With equal depth, aging should make older entries less valuable and first to replace.
+static bool test_tt_bucket_replacement_by_age() {
+    TT.clear();
+
+    std::array<ZobristHash, TRANSPOSITION_TABLE_BUCKET_SIZE> hashes = {
+        colliding_hash(21),
+        colliding_hash(22),
+        colliding_hash(23),
+        colliding_hash(24),
+    };
+
+    for (size_t i = 0; i < hashes.size(); i++) {
+        TT.generation = static_cast<int>(i);
+        TT.add_entry(TTEntry(
+            hashes[i],
+            Move(static_cast<Square>(A2 + i), static_cast<Square>(A3 + i), QUIET, NORMAL),
+            20,
+            100,
+            EXACT
+        ));
+    }
+
+    // Entry at hashes[0] is oldest and should be replaced first when values differ by age only.
+    TT.generation = 8;
+    ZobristHash replacement_hash = colliding_hash(25);
+    TT.add_entry(TTEntry(replacement_hash, Move(H2, H3, QUIET, NORMAL), 20, 200, FAIL_LOW));
+
+    if (TT.get_entry(hashes[0])) {
+        std::clog << "[FAILURE] 'tt_bucket_replacement_by_age' - Oldest entry should be replaced\n";
+        return false;
+    }
+
+    for (size_t i = 1; i < hashes.size(); i++) {
+        if (!TT.get_entry(hashes[i])) {
+            std::clog << "[FAILURE] 'tt_bucket_replacement_by_age' - Newer entry was replaced unexpectedly\n";
+            return false;
+        }
+    }
+
+    TTEntry* replacement = TT.get_entry(replacement_hash);
+    if (!replacement) {
+        std::clog << "[FAILURE] 'tt_bucket_replacement_by_age' - Replacement entry missing\n";
+        return false;
+    }
+
+    if (replacement->age != 8) {
+        std::clog << "[FAILURE] 'tt_bucket_replacement_by_age' - Replacement entry has wrong stamped age\n";
         return false;
     }
 
@@ -156,8 +263,10 @@ bool test_transposition_table() {
     if (!test_tt_store_probe()) return false;
     if (!test_tt_invalid_probe()) return false;
     if (!test_tt_clear()) return false;
-    if (!test_tt_collision_overwrite()) return false;
+    if (!test_tt_bucket_collisions_fit()) return false;
     if (!test_tt_replace_same_hash()) return false;
-    TT.clear(); // Clean up after ourselves
+    if (!test_tt_bucket_replacement_by_depth()) return false;
+    if (!test_tt_bucket_replacement_by_age()) return false;
+    TT.clear(); // Clean up global table state after test.
     return true;
 }
