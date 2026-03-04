@@ -5,7 +5,7 @@
 // --- Board Constants ---
 
 constexpr int NUM_SQUARES    = 64;
-constexpr int NUM_COLORS     = 2;
+constexpr int NUM_SIDES      = 2;
 constexpr int NUM_PIECES     = 6;
 constexpr int BOARD_SIZE     = 8;
 
@@ -38,16 +38,16 @@ constexpr Bitboard file_mask(int file) {
 
 constexpr auto RANK_MASKS = []() {
     std::array<Bitboard, BOARD_SIZE> m{};
-    for (int i = 0; i < BOARD_SIZE; i++) {
-        m[i] = rank_mask(i);
+    for (int rank = 0; rank < BOARD_SIZE; rank++) {
+        m[rank] = rank_mask(rank);
     }
     return m;
 }();
 
 constexpr auto FILE_MASKS = []() {
     std::array<Bitboard, BOARD_SIZE> m{};
-    for (int i = 0; i < BOARD_SIZE; i++) {
-        m[i] = file_mask(i);
+    for (int file = 0; file < BOARD_SIZE; file++) {
+        m[file] = file_mask(file);
     }
     return m;
 }();

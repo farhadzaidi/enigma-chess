@@ -33,7 +33,7 @@ constexpr std::array<MoveScore, NUM_MOVE_FLAGS> PROMOTION_BONUS = {
 
 struct MoveSelector {
     MoveSelPhase phase;
-    CheckInfo checkInfo;
+    CheckInfo check_info;
     MoveList tactical_moves;
     MoveList bad_captures;
     MoveList quiet_moves;
@@ -47,8 +47,8 @@ struct MoveSelector {
 
     MoveSelector(Board& b, Move tt_move, Move prev_best_move = NULL_MOVE)
         : phase(MoveSelPhase::PrevBest), prev_best_move(prev_best_move), tt_move(tt_move) {
-        if (b.to_move == WHITE) checkInfo.compute_check_info<WHITE>(b);
-        else                    checkInfo.compute_check_info<BLACK>(b);
+        if (b.to_move == WHITE) check_info.compute_check_info<WHITE>(b);
+        else                    check_info.compute_check_info<BLACK>(b);
     }
 
     inline bool in_tactical_phase() const {
@@ -86,8 +86,8 @@ struct MoveSelector {
                 if (!tacticals_generated) generate_tactical_moves(b);
 
                 // Moves are already sorted by score when generated, so we can pop the next best move
-                Move next_cap = pop_next(tactical_moves);
-                if (next_cap != NULL_MOVE) return next_cap;
+                Move next_tactical = pop_next(tactical_moves);
+                if (next_tactical != NULL_MOVE) return next_tactical;
 
                 // If we don't have anymore tactical moves, change phase and fall through
                 phase = MoveSelPhase::Killer;
@@ -151,8 +151,8 @@ private:
 
     inline void generate_tactical_moves(Board& b) {
         MoveList all_tacticals;
-        if (b.to_move == WHITE) generate_moves_impl<WHITE, MoveGenMode::TacticalOnly>(b, all_tacticals, checkInfo);
-        else                    generate_moves_impl<BLACK, MoveGenMode::TacticalOnly>(b, all_tacticals, checkInfo);
+        if (b.to_move == WHITE) generate_moves_impl<WHITE, MoveGenMode::TacticalOnly>(b, all_tacticals, check_info);
+        else                    generate_moves_impl<BLACK, MoveGenMode::TacticalOnly>(b, all_tacticals, check_info);
 
         // Split captures into good tacticals and bad captures based on SEE
         // Promotions without capture are always good (free material)
@@ -169,24 +169,24 @@ private:
     }
 
     inline void generate_quiet_moves(Board& b, SearchState& ss) {
-        if (b.to_move == WHITE) generate_moves_impl<WHITE, MoveGenMode::QuietOnly>(b, quiet_moves, checkInfo);
-        else                    generate_moves_impl<BLACK, MoveGenMode::QuietOnly>(b, quiet_moves, checkInfo);
+        if (b.to_move == WHITE) generate_moves_impl<WHITE, MoveGenMode::QuietOnly>(b, quiet_moves, check_info);
+        else                    generate_moves_impl<BLACK, MoveGenMode::QuietOnly>(b, quiet_moves, check_info);
 
         sort_quiet_moves(b, ss);
         quiets_generated = true;
     }
 
-    inline MoveScore get_tactical_score(const Board& b, Move m) {
+    inline MoveScore get_tactical_score(const Board& b, Move move) {
         MoveScore score = 0;
 
-        if (m.type() == MoveType::Capture) {
-            Piece attacker = b.piece_map[m.from()];
-            Piece victim = m.flag() == MoveFlag::EnPassant ? PAWN : b.piece_map[m.to()];
+        if (move.type() == MoveType::Capture) {
+            Piece attacker = b.piece_map[move.from()];
+            Piece victim = move.flag() == MoveFlag::EnPassant ? PAWN : b.piece_map[move.to()];
             score += MVV_LVA_TABLE[attacker][victim];
         }
 
-        if (m.is_promotion()) {
-            score += PROMOTION_BONUS[static_cast<int>(m.flag())];
+        if (move.is_promotion()) {
+            score += PROMOTION_BONUS[static_cast<int>(move.flag())];
         }
 
         return score;
@@ -203,12 +203,12 @@ private:
             Square m1_from = m1.from();
             Square m1_to = m1.to();
             Piece m1_piece = b.piece_map[m1_from];
-            MoveScore m1_score = ss.color_piece_to_history[b.to_move][m1_piece][m1_to] + ss.from_to_history[m1_from][m1_to];
+            MoveScore m1_score = ss.side_piece_to_history[b.to_move][m1_piece][m1_to] + ss.from_to_history[m1_from][m1_to];
 
             Square m2_from = m2.from();
             Square m2_to = m2.to();
             Piece m2_piece = b.piece_map[m2_from];
-            MoveScore m2_score = ss.color_piece_to_history[b.to_move][m2_piece][m2_to] + ss.from_to_history[m2_from][m2_to];
+            MoveScore m2_score = ss.side_piece_to_history[b.to_move][m2_piece][m2_to] + ss.from_to_history[m2_from][m2_to];
 
             return m1_score < m2_score;
         });

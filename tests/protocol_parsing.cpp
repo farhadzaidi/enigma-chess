@@ -138,11 +138,96 @@ static bool test_invalid_san_cases(Board& b) {
     return true;
 }
 
-bool test_parse_move_from_fen(Board& b) {
+bool test_san_parsing(Board& b) {
     if (!test_valid_san_cases(b, SAN_TEST_CASES, std::size(SAN_TEST_CASES), "core")) return false;
     if (!test_valid_san_cases(b, SAN_EDGE_CASES, std::size(SAN_EDGE_CASES), "edge")) return false;
     if (!test_invalid_san_cases(b)) return false;
 
     // All tests passed
+    return true;
+}
+#include <iostream>
+
+#include "core/types.hpp"
+#include "utils/file_io.hpp"
+
+static bool test_parse_perft_epd_line_multi_depth() {
+    const std::string line =
+        "4k3/8/8/8/8/8/8/4K3 w - - 0 1; D1 5; D2 19; D3 117; D4 720";
+
+    PerftEpdResult result = parse_perft_epd_line(line);
+
+    if (result.fen != "4k3/8/8/8/8/8/8/4K3 w - - 0 1") {
+        std::clog << "[FAILURE] 'file_parsing_perft' - FEN parse mismatch\n";
+        std::clog << "Expected: 4k3/8/8/8/8/8/8/4K3 w - - 0 1\n";
+        std::clog << "Got: " << result.fen << "\n";
+        return false;
+    }
+
+    if (result.depth_nodes.size() != 4) {
+        std::clog << "[FAILURE] 'file_parsing_perft' - Expected 4 depth entries\n";
+        std::clog << "Got: " << result.depth_nodes.size() << "\n";
+        return false;
+    }
+
+    if (
+        result.depth_nodes[1] != 5
+        || result.depth_nodes[2] != 19
+        || result.depth_nodes[3] != 117
+        || result.depth_nodes[4] != 720
+    ) {
+        std::clog << "[FAILURE] 'file_parsing_perft' - Depth-node values mismatch\n";
+        return false;
+    }
+
+    return true;
+}
+
+static bool test_parse_perft_epd_line_no_depths() {
+    const std::string line = "4k3/8/8/8/8/8/8/4K3 w - - 0 1";
+    PerftEpdResult result = parse_perft_epd_line(line);
+
+    if (result.fen != line) {
+        std::clog << "[FAILURE] 'file_parsing_perft' - No-delimiter line should preserve full FEN\n";
+        return false;
+    }
+
+    if (!result.depth_nodes.empty()) {
+        std::clog << "[FAILURE] 'file_parsing_perft' - No-delimiter line should have empty depth map\n";
+        return false;
+    }
+
+    return true;
+}
+
+static bool test_parse_engine_epd_line_variants() {
+    const std::string line_multi =
+        "r1b2rk1/2q1b1pp/p2ppn2/1p6/3QP3/1BN1B3/PPP3PP/R4RK1 w - - ; bm Nd5 a4; id BK.05";
+
+    EngineEpdResult multi = parse_engine_epd_line(line_multi);
+    if (multi.fen != "r1b2rk1/2q1b1pp/p2ppn2/1p6/3QP3/1BN1B3/PPP3PP/R4RK1 w - - ") {
+        std::clog << "[FAILURE] 'file_parsing_engine' - FEN parse mismatch for multi-bm line\n";
+        return false;
+    }
+
+    if (multi.best_move_san != "Nd5") {
+        std::clog << "[FAILURE] 'file_parsing_engine' - Expected first bm SAN token\n";
+        std::clog << "Expected: Nd5 Got: " << multi.best_move_san << "\n";
+        return false;
+    }
+
+    EngineEpdResult invalid = parse_engine_epd_line("invalid line without bm marker");
+    if (!invalid.fen.empty() || !invalid.best_move_san.empty()) {
+        std::clog << "[FAILURE] 'file_parsing_engine' - Invalid line should return empty result\n";
+        return false;
+    }
+
+    return true;
+}
+
+bool test_file_parsing() {
+    if (!test_parse_perft_epd_line_multi_depth()) return false;
+    if (!test_parse_perft_epd_line_no_depths()) return false;
+    if (!test_parse_engine_epd_line_variants()) return false;
     return true;
 }

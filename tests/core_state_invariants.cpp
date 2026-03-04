@@ -48,7 +48,7 @@ static bool test_null_move_restore(Board& b) {
 // Null move should toggle side to move
 static bool test_null_move_toggles_side(Board& b) {
     b.load_from_fen(START_POS_FEN);
-    Color original_side = b.to_move;
+    Side original_side = b.to_move;
     b.make_null_move();
 
     if (b.to_move != (original_side ^ 1)) {
@@ -93,18 +93,18 @@ static bool test_null_move_preserves_pieces(Board& b) {
     b.make_null_move();
 
     // Check that all piece bitboards are unchanged
-    for (int c = 0; c < NUM_COLORS; c++) {
-        for (int p = 0; p < NUM_PIECES; p++) {
-            if (b.pieces[c][p] != before.pieces[c][p]) {
+    for (int side = 0; side < NUM_SIDES; side++) {
+        for (int piece = 0; piece < NUM_PIECES; piece++) {
+            if (b.pieces[side][piece] != before.pieces[side][piece]) {
                 std::clog << "[FAILURE] 'null_move_preserves_pieces' - Piece bitboard changed\n";
-                std::clog << "Color: " << c << " Piece: " << p << "\n";
+                std::clog << "Side: " << side << " Piece: " << piece << "\n";
                 b.unmake_null_move();
                 return false;
             }
         }
 
-        if (b.colors[c] != before.colors[c]) {
-            std::clog << "[FAILURE] 'null_move_preserves_pieces' - Color bitboard changed\n";
+        if (b.sides[side] != before.sides[side]) {
+            std::clog << "[FAILURE] 'null_move_preserves_pieces' - Side bitboard changed\n";
             b.unmake_null_move();
             return false;
         }

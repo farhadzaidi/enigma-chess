@@ -1,6 +1,6 @@
 // FEN string loading
 
-static inline Piece char_to_piece(char c) {
+inline Piece char_to_piece(char c) {
     switch (std::toupper(c)) {
         case 'P': return PAWN;   case 'B': return BISHOP;
         case 'N': return KNIGHT; case 'R': return ROOK;
@@ -51,8 +51,8 @@ inline void Board::load_from_fen(const std::string& fen) {
 
         // Must be a piece
         Square square = get_square(rank, file);
-        Color color = std::isupper(c) ? WHITE : BLACK;
-        place_piece(color, char_to_piece(c), square);
+        Side side = std::isupper(c) ? WHITE : BLACK;
+        place_piece(side, char_to_piece(c), square);
 
         file++;
     }

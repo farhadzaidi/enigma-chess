@@ -6,15 +6,16 @@
 #include "core/bitboard.hpp"
 #include "precompute/eval.hpp"
 #include "eval/pawn_table.hpp"
+#include "core/globals.hpp"
 
 // --- Pawn Bonuses ---
 
 constexpr auto EARLY_PASSED_PAWN_BONUS = []() {
     std::array<PositionScore, BOARD_SIZE> bonus = { 0, 0, 3, 8, 15, 25, 40, 0 };
-    std::array<std::array<PositionScore, BOARD_SIZE>, NUM_COLORS> early_passed_pawn_bonus = {};
-    for (int r = RANK_1; r <= RANK_8; r++) {
-        early_passed_pawn_bonus[WHITE][r] = bonus[r];
-        early_passed_pawn_bonus[BLACK][r] = bonus[BOARD_SIZE - 1 - r];
+    std::array<std::array<PositionScore, BOARD_SIZE>, NUM_SIDES> early_passed_pawn_bonus = {};
+    for (int rank = RANK_1; rank <= RANK_8; rank++) {
+        early_passed_pawn_bonus[WHITE][rank] = bonus[rank];
+        early_passed_pawn_bonus[BLACK][rank] = bonus[BOARD_SIZE - 1 - rank];
     }
 
     return early_passed_pawn_bonus;
@@ -22,10 +23,10 @@ constexpr auto EARLY_PASSED_PAWN_BONUS = []() {
 
 constexpr auto LATE_PASSED_PAWN_BONUS = []() {
     std::array<PositionScore, BOARD_SIZE> bonus = { 0, 0, 5, 12, 25, 45, 75, 0 };
-    std::array<std::array<PositionScore, BOARD_SIZE>, NUM_COLORS> late_passed_pawn_bonus = {};
-    for (int r = RANK_1; r <= RANK_8; r++) {
-        late_passed_pawn_bonus[WHITE][r] = bonus[r];
-        late_passed_pawn_bonus[BLACK][r] = bonus[BOARD_SIZE - 1 - r];
+    std::array<std::array<PositionScore, BOARD_SIZE>, NUM_SIDES> late_passed_pawn_bonus = {};
+    for (int rank = RANK_1; rank <= RANK_8; rank++) {
+        late_passed_pawn_bonus[WHITE][rank] = bonus[rank];
+        late_passed_pawn_bonus[BLACK][rank] = bonus[BOARD_SIZE - 1 - rank];
     }
 
     return late_passed_pawn_bonus;
@@ -40,41 +41,40 @@ constexpr PositionScore LATE_STACKED_PAWN_PENALTY   = -10;
 
 inline PawnTableEntry get_pawn_score(const Board& b) {
     // Check pawn table before computing
-    PawnTableEntry pt_entry = PT.get_entry(b.pawn_hash);
-    if (PT.is_valid_entry(b.pawn_hash, pt_entry)) {
+    PawnTableEntry pt_entry = pawn_table.get_entry(b.pawn_hash);
+    if (pawn_table.is_valid_entry(b.pawn_hash, pt_entry)) {
         return pt_entry;
     }
 
     PawnTableEntry new_pt_entry;
     new_pt_entry.hash = b.pawn_hash;
 
-    for (Color c = WHITE; c < NUM_COLORS; c++) {
-        Color us = c;
-        Color them = opposite_color(c);
+    for (Side side = WHITE; side < NUM_SIDES; side++) {
+        Side enemy_side = opposite_side(side);
 
         PositionScore early_score = 0;
         PositionScore late_score = 0;
 
-        Bitboard our_pawns = b.pieces[us][PAWN];
-        Bitboard our_pawns_copy = our_pawns;
-        Bitboard their_pawns = b.pieces[them][PAWN];
+        Bitboard friendly_pawns = b.pieces[side][PAWN];
+        Bitboard friendly_pawns_copy = friendly_pawns;
+        Bitboard enemy_pawns = b.pieces[enemy_side][PAWN];
 
-        while (our_pawns_copy) {
-            Square sq = pop_lsb(our_pawns_copy);
+        while (friendly_pawns_copy) {
+            Square sq = pop_lsb(friendly_pawns_copy);
             int file = get_file(sq);
             int rank = get_rank(sq);
 
             // Passed pawn term
-            Bitboard passed_pawn_mask = PASSED_PAWN_MASKS[us][sq];
-            bool is_passed_pawn = (passed_pawn_mask & their_pawns) == 0;
+            Bitboard passed_pawn_mask = PASSED_PAWN_MASKS[side][sq];
+            bool is_passed_pawn = (passed_pawn_mask & enemy_pawns) == 0;
             if (is_passed_pawn) {
-                early_score += EARLY_PASSED_PAWN_BONUS[us][rank];
-                late_score += LATE_PASSED_PAWN_BONUS[us][rank];
+                early_score += EARLY_PASSED_PAWN_BONUS[side][rank];
+                late_score += LATE_PASSED_PAWN_BONUS[side][rank];
             }
 
             // Isolated pawn term
             Bitboard adjacent_file_mask = ADJACENT_FILE_MASKS[sq];
-            bool is_isolated_pawn = (adjacent_file_mask & our_pawns) == 0;
+            bool is_isolated_pawn = (adjacent_file_mask & friendly_pawns) == 0;
             if (is_isolated_pawn) {
                 early_score += EARLY_ISOLATED_PAWN_PENALTY;
                 late_score += LATE_ISOLATED_PAWN_PENALTY;
@@ -83,18 +83,18 @@ inline PawnTableEntry get_pawn_score(const Board& b) {
             // Stacked pawn term
             Bitboard sq_mask = get_mask(sq);
             Bitboard file_mask = FILE_MASKS[file] ^ sq_mask;
-            bool is_stacked_pawn = (file_mask & our_pawns) != 0;
+            bool is_stacked_pawn = (file_mask & friendly_pawns) != 0;
             if (is_stacked_pawn) {
                 early_score += EARLY_STACKED_PAWN_PENALTY;
                 late_score += LATE_STACKED_PAWN_PENALTY;
             }
         }
 
-        new_pt_entry.early_pawn_score[us] = early_score;
-        new_pt_entry.late_pawn_score[us] = late_score;
+        new_pt_entry.early_pawn_score[side] = early_score;
+        new_pt_entry.late_pawn_score[side] = late_score;
     }
 
     // Store results in pawn table and return
-    PT.add_entry(new_pt_entry);
+    pawn_table.add_entry(new_pt_entry);
     return new_pt_entry;
 }

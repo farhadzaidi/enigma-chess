@@ -13,8 +13,8 @@ constexpr Bitboard EMPTY_BITBOARD = 0;
 
 // --- Bitboard Constants ---
 
-static constexpr Bitboard NOT_A_FILE = ~FILE_MASKS[A_FILE];
-static constexpr Bitboard NOT_H_FILE = ~FILE_MASKS[H_FILE];
+constexpr Bitboard NOT_A_FILE = ~FILE_MASKS[A_FILE];
+constexpr Bitboard NOT_H_FILE = ~FILE_MASKS[H_FILE];
 
 // --- Bitboard Shift ---
 
@@ -61,10 +61,10 @@ constexpr Square pop_next(Bitboard& b) {
     else                       return pop_msb(b);
 }
 
-// --- Color & Square Utilities ---
+// --- Side & Square Utilities ---
 
-inline constexpr Color opposite_color(Color c) { return c ^ 1; }
-inline constexpr Square flip_square(Square sq) { return sq ^ 56; }
+constexpr Side opposite_side(Side s) { return s ^ 1; }
+constexpr Square flip_square(Square sq) { return sq ^ 56; }
 
 // --- Square Utilities ---
 

@@ -53,28 +53,28 @@ inline Move encode_move_from_uci(const Board& b, const std::string& uci_move) {
     Square to = uci_to_index(uci_move.substr(2, 2));
 
     // The move was a capture if the "to" square is occupied (EP will be handled separately)
-    MoveType mtype = MoveType::Quiet;
+    MoveType move_type = MoveType::Quiet;
     if (b.piece_map[to] != NO_PIECE) {
-        mtype = MoveType::Capture;
+        move_type = MoveType::Capture;
     }
 
     // Determine move flag
-    MoveFlag mflag = MoveFlag::Normal;
+    MoveFlag move_flag = MoveFlag::Normal;
 
     // Optional 5th character indicates the kind of promotion
     if (uci_move.length() == 5) {
         switch(uci_move[4]) {
             case 'b':
-                mflag = MoveFlag::PromoBishop;
+                move_flag = MoveFlag::PromoBishop;
                 break;
             case 'n':
-                mflag = MoveFlag::PromoKnight;
+                move_flag = MoveFlag::PromoKnight;
                 break;
             case 'r':
-                mflag = MoveFlag::PromoRook;
+                move_flag = MoveFlag::PromoRook;
                 break;
             case 'q':
-                mflag = MoveFlag::PromoQueen;
+                move_flag = MoveFlag::PromoQueen;
                 break;
         }
     }
@@ -84,18 +84,18 @@ inline Move encode_move_from_uci(const Board& b, const std::string& uci_move) {
         b.piece_map[from] == KING &&
         std::abs(static_cast<int>(from) - static_cast<int>(to)) == 2 // Type casting to prevent underflow
     ) {
-        mflag = MoveFlag::Castle;
+        move_flag = MoveFlag::Castle;
     }
 
     // If the moving piece was a pawn and it moved to the en passant target square,
     // then we know this move was an en passant
     else if (b.piece_map[from] == PAWN && to == b.en_passant_target) {
-        mflag = MoveFlag::EnPassant;
-        mtype = MoveType::Capture;
+        move_flag = MoveFlag::EnPassant;
+        move_type = MoveType::Capture;
     }
 
     // Encode the move and return
-    return Move(from, to, mtype, mflag);
+    return Move(from, to, move_type, move_flag);
 }
 
 inline std::string decode_move_to_uci(Move move) {
@@ -305,7 +305,7 @@ inline Move parse_move_from_san(Board& b, const std::string& san) {
 
     // Filter moves based on parsed criteria
     Move candidate = NULL_MOVE;
-    int match_count = 0;
+    int num_matches = 0;
 
     for (const Move& move : legal_moves) {
         // Check piece type matches
@@ -354,11 +354,11 @@ inline Move parse_move_from_san(Board& b, const std::string& san) {
 
         // This move matches all criteria
         candidate = move;
-        match_count++;
+        num_matches++;
     }
 
     // Return NULL_MOVE if no match or ambiguous
-    if (match_count != 1) {
+    if (num_matches != 1) {
         return NULL_MOVE;
     }
 

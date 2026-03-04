@@ -9,7 +9,7 @@
 #include "utils/notation.hpp"
 
 template<bool Root>
-inline uint64_t perft(Board &b, SearchDepth depth) {
+inline uint64_t perft(Board& b, SearchDepth depth) {
     uint64_t nodes = 0;
     uint64_t total_nodes = 0;
     MoveList moves = generate_moves<MoveGenMode::All>(b);
@@ -41,19 +41,19 @@ inline uint64_t perft(Board &b, SearchDepth depth) {
 // Forward declaration
 inline uint64_t perft_phased(Board& b, SearchDepth depth);
 
-template <Color C>
-inline uint64_t _perft_phased(Board &b, SearchDepth depth) {
+template <Side S>
+inline uint64_t _perft_phased(Board& b, SearchDepth depth) {
     uint64_t nodes = 0;
 
 
     MoveList quiet_moves;
     MoveList captures;
 
-    CheckInfo checkInfo;
-    checkInfo.compute_check_info<C>(b);
+    CheckInfo check_info;
+    check_info.compute_check_info<S>(b);
 
-    generate_moves_impl<C, MoveGenMode::QuietOnly>(b, quiet_moves, checkInfo);
-    generate_moves_impl<C, MoveGenMode::TacticalOnly>(b, captures, checkInfo);
+    generate_moves_impl<S, MoveGenMode::QuietOnly>(b, quiet_moves, check_info);
+    generate_moves_impl<S, MoveGenMode::TacticalOnly>(b, captures, check_info);
 
     if (depth == 1) {
         return quiet_moves.size + captures.size;
@@ -74,7 +74,7 @@ inline uint64_t _perft_phased(Board &b, SearchDepth depth) {
     return nodes;
 }
 
-inline uint64_t perft_phased(Board&b, SearchDepth depth) {
+inline uint64_t perft_phased(Board& b, SearchDepth depth) {
     return b.to_move == WHITE
         ? _perft_phased<WHITE>(b, depth)
         : _perft_phased<BLACK>(b, depth);

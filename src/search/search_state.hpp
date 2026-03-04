@@ -15,7 +15,7 @@ struct SearchLimits {
 
 struct SearchState {
     // --- Board-local type aliases ---
-    using ColorPieceToHistory = std::array<std::array<std::array<MoveScore, NUM_SQUARES>, NUM_PIECES>, NUM_COLORS>;
+    using SidePieceToHistory = std::array<std::array<std::array<MoveScore, NUM_SQUARES>, NUM_PIECES>, NUM_SIDES>;
     using FromToHistory = std::array<std::array<MoveScore, NUM_SQUARES>, NUM_SQUARES>;
 
     SearchLimits limits;
@@ -30,12 +30,10 @@ struct SearchState {
     KillerMoves killer_2;
 
     // History heuristic tables (for quiet moves)
-    ColorPieceToHistory color_piece_to_history;
+    SidePieceToHistory side_piece_to_history;
     FromToHistory from_to_history;
 
     int search_ply(int board_ply) const {
         return board_ply - ply_offset;
     }
 };
-
-inline SearchState g_search_state;

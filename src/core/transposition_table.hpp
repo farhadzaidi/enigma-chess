@@ -98,5 +98,3 @@ private:
         return entry->depth - AGE_PENALTY_WEIGHT * (generation - entry->age);
     }
 };
-
-inline TranspositionTable TT;

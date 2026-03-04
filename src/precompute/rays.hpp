@@ -6,7 +6,7 @@
 using RayMap = std::array<Bitboard, NUM_SQUARES>;
 
 template <Direction D>
-static constexpr RayMap compute_rays() {
+constexpr RayMap compute_rays() {
     RayMap ray_map{};
     for (Square sq = 0; sq < NUM_SQUARES; sq++) {
         ray_map[sq] = walk<D>(sq);

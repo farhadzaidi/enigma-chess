@@ -2,7 +2,7 @@
 
 inline void Board::print_board() const {
     std::string EMPTY_SYMBOL = ".";
-    std::array<std::array<std::string, NUM_PIECES>, NUM_COLORS> PIECE_SYMBOLS = {{
+    std::array<std::array<std::string, NUM_PIECES>, NUM_SIDES> PIECE_SYMBOLS = {{
         { "♟", "♝", "♞", "♜", "♛", "♚" },
         { "♙", "♗", "♘", "♖", "♕", "♔" }
     }};
@@ -24,8 +24,8 @@ inline void Board::print_board() const {
                 continue;
             }
 
-            Color color = get_color(square);
-            std::clog << PIECE_SYMBOLS[color][piece] << " ";
+            Side side = get_side(square);
+            std::clog << PIECE_SYMBOLS[side][piece] << " ";
         }
 
         // Move onto the next rank

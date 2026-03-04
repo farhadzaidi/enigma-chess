@@ -135,7 +135,7 @@ int main(int argc, char* argv[]) {
         std::vector<std::string> tests(args.begin() + 1, args.end());
 
         for (const auto& test : tests) {
-            if (std::find(TEST_NAMES.begin(), TEST_NAMES.end(), test) == TEST_NAMES.end()) {
+            if (!is_valid_test_selector(test)) {
                 std::clog << "Error: Unknown test '" << test << "'\n";
                 return EXIT_FAILURE;
             }

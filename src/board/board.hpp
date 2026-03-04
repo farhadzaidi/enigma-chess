@@ -39,20 +39,20 @@ struct Board {
 
     // --- Board-local type aliases ---
 private:
-    using PieceBitboards    = std::array<std::array<Bitboard, NUM_PIECES>, NUM_COLORS>;
-    using ColorBitboards    = std::array<Bitboard, NUM_COLORS>;
+    using PieceBitboards    = std::array<std::array<Bitboard, NUM_PIECES>, NUM_SIDES>;
+    using SideBitboards     = std::array<Bitboard, NUM_SIDES>;
     using PieceMap          = std::array<Piece, NUM_SQUARES>;
-    using KingSquares       = std::array<Square, NUM_COLORS>;
+    using KingSquares       = std::array<Square, NUM_SIDES>;
     using MoveStack         = std::array<Move, MAX_GAME_PLY>;
     using StateStack        = std::array<UndoState, MAX_GAME_PLY>;
     using HashStack         = std::array<ZobristHash, MAX_GAME_PLY + 1>;
-    using ColorScore        = std::array<int, NUM_COLORS>;
+    using SideScore         = std::array<int, NUM_SIDES>;
 
 public:
 
     // --- Board Representation ---
     PieceBitboards pieces;
-    ColorBitboards colors;
+    SideBitboards sides;
     PieceMap piece_map;
 
     ZobristHash position_hash;
@@ -63,12 +63,12 @@ public:
     Bitboard occupied;
 
     // Score
-    ColorScore early_score;
-    ColorScore late_score;
+    SideScore early_score;
+    SideScore late_score;
     int game_phase;
 
     // Board state information
-    Color to_move;
+    Side to_move;
     CastlingRights castling_rights;
     Square en_passant_target;
     int halfmoves;
@@ -91,9 +91,9 @@ public:
     inline void unmake_move(Move move);
     inline void make_null_move();
     inline void unmake_null_move();
-    inline bool in_check(Color side = NO_COLOR) const;
-    inline bool has_non_pawn_material(Color color) const;
-    inline bool is_attacked(Square sq, Color by) const;
+    inline bool in_check(Side side = NO_SIDE) const;
+    inline bool has_non_pawn_material(Side side) const;
+    inline bool is_attacked(Square sq, Side by) const;
     inline Bitboard attackers_to(Square sq, Bitboard occupied) const;
     inline bool is_legal_move(Move move);
     inline bool has_repeated() const;
@@ -103,7 +103,7 @@ public:
     void reset() {
         pieces[WHITE].fill(EMPTY_BITBOARD);
         pieces[BLACK].fill(EMPTY_BITBOARD);
-        colors.fill(EMPTY_BITBOARD);
+        sides.fill(EMPTY_BITBOARD);
 
         piece_map.fill(NO_PIECE);
         king_squares.fill(NO_SQUARE);
@@ -115,7 +115,7 @@ public:
         game_phase = 0;
 
         occupied = EMPTY_BITBOARD;
-        to_move = NO_COLOR;
+        to_move = NO_SIDE;
         castling_rights = NO_CASTLING_RIGHTS;
         en_passant_target = NO_SQUARE;
         halfmoves = 0;
@@ -129,15 +129,15 @@ private:
 
     // ### HELPERS
 
-    inline Color get_color(Square square) const;
-    inline void place_piece(Color color, Piece piece, Square square);
-    inline void remove_piece(Color color, Piece piece, Square square);
+    inline Side get_side(Square square) const;
+    inline void place_piece(Side side, Piece piece, Square square);
+    inline void remove_piece(Side side, Piece piece, Square square);
     inline void xor_en_passant();
     inline void xor_castling_rights();
     inline void xor_side_to_move();
     inline void toggle_side_to_move();
-    inline void set_en_passant_target(Color color, Piece piece, Square from, Square to);
-    inline Piece handle_capture(Square capture_square, Color moving_color, MoveFlag mflag);
+    inline void set_en_passant_target(Side side, Piece piece, Square from, Square to);
+    inline Piece handle_capture(Square capture_square, Side moving_side, MoveFlag mflag);
     inline void handle_castle(Square castle_square);
     inline void undo_castle(Square castle_square);
     inline void update_castling_rights(Square from, Square to);

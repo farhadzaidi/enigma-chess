@@ -11,7 +11,7 @@ using ZobristHash   = uint64_t;
 using MoveScore     = int32_t;
 using PositionScore = int16_t;
 using Square        = uint8_t;
-using Color         = uint8_t;
+using Side          = uint8_t;
 using Piece         = uint8_t;
 using CastlingRights = uint8_t;
 using SearchDepth   = uint8_t;
@@ -34,13 +34,13 @@ enum class MoveFlag : uint16_t {
     PromoQueen     = 6
 };
 
-enum class MoveGenMode {
+enum class MoveGenMode : uint8_t {
     All,
     QuietOnly,
     TacticalOnly
 };
 
-enum class SearchMode {
+enum class SearchMode : uint8_t {
     Time,
     Nodes,
     Depth,
@@ -115,10 +115,10 @@ enum FileEnum : uint8_t {
     H_FILE,
 };
 
-enum ColorEnum : Color {
+enum SideEnum : Side {
     WHITE,
     BLACK,
-    NO_COLOR
+    NO_SIDE
 };
 
 enum PieceEnum : Piece {

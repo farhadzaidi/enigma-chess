@@ -6,7 +6,7 @@
 
 using PieceValues = std::array<int, NUM_PIECES>;
 using PieceSquareTable = std::array<std::array<int, NUM_SQUARES>, NUM_PIECES>;
-using EvalTable = std::array<std::array<std::array<int, NUM_SQUARES>, NUM_PIECES>, NUM_COLORS>;
+using EvalTable = std::array<std::array<std::array<int, NUM_SQUARES>, NUM_PIECES>, NUM_SIDES>;
 
 // --- Piece Values ---
 // Credit: https://www.chessprogramming.org/PeSTO%27s_Evaluation_Function
@@ -166,10 +166,10 @@ constexpr EvalTable create_eval_table(
     const PieceSquareTable& psqt
 ) {
     EvalTable table{};
-    for (Piece p = PAWN; p < NUM_PIECES; p++) {
+    for (Piece piece = PAWN; piece < NUM_PIECES; piece++) {
         for (Square sq = 0; sq < NUM_SQUARES; sq++) {
-            table[WHITE][p][sq] = piece_values[p] + psqt[p][sq ^ 56]; // Flip square for white's perspective
-            table[BLACK][p][sq] = piece_values[p] + psqt[p][sq];
+            table[WHITE][piece][sq] = piece_values[piece] + psqt[piece][sq ^ 56]; // Flip square for white's perspective
+            table[BLACK][piece][sq] = piece_values[piece] + psqt[piece][sq];
         }
     }
     return table;

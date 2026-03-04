@@ -30,14 +30,14 @@ constexpr auto ADJACENT_FILE_MASKS_INCLUSIVE = []() {
 }();
 
 constexpr auto PASSED_PAWN_MASKS = []() {
-    std::array<std::array<Bitboard, NUM_SQUARES>, NUM_COLORS> passed_pawn_masks = {};
+    std::array<std::array<Bitboard, NUM_SQUARES>, NUM_SIDES> passed_pawn_masks = {};
 
     // White pawns
     for (Square sq = 0; sq < NUM_SQUARES; sq++) {
         int rank = get_rank(sq);
         Bitboard ranks_in_front = EMPTY_BITBOARD;
-        for (int r = rank + 1; r < BOARD_SIZE; r++) {
-            ranks_in_front |= RANK_MASKS[r];
+        for (int front_rank = rank + 1; front_rank < BOARD_SIZE; front_rank++) {
+            ranks_in_front |= RANK_MASKS[front_rank];
         }
 
         passed_pawn_masks[WHITE][sq] = ranks_in_front & ADJACENT_FILE_MASKS_INCLUSIVE[sq];
@@ -47,8 +47,8 @@ constexpr auto PASSED_PAWN_MASKS = []() {
     for (Square sq = 0; sq < NUM_SQUARES; sq++) {
         int rank = get_rank(sq);
         Bitboard ranks_in_front = EMPTY_BITBOARD; // From black's perspective
-        for (int r = rank - 1; r >= RANK_1; r--) {
-            ranks_in_front |= RANK_MASKS[r];
+        for (int front_rank = rank - 1; front_rank >= RANK_1; front_rank--) {
+            ranks_in_front |= RANK_MASKS[front_rank];
         }
 
         passed_pawn_masks[BLACK][sq] = ranks_in_front & ADJACENT_FILE_MASKS_INCLUSIVE[sq];
@@ -58,7 +58,7 @@ constexpr auto PASSED_PAWN_MASKS = []() {
 }();
 
 constexpr auto KING_SHIELD_MASKS = []() {
-    std::array<std::array<Bitboard, NUM_SQUARES>, NUM_COLORS> king_shield_masks = {};
+    std::array<std::array<Bitboard, NUM_SQUARES>, NUM_SIDES> king_shield_masks = {};
 
     for (Square sq = 0; sq < NUM_SQUARES; sq++) {
         int rank = get_rank(sq);

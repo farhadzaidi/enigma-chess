@@ -17,10 +17,10 @@ constexpr std::array<int, NUM_PIECES> SEE_PIECE_VALUES = {100, 300, 325, 500, 90
 // Upper bound for the maximum number of captures
 constexpr int MAX_CAPTURES = 32;
 
-inline Attacker get_least_valuable_attacker(Board& b, Color side, Bitboard attackers) {
-    for (Piece p = PAWN; p < NUM_PIECES; p++) {
-        Bitboard from_mask = attackers & b.pieces[side][p];
-        if (from_mask) return {p, get_lsb(from_mask)};
+inline Attacker get_least_valuable_attacker(Board& b, Side side, Bitboard attackers) {
+    for (Piece piece = PAWN; piece < NUM_PIECES; piece++) {
+        Bitboard from_mask = attackers & b.pieces[side][piece];
+        if (from_mask) return {piece, get_lsb(from_mask)};
     }
 
     return {NO_PIECE, NO_SQUARE};
@@ -39,7 +39,7 @@ inline int see(Board& b, Move move) {
 
     std::array<int, MAX_CAPTURES> exchange_scores;
     Square target_sq = move.to();
-    Color attacking_side = b.to_move;
+    Side attacking_side = b.to_move;
     Bitboard occupied = b.occupied;
     Bitboard attackers = EMPTY_BITBOARD;
     Piece last_attacker_piece = NO_PIECE;
@@ -57,7 +57,7 @@ inline int see(Board& b, Move move) {
         occupied ^= get_mask(cap_sq);
         occupied |= get_mask(target_sq);
     }
-    attacking_side = opposite_color(attacking_side);
+    attacking_side = opposite_side(attacking_side);
     num_exchanges++;
 
     // Recapture from both sides until one side can't anymore
@@ -67,7 +67,7 @@ inline int see(Board& b, Move move) {
         if (attacker.piece == NO_PIECE) break;
 
         // Can't capture with the king if the opponent still has attackers
-        if (attacker.piece == KING && (attackers & b.colors[opposite_color(attacking_side)])) break;
+        if (attacker.piece == KING && (attackers & b.sides[opposite_side(attacking_side)])) break;
 
         int captured_value = SEE_PIECE_VALUES[last_attacker_piece];
         exchange_scores[num_exchanges] = captured_value - exchange_scores[num_exchanges - 1];
@@ -75,7 +75,7 @@ inline int see(Board& b, Move move) {
         // Simulate capture and toggle side
         last_attacker_piece = attacker.piece;
         occupied ^= get_mask(attacker.square);
-        attacking_side = opposite_color(attacking_side);
+        attacking_side = opposite_side(attacking_side);
         num_exchanges++;
     }
 

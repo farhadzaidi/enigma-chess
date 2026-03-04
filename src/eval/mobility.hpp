@@ -50,44 +50,44 @@ struct MobilityScore {
     PositionScore late = 0;
 };
 
-inline MobilityScore compute_color_mobility(
+inline MobilityScore compute_side_mobility(
     const Board& b,
-    Color color,
+    Side side,
     Bitboard occupied
 ) {
     MobilityScore score;
-    Bitboard friendly = b.colors[color];
+    Bitboard friendly_pieces = b.sides[side];
 
-    Bitboard knights = b.pieces[color][KNIGHT];
+    Bitboard knights = b.pieces[side][KNIGHT];
     while (knights) {
         Square sq = pop_lsb(knights);
-        int moves = std::popcount(KNIGHT_ATTACK_MAP[sq] & ~friendly);
+        int moves = std::popcount(KNIGHT_ATTACK_MAP[sq] & ~friendly_pieces);
         score.early += KNIGHT_MOBILITY_EARLY[moves];
         score.late  += KNIGHT_MOBILITY_LATE[moves];
     }
 
-    Bitboard bishops = b.pieces[color][BISHOP];
+    Bitboard bishops = b.pieces[side][BISHOP];
     while (bishops) {
         Square sq = pop_lsb(bishops);
-        int moves = std::popcount(generate_sliding_attack_mask<BISHOP>(sq, occupied) & ~friendly);
+        int moves = std::popcount(generate_sliding_attack_mask<BISHOP>(sq, occupied) & ~friendly_pieces);
         score.early += BISHOP_MOBILITY_EARLY[moves];
         score.late  += BISHOP_MOBILITY_LATE[moves];
     }
 
-    Bitboard rooks = b.pieces[color][ROOK];
+    Bitboard rooks = b.pieces[side][ROOK];
     while (rooks) {
         Square sq = pop_lsb(rooks);
-        int moves = std::popcount(generate_sliding_attack_mask<ROOK>(sq, occupied) & ~friendly);
+        int moves = std::popcount(generate_sliding_attack_mask<ROOK>(sq, occupied) & ~friendly_pieces);
         score.early += ROOK_MOBILITY_EARLY[moves];
         score.late  += ROOK_MOBILITY_LATE[moves];
     }
 
-    Bitboard queens = b.pieces[color][QUEEN];
+    Bitboard queens = b.pieces[side][QUEEN];
     while (queens) {
         Square sq = pop_lsb(queens);
         int moves = std::popcount(
             (generate_sliding_attack_mask<BISHOP>(sq, occupied) |
-             generate_sliding_attack_mask<ROOK>(sq, occupied)) & ~friendly
+             generate_sliding_attack_mask<ROOK>(sq, occupied)) & ~friendly_pieces
         );
         score.early += QUEEN_MOBILITY_EARLY[moves];
         score.late  += QUEEN_MOBILITY_LATE[moves];
@@ -97,15 +97,15 @@ inline MobilityScore compute_color_mobility(
 }
 
 inline MobilityScore get_mobility_score(const Board& b) {
-    Color us = b.to_move;
-    Color them = opposite_color(us);
+    Side friendly_side = b.to_move;
+    Side enemy_side = opposite_side(friendly_side);
     Bitboard occupied = b.occupied;
 
-    MobilityScore ours = compute_color_mobility(b, us, occupied);
-    MobilityScore theirs = compute_color_mobility(b, them, occupied);
+    MobilityScore friendly_mobility = compute_side_mobility(b, friendly_side, occupied);
+    MobilityScore enemy_mobility = compute_side_mobility(b, enemy_side, occupied);
 
     return {
-        static_cast<PositionScore>(ours.early - theirs.early),
-        static_cast<PositionScore>(ours.late - theirs.late)
+        static_cast<PositionScore>(friendly_mobility.early - enemy_mobility.early),
+        static_cast<PositionScore>(friendly_mobility.late - enemy_mobility.late)
     };
 }

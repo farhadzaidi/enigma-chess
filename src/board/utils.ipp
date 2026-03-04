@@ -1,16 +1,16 @@
-// ---- Helpers ----
+// --- Helpers ---
 
-inline Square en_passant_capture_square(Square to, Color moving_color) {
-    return moving_color == WHITE ? to + SOUTH : to + NORTH;
+inline Square en_passant_capture_square(Square to, Side moving_side) {
+    return moving_side == WHITE ? to + SOUTH : to + NORTH;
 }
 
-inline Color Board::get_color(Square square) const {
-    return (colors[BLACK] >> square) & uint64_t{1};
+inline Side Board::get_side(Square square) const {
+    return (sides[BLACK] >> square) & uint64_t{1};
 }
 
-inline bool Board::has_non_pawn_material(Color color) const {
-    return pieces[color][KNIGHT] | pieces[color][BISHOP] |
-           pieces[color][ROOK]   | pieces[color][QUEEN];
+inline bool Board::has_non_pawn_material(Side side) const {
+    return pieces[side][KNIGHT] | pieces[side][BISHOP] |
+           pieces[side][ROOK]   | pieces[side][QUEEN];
 }
 
 inline bool Board::has_repeated() const {
@@ -23,11 +23,10 @@ inline bool Board::has_repeated() const {
     // alters the board position so we don't need to lock for repeition
     // before the ply that reset the clock
     int last_reversible_ply = std::max(0, ply - halfmoves);
-    int previous_position_index = ply - 2;
 
     // Step back by 2 ply each time since we need at least two moves from both sides
-    for (int i = previous_position_index; i >= last_reversible_ply; i -= 2) {
-        if (position_hashes[i] == position_hash) {
+    for (int past_ply = ply - 2; past_ply >= last_reversible_ply; past_ply -= 2) {
+        if (position_hashes[past_ply] == position_hash) {
             return true;
         }
     }
@@ -35,59 +34,59 @@ inline bool Board::has_repeated() const {
     return false;
 }
 
-// ---- Piece Manipulation ----
+// --- Piece Manipulation ---
 
-inline void Board::place_piece(Color color, Piece piece, Square square) {
+inline void Board::place_piece(Side side, Piece piece, Square square) {
     // Create a mask based on the square of the piece and use bitwise OR to
     // place the piece on each respective bitboard
     Bitboard mask = get_mask(square);
-    pieces[color][piece] |= mask;
-    colors[color] |= mask;
+    pieces[side][piece] |= mask;
+    sides[side] |= mask;
     occupied |= mask;
 
     piece_map[square] = piece;
     if (piece == KING) {
-        king_squares[color] = square;
+        king_squares[side] = square;
     }
 
     // XOR piece into hash
-    uint64_t zobrist_number = ZOBRIST_PIECES[color][piece][square];
+    uint64_t zobrist_number = ZOBRIST_PIECES[side][piece][square];
     position_hash ^= zobrist_number;
     if (piece == PAWN) {
         pawn_hash ^= zobrist_number;
     }
 
     // Update scores
-    early_score[color] += EARLY_EVAL_TABLE[color][piece][square];
-    late_score[color] += LATE_EVAL_TABLE[color][piece][square];
+    early_score[side] += EARLY_EVAL_TABLE[side][piece][square];
+    late_score[side] += LATE_EVAL_TABLE[side][piece][square];
     game_phase += GAME_PHASE_INCREMENT[piece];
 }
 
-inline void Board::remove_piece(Color color, Piece piece, Square square) {
+inline void Board::remove_piece(Side side, Piece piece, Square square) {
     // Create a mask based on the square of the piece and use bitwise AND to
     // remove the piece from each respective bitboard
     Bitboard mask = ~get_mask(square);
-    pieces[color][piece] &= mask;
-    colors[color] &= mask;
+    pieces[side][piece] &= mask;
+    sides[side] &= mask;
     occupied &= mask;
 
     piece_map[square] = NO_PIECE;
     // No need to clear king square here as it will be updated in place_piece
 
     // XOR piece out of hash
-    uint64_t zobrist_number = ZOBRIST_PIECES[color][piece][square];
+    uint64_t zobrist_number = ZOBRIST_PIECES[side][piece][square];
     position_hash ^= zobrist_number;
     if (piece == PAWN) {
         pawn_hash ^= zobrist_number;
     }
 
     // Updates score
-    early_score[color] -= EARLY_EVAL_TABLE[color][piece][square];
-    late_score[color] -= LATE_EVAL_TABLE[color][piece][square];
+    early_score[side] -= EARLY_EVAL_TABLE[side][piece][square];
+    late_score[side] -= LATE_EVAL_TABLE[side][piece][square];
     game_phase -= GAME_PHASE_INCREMENT[piece];
 }
 
-// ---- Hash Helpers ----
+// --- Hash Helpers ---
 
 inline void Board::xor_en_passant() {
     if (en_passant_target != NO_SQUARE) {
@@ -95,7 +94,7 @@ inline void Board::xor_en_passant() {
         // Note: this is a pseudo-legality check as it doesn't accounts for pins/x-rays
         // A strict legality check here would be too expensive and not worth the cost for
         // the engine so we accept occasional (extremely rare) false negatives
-        Color capturer = get_rank(en_passant_target) == RANK_3 ? BLACK : WHITE;
+        Side capturer = get_rank(en_passant_target) == RANK_3 ? BLACK : WHITE;
         if (PAWN_ATTACK_MAPS[capturer][en_passant_target] & pieces[capturer][PAWN]) {
             position_hash ^= ZOBRIST_EN_PASSANT_TARGETS[get_file(en_passant_target)];
         }
@@ -111,34 +110,34 @@ inline void Board::xor_side_to_move() {
 }
 
 inline void Board::toggle_side_to_move() {
-    to_move = opposite_color(to_move);
+    to_move = opposite_side(to_move);
     xor_side_to_move();
 }
 
-// ---- Attack Detection ----
+// --- Attack Detection ---
 
-inline bool Board::in_check(Color side) const {
-    Color us = side == NO_COLOR ? to_move : side;
-    return is_attacked(king_squares[us], opposite_color(us));
+inline bool Board::in_check(Side side) const {
+    Side checked_side = side == NO_SIDE ? to_move : side;
+    return is_attacked(king_squares[checked_side], opposite_side(checked_side));
 }
 
-// Uses piece attack masks to determine if a square is attacked by the given color.
+// Uses piece attack masks to determine if a square is attacked by the given side.
 // For non-sliding pieces, we use precomputed attack maps and for sliding pieces
 // we generate attack masks. These masks are intersected with the attacker's piece
 // bitboards. If there is an intersection (i.e. result is not 0), then the square
 // is attacked. We collect all intersections using a union (faster than branching)
 // and return the result which is implicitly cast to a boolean.
-inline bool Board::is_attacked(Square sq, Color by) const {
-    auto& their_pieces = pieces[by];
+inline bool Board::is_attacked(Square sq, Side by) const {
+    auto& attacker_pieces = pieces[by];
     return (
         // Non-sliding pieces
-        (PAWN_ATTACK_MAPS[by][sq] & their_pieces[PAWN]) |
-        (KNIGHT_ATTACK_MAP[sq] & their_pieces[KNIGHT]) |
-        (KING_ATTACK_MAP[sq] & their_pieces[KING]) |
+        (PAWN_ATTACK_MAPS[by][sq] & attacker_pieces[PAWN]) |
+        (KNIGHT_ATTACK_MAP[sq] & attacker_pieces[KNIGHT]) |
+        (KING_ATTACK_MAP[sq] & attacker_pieces[KING]) |
 
         // Sliding pieces
-        (generate_sliding_attack_mask<ROOK>(sq, occupied) & (their_pieces[ROOK] | their_pieces[QUEEN])) |
-        (generate_sliding_attack_mask<BISHOP>(sq, occupied) & (their_pieces[BISHOP] | their_pieces[QUEEN]))
+        (generate_sliding_attack_mask<ROOK>(sq, occupied) & (attacker_pieces[ROOK] | attacker_pieces[QUEEN])) |
+        (generate_sliding_attack_mask<BISHOP>(sq, occupied) & (attacker_pieces[BISHOP] | attacker_pieces[QUEEN]))
     );
 }
 
@@ -165,7 +164,7 @@ inline Bitboard Board::attackers_to(Square sq, Bitboard occupied) const {
     return attackers & occupied;
 }
 
-// ---- Legality ----
+// --- Legality ---
 
 // Checks if a move is legal in the current position. Assumes the move was
 // correctly encoded by the move generator from a valid position (e.g. a TT
@@ -173,16 +172,16 @@ inline Bitboard Board::attackers_to(Square sq, Bitboard occupied) const {
 // correctness (flag/type combos, etc.) - only whether the move is still
 // pseudo-legal and legal given that the board state may have changed.
 inline bool Board::is_legal_move(Move move) {
-    const Color us = to_move;
-    const Color them = opposite_color(us);
-    const Square from = move.from();
-    const Square to = move.to();
-    const MoveFlag flag = move.flag();
-    const Bitboard to_mask = get_mask(to);
-    const Piece piece = piece_map[from];
+    Side friendly_side = to_move;
+    Side enemy_side = opposite_side(friendly_side);
+    Square from = move.from();
+    Square to = move.to();
+    MoveFlag flag = move.flag();
+    Bitboard to_mask = get_mask(to);
+    Piece piece = piece_map[from];
 
     // Must be our piece on the from square
-    if (piece == NO_PIECE || get_color(from) != us) return false;
+    if (piece == NO_PIECE || get_side(from) != friendly_side) return false;
 
     // Can't capture a king (makes in_check meaningless)
     if (piece_map[to] == KING) return false;
@@ -192,31 +191,31 @@ inline bool Board::is_legal_move(Move move) {
     // not currently in check, and transit square not attacked.
     // Destination safety is handled by make/unmake + in_check below.
     if (flag == MoveFlag::Castle) {
-        if (piece != KING || in_check(us)) return false;
+        if (piece != KING || in_check(friendly_side)) return false;
 
-        if (us == WHITE && to == G1) {
+        if (friendly_side == WHITE && to == G1) {
             if (!(castling_rights & WHITE_SHORT)) return false;
-            if (piece_map[H1] != ROOK || get_color(H1) != us) return false;
+            if (piece_map[H1] != ROOK || get_side(H1) != friendly_side) return false;
             if (piece_map[F1] != NO_PIECE || piece_map[G1] != NO_PIECE) return false;
-            if (is_attacked(F1, them)) return false;
+            if (is_attacked(F1, enemy_side)) return false;
 
-        } else if (us == WHITE && to == C1) {
+        } else if (friendly_side == WHITE && to == C1) {
             if (!(castling_rights & WHITE_LONG)) return false;
-            if (piece_map[A1] != ROOK || get_color(A1) != us) return false;
+            if (piece_map[A1] != ROOK || get_side(A1) != friendly_side) return false;
             if (piece_map[B1] != NO_PIECE || piece_map[C1] != NO_PIECE || piece_map[D1] != NO_PIECE) return false;
-            if (is_attacked(D1, them)) return false;
+            if (is_attacked(D1, enemy_side)) return false;
 
-        } else if (us == BLACK && to == G8) {
+        } else if (friendly_side == BLACK && to == G8) {
             if (!(castling_rights & BLACK_SHORT)) return false;
-            if (piece_map[H8] != ROOK || get_color(H8) != us) return false;
+            if (piece_map[H8] != ROOK || get_side(H8) != friendly_side) return false;
             if (piece_map[F8] != NO_PIECE || piece_map[G8] != NO_PIECE) return false;
-            if (is_attacked(F8, them)) return false;
+            if (is_attacked(F8, enemy_side)) return false;
 
-        } else if (us == BLACK && to == C8) {
+        } else if (friendly_side == BLACK && to == C8) {
             if (!(castling_rights & BLACK_LONG)) return false;
-            if (piece_map[A8] != ROOK || get_color(A8) != us) return false;
+            if (piece_map[A8] != ROOK || get_side(A8) != friendly_side) return false;
             if (piece_map[B8] != NO_PIECE || piece_map[C8] != NO_PIECE || piece_map[D8] != NO_PIECE) return false;
-            if (is_attacked(D8, them)) return false;
+            if (is_attacked(D8, enemy_side)) return false;
 
         } else {
             return false;
@@ -229,15 +228,15 @@ inline bool Board::is_legal_move(Move move) {
         if (to != en_passant_target) return false;
         if (piece_map[to] != NO_PIECE) return false;
 
-        Square cap_sq = en_passant_capture_square(to, us);
-        bool enemy_pawn_behind = piece_map[cap_sq] == PAWN && get_color(cap_sq) == them;
+        Square cap_sq = en_passant_capture_square(to, friendly_side);
+        bool enemy_pawn_behind = piece_map[cap_sq] == PAWN && get_side(cap_sq) == enemy_side;
         if (!enemy_pawn_behind) return false;
 
     // --- Normal moves and promotions ---
     } else {
         // Capture must target an enemy piece, quiet must target an empty square
         if (move.type() == MoveType::Capture) {
-            if (piece_map[to] == NO_PIECE || get_color(to) != them) return false;
+            if (piece_map[to] == NO_PIECE || get_side(to) != enemy_side) return false;
         } else {
             if (piece_map[to] != NO_PIECE) return false;
         }
@@ -248,13 +247,13 @@ inline bool Board::is_legal_move(Move move) {
         // Piece geometry - can the piece actually reach 'to' from 'from'?
         if (piece == PAWN) {
             if (move.type() == MoveType::Capture) {
-                bool valid_attack = PAWN_ATTACK_MAPS[them][from] & to_mask;
+                bool valid_attack = PAWN_ATTACK_MAPS[enemy_side][from] & to_mask;
                 if (!valid_attack) return false;
             } else {
-                int dir = us == WHITE ? NORTH : SOUTH;
+                int dir = friendly_side == WHITE ? NORTH : SOUTH;
                 Square single_push = from + dir;
                 Square double_push = from + dir + dir;
-                int start_rank = us == WHITE ? RANK_2 : RANK_7;
+                int start_rank = friendly_side == WHITE ? RANK_2 : RANK_7;
 
                 bool is_single = to == single_push;
                 bool is_double = to == double_push
@@ -271,7 +270,7 @@ inline bool Board::is_legal_move(Move move) {
 
     // Final legality check: make the move and check if it leaves our king in check
     make_move(move);
-    bool legal = !in_check(us);
+    bool legal = !in_check(friendly_side);
     unmake_move(move);
     return legal;
 }

@@ -26,11 +26,11 @@ constexpr auto castling_rights_updates = []() {
 constexpr int LMR_MAX_MOVES = 128;
 constexpr double LMR_TUNING_CONSTANT = 2.0;
 
-static inline const auto LMR_TABLE = []() {
+inline const auto LMR_TABLE = []() {
     std::array<std::array<int, LMR_MAX_MOVES>, MAX_SEARCH_PLY> table{};
-    for (int d = 0; d < MAX_SEARCH_PLY; d++) {
-        for (int m = 0; m < LMR_MAX_MOVES; m++) {
-            table[d][m] = std::log(d + 1) * std::log(m + 1) / LMR_TUNING_CONSTANT;
+    for (int depth = 0; depth < MAX_SEARCH_PLY; depth++) {
+        for (int move_index = 0; move_index < LMR_MAX_MOVES; move_index++) {
+            table[depth][move_index] = std::log(depth + 1) * std::log(move_index + 1) / LMR_TUNING_CONSTANT;
         }
     }
     return table;

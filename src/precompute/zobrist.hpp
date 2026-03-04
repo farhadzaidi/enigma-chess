@@ -8,16 +8,16 @@
 constexpr int CASTLING_RIGHTS_COMBINATIONS = 16;
 constexpr int EN_PASSANT_TARGET_FILES = 8;
 
-using ZobristPieces = std::array<std::array<std::array<ZobristHash, NUM_SQUARES>, NUM_PIECES>, NUM_COLORS>;
+using ZobristPieces = std::array<std::array<std::array<ZobristHash, NUM_SQUARES>, NUM_PIECES>, NUM_SIDES>;
 using ZobristCastlingRights = std::array<ZobristHash, CASTLING_RIGHTS_COMBINATIONS>;
 using ZobristEnPassantTargets = std::array<ZobristHash, EN_PASSANT_TARGET_FILES>;
 
 inline const ZobristPieces ZOBRIST_PIECES = []() {
     ZobristPieces ZOBRIST_PIECES;
-    for (int color = 0; color < NUM_COLORS; color++) {
+    for (int side = 0; side < NUM_SIDES; side++) {
         for (int piece = 0; piece < NUM_PIECES; piece++) {
             for (int sq = 0; sq < NUM_SQUARES; sq++) {
-                ZOBRIST_PIECES[color][piece][sq] = prandom_u64();
+                ZOBRIST_PIECES[side][piece][sq] = prandom_u64();
             }
         }
     }
@@ -27,8 +27,8 @@ inline const ZobristPieces ZOBRIST_PIECES = []() {
 
 inline const ZobristCastlingRights ZOBRIST_CASTLING_RIGHTS = []() {
     ZobristCastlingRights ZOBRIST_CASTLING_RIGHTS;
-    for (int cr = 0; cr < CASTLING_RIGHTS_COMBINATIONS; cr++) {
-        ZOBRIST_CASTLING_RIGHTS[cr] = prandom_u64();
+    for (int rights = 0; rights < CASTLING_RIGHTS_COMBINATIONS; rights++) {
+        ZOBRIST_CASTLING_RIGHTS[rights] = prandom_u64();
     }
 
     return ZOBRIST_CASTLING_RIGHTS;

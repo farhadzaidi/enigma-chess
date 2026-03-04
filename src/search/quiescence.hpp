@@ -12,10 +12,10 @@ constexpr int SEE_CUTOFF = -200;
 
 template <SearchMode SM>
 inline PositionScore quiescence_search(Board& b, PositionScore alpha, PositionScore beta) {
-    g_search_state.nodes++;
+    search_state.nodes++;
 
     if (should_stop_search<SM>()) {
-        g_search_state.search_interrupted = true;
+        search_state.search_interrupted = true;
         return SEARCH_INTERRUPTED;
     }
 
@@ -44,7 +44,7 @@ inline PositionScore quiescence_search(Board& b, PositionScore alpha, PositionSc
     if (moves.is_empty()) {
         if (in_check) {
             // In check + no legal moves = checkmate
-            return -CHECKMATE_SCORE + g_search_state.search_ply(b.ply);
+            return -CHECKMATE_SCORE + search_state.search_ply(b.ply);
         }
 
         // No captures or promotions available, return early
@@ -60,7 +60,7 @@ inline PositionScore quiescence_search(Board& b, PositionScore alpha, PositionSc
         PositionScore score = -quiescence_search<SM>(b, -beta, -alpha);
         b.unmake_move(move);
 
-        if (g_search_state.search_interrupted) {
+        if (search_state.search_interrupted) {
             return SEARCH_INTERRUPTED;
         }
 

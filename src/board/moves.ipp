@@ -1,6 +1,6 @@
 // Move making/unmaking: make_move, unmake_move, null moves, and their helpers
 
-inline void Board::set_en_passant_target(Color color, Piece piece, Square from, Square to) {
+inline void Board::set_en_passant_target(Side side, Piece piece, Square from, Square to) {
 
     // XOR out previous EP file (if any)
     xor_en_passant();
@@ -10,7 +10,7 @@ inline void Board::set_en_passant_target(Color color, Piece piece, Square from, 
 
     // White moves a pawn 2 squares north
     if (
-        color == WHITE
+        side == WHITE
         && piece == PAWN
         && get_rank(from) == RANK_2
         && get_rank(to) == RANK_4
@@ -20,7 +20,7 @@ inline void Board::set_en_passant_target(Color color, Piece piece, Square from, 
 
     // Black moves a pawn 2 squares south
     else if (
-        color == BLACK
+        side == BLACK
         && piece == PAWN
         && get_rank(from) == RANK_7
         && get_rank(to) == RANK_5
@@ -33,16 +33,16 @@ inline void Board::set_en_passant_target(Color color, Piece piece, Square from, 
 }
 
 
-inline Piece Board::handle_capture(Square capture_square, Color moving_color, MoveFlag mflag) {
+inline Piece Board::handle_capture(Square capture_square, Side moving_side, MoveFlag move_flag) {
     halfmoves = 0;
-    Color captured_color = opposite_color(moving_color);
+    Side captured_side = opposite_side(moving_side);
 
-    if (mflag == MoveFlag::EnPassant) {
-        capture_square = en_passant_capture_square(capture_square, moving_color);
+    if (move_flag == MoveFlag::EnPassant) {
+        capture_square = en_passant_capture_square(capture_square, moving_side);
     }
 
     Piece captured_piece = piece_map[capture_square];
-    remove_piece(captured_color, captured_piece, capture_square);
+    remove_piece(captured_side, captured_piece, capture_square);
     return captured_piece;
 }
 
@@ -94,35 +94,35 @@ inline void Board::make_move(Move move) {
 
     Square from     = move.from();
     Square to       = move.to();
-    MoveType mtype  = move.type();
-    MoveFlag mflag  = move.flag();
+    MoveType move_type  = move.type();
+    MoveFlag move_flag  = move.flag();
 
     Piece moving_piece = piece_map[from];
-    Color moving_color = to_move;
+    Side moving_side = to_move;
 
     // Update move clocks
     halfmoves++;
     if (moving_piece == PAWN) halfmoves = 0;
-    if (moving_color == BLACK) fullmoves++;
+    if (moving_side == BLACK) fullmoves++;
 
-    set_en_passant_target(moving_color, moving_piece, from, to);
-    remove_piece(moving_color, moving_piece, from);
+    set_en_passant_target(moving_side, moving_piece, from, to);
+    remove_piece(moving_side, moving_piece, from);
 
     // Handle capture logic including en passant
-    if (mtype == MoveType::Capture) {
-        state.captured_piece = handle_capture(to, moving_color, mflag);
+    if (move_type == MoveType::Capture) {
+        state.captured_piece = handle_capture(to, moving_side, move_flag);
     }
 
     // If the move is a promotion, update the moving piece to the promoted type
     if (move.is_promotion()) {
-        moving_piece = get_promoted_piece(mflag);
+        moving_piece = get_promoted_piece(move_flag);
     }
 
     // After changing moving_piece (in the case of a promotion), we can now
     // place the piece on the "to" square
-    place_piece(moving_color, moving_piece, to);
+    place_piece(moving_side, moving_piece, to);
 
-    if (mflag == MoveFlag::Castle) {
+    if (move_flag == MoveFlag::Castle) {
         handle_castle(to);
     }
 
@@ -141,11 +141,11 @@ inline void Board::make_move(Move move) {
 inline void Board::unmake_move(Move move) {
     Square from     = move.from();
     Square to       = move.to();
-    MoveType mtype  = move.type();
-    MoveFlag mflag  = move.flag();
+    MoveType move_type  = move.type();
+    MoveFlag move_flag  = move.flag();
 
-    // The color that moved on this move is the opposite of the current side
-    Color moving_color = opposite_color(to_move);
+    // The side that moved on this move is the opposite of the current side
+    Side moving_side = opposite_side(to_move);
 
     // Decrement ply (simulate popping from top of moves and states stacks)
     ply -= 1;
@@ -158,13 +158,13 @@ inline void Board::unmake_move(Move move) {
 
     // Fullmoves is only incremented if black moves, so we decrement it if we
     // are undoing a black move
-    if (moving_color == BLACK) {
+    if (moving_side == BLACK) {
         fullmoves--;
     }
 
     // Remove the piece from "to"
     Piece moving_piece = piece_map[to];
-    remove_piece(moving_color, moving_piece, to);
+    remove_piece(moving_side, moving_piece, to);
 
     // In the case of a promotion, we change the moving piece to pawn so we place
     // the correct piece back on "from"
@@ -173,17 +173,17 @@ inline void Board::unmake_move(Move move) {
     }
 
     // Put the moving piece back on "from"
-    place_piece(moving_color, moving_piece, from);
+    place_piece(moving_side, moving_piece, from);
 
     // Restore the captured piece
-    if (mtype == MoveType::Capture) {
-        Square capture_sq = mflag == MoveFlag::EnPassant
-            ? en_passant_capture_square(to, moving_color)
+    if (move_type == MoveType::Capture) {
+        Square capture_sq = move_flag == MoveFlag::EnPassant
+            ? en_passant_capture_square(to, moving_side)
             : to;
-        place_piece(opposite_color(moving_color), prev_state.captured_piece, capture_sq);
+        place_piece(opposite_side(moving_side), prev_state.captured_piece, capture_sq);
     }
 
-    if (mflag == MoveFlag::Castle) {
+    if (move_flag == MoveFlag::Castle) {
         undo_castle(to);
     }
 

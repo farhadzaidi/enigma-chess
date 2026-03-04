@@ -9,7 +9,7 @@
 #include "eval/eval.hpp"
 #include "core/transposition_table.hpp"
 
-// ---- Negamax Constants ----
+// --- Negamax Constants ---
 
 constexpr SearchDepth MINIMUM_NULL_MOVE_DEPTH = 3;
 constexpr SearchDepth FUTILITY_CUTOFF_DEPTH = 4;
@@ -21,7 +21,7 @@ constexpr SearchDepth NULL_MOVE_DEEPER_THRESHOLD = 6;
 constexpr int FUTILITY_MARGIN_PER_DEPTH = 90;
 constexpr int FUTILITY_MARGIN_BASE = 40;
 
-// ---- Pruning Conditions ----
+// --- Pruning Conditions ---
 
 inline bool can_apply_null_move(
     bool in_check,
@@ -56,7 +56,7 @@ inline bool can_apply_futility(
     );
 }
 
-// ---- TT Probe + IID ----
+// --- TT Probe + IID ---
 
 template <SearchMode SM>
 inline TTProbeResult probe_tt(
@@ -66,10 +66,10 @@ inline TTProbeResult probe_tt(
     PositionScore beta,
     bool is_pv_node
 ) {
-    TTEntry* tt_entry = TT.get_entry(b.position_hash);
+    TTEntry* tt_entry = transposition_table.get_entry(b.position_hash);
 
     if (tt_entry) {
-        PositionScore tt_score = denormalize_tt_score(tt_entry->score, g_search_state.search_ply(b.ply));
+        PositionScore tt_score = denormalize_tt_score(tt_entry->score, search_state.search_ply(b.ply));
         Move tt_move = tt_entry->best_move;
 
         // Use TT score for early cutoff when the stored depth is sufficient.
@@ -93,7 +93,7 @@ inline TTProbeResult probe_tt(
         SearchDepth iid_depth = std::max(0, depth / 2);
         negamax<SM>(b, iid_depth, alpha, beta);
 
-        tt_entry = TT.get_entry(b.position_hash);
+        tt_entry = transposition_table.get_entry(b.position_hash);
         if (tt_entry) {
             return {tt_entry->best_move, false, 0};
         }
@@ -102,7 +102,7 @@ inline TTProbeResult probe_tt(
     return {NULL_MOVE, false, 0};
 }
 
-// ---- Negamax ----
+// --- Negamax ---
 
 template <SearchMode SM>
 inline PositionScore negamax(
@@ -112,12 +112,12 @@ inline PositionScore negamax(
     PositionScore beta,
     bool allow_null_move
 ) {
-    g_search_state.nodes++;
+    search_state.nodes++;
 
     // --- Early exits ---
 
     if (should_stop_search<SM>()) {
-        g_search_state.search_interrupted = true;
+        search_state.search_interrupted = true;
         return SEARCH_INTERRUPTED;
     }
 
@@ -147,7 +147,7 @@ inline PositionScore negamax(
         PositionScore score = -negamax<SM>(b, depth - reduction, -beta, -beta + 1, false);
         b.unmake_null_move();
 
-        if (g_search_state.search_interrupted) return SEARCH_INTERRUPTED;
+        if (search_state.search_interrupted) return SEARCH_INTERRUPTED;
 
         // Position is so good that even giving the opponent a free move
         // doesn't drop our score below beta — prune this branch
@@ -176,7 +176,7 @@ inline PositionScore negamax(
     int num_moves = 0;
 
     while (true) {
-        Move move = move_selector.next_move(b, g_search_state);
+        Move move = move_selector.next_move(b, search_state);
         if (move == NULL_MOVE) break;
         else has_moves = true;
 
@@ -225,7 +225,7 @@ inline PositionScore negamax(
 
         b.unmake_move(move);
 
-        if (g_search_state.search_interrupted) {
+        if (search_state.search_interrupted) {
             return SEARCH_INTERRUPTED;
         }
 
@@ -252,7 +252,7 @@ inline PositionScore negamax(
 
     if (!has_moves) {
         if (b.in_check()) {
-            return -CHECKMATE_SCORE + g_search_state.search_ply(b.ply);
+            return -CHECKMATE_SCORE + search_state.search_ply(b.ply);
         } else {
             return STALEMATE_SCORE;
         }

@@ -43,11 +43,6 @@ inline SearchTime calc_time_limit(Board& b, int remaining, int increment, int mo
     return {soft_limit, hard_limit};
 }
 
-// --- UCI Globals ---
-
-inline bool enable_ponder = false;
-inline std::thread search_thread;
-
 // --- Helpers ---
 
 // Stops the search and joins the thread to prevent any dangling threads/race conditions
@@ -102,8 +97,8 @@ inline void cmd_isready() {
 inline void cmd_ucinewgame(Board& b) {
     clean_up_thread();
     b.reset();
-    TT.clear();
-    PT.clear();
+    transposition_table.clear();
+    pawn_table.clear();
 }
 
 inline void cmd_position(const std::string& cmd, Board& b) {
@@ -137,7 +132,7 @@ inline void cmd_position(const std::string& cmd, Board& b) {
 }
 
 inline void cmd_go(std::string& cmd, Board& b) {
-    TT.generation++;
+    transposition_table.generation++;
 
     // Parse go command
     int wtime = -1, btime = -1, winc = 0, binc = 0;
@@ -229,7 +224,7 @@ inline void cmd_go(std::string& cmd, Board& b) {
         std::string ponder_str;
         if (best_move != NULL_MOVE) {
             b.make_move(best_move);
-            TTEntry* tt_entry = TT.get_entry(b.position_hash);
+            TTEntry* tt_entry = transposition_table.get_entry(b.position_hash);
             if (tt_entry && tt_entry->best_move != NULL_MOVE) {
                 ponder_str = " ponder " + decode_move_to_uci(tt_entry->best_move);
             }
@@ -249,9 +244,9 @@ inline void cmd_ponderhit() {
     // Reset deadlines relative to now, then release the pondering flag.
     // Write ordering matters: deadline before pondering (release-acquire).
     auto now = std::chrono::steady_clock::now();
-    g_search_state.deadline = now + std::chrono::milliseconds(g_search_state.limits.hard_time);
-    if (g_search_state.limits.soft_time != -1) {
-        g_search_state.soft_deadline = now + std::chrono::milliseconds(g_search_state.limits.soft_time);
+    search_state.deadline = now + std::chrono::milliseconds(search_state.limits.hard_time);
+    if (search_state.limits.soft_time != -1) {
+        search_state.soft_deadline = now + std::chrono::milliseconds(search_state.limits.soft_time);
     }
     pondering = false;
 }

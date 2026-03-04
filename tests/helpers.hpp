@@ -1,7 +1,10 @@
 #pragma once
 
 #include "core/types.hpp"
+#include "core/move.hpp"
+#include "core/globals.hpp"
 #include "board/board.hpp"
+#include "search/search_state.hpp"
 
 // Compare two board states for test assertions.
 // include_eval_state=false preserves older tests that only validated core state;
@@ -21,17 +24,17 @@ inline bool board_position_equal(const Board& a, const Board& b, bool include_ev
         if (a.game_phase != b.game_phase) return false;
     }
 
-    for (int c = 0; c < NUM_COLORS; c++) {
-        if (a.colors[c] != b.colors[c]) return false;
-        if (a.king_squares[c] != b.king_squares[c]) return false;
+    for (int side = 0; side < NUM_SIDES; side++) {
+        if (a.sides[side] != b.sides[side]) return false;
+        if (a.king_squares[side] != b.king_squares[side]) return false;
 
         if (include_eval_state) {
-            if (a.early_score[c] != b.early_score[c]) return false;
-            if (a.late_score[c] != b.late_score[c]) return false;
+            if (a.early_score[side] != b.early_score[side]) return false;
+            if (a.late_score[side] != b.late_score[side]) return false;
         }
 
-        for (int p = 0; p < NUM_PIECES; p++) {
-            if (a.pieces[c][p] != b.pieces[c][p]) return false;
+        for (int piece = 0; piece < NUM_PIECES; piece++) {
+            if (a.pieces[side][piece] != b.pieces[side][piece]) return false;
         }
     }
 
@@ -40,4 +43,26 @@ inline bool board_position_equal(const Board& a, const Board& b, bool include_ev
     }
 
     return true;
+}
+
+inline bool move_list_contains(const MoveList& moves, Move target) {
+    for (const Move& move : moves) {
+        if (move == target) return true;
+    }
+    return false;
+}
+
+inline void reset_search_state_for_test(const Board& b, bool clear_stop_requested = true) {
+    search_state = {};
+    search_state.ply_offset = b.ply;
+    search_state.killer_1.fill(NULL_MOVE);
+    search_state.killer_2.fill(NULL_MOVE);
+    search_state.side_piece_to_history = {};
+    search_state.from_to_history = {};
+    search_state.search_interrupted = false;
+    search_state.nodes = 0;
+
+    if (clear_stop_requested) {
+        stop_requested = false;
+    }
 }
