@@ -1,10 +1,10 @@
 #include <iostream>
 
-#include "types.hpp"
-#include "board.hpp"
-#include "search.hpp"
-#include "utils.hpp"
-#include "move_generator.hpp"
+#include "core/types.hpp"
+#include "board/board.hpp"
+#include "search/search.hpp"
+#include "utils/notation.hpp"
+#include "move_generator/move_generator.hpp"
 
 // Positions that are already checkmate or stalemate (no legal moves)
 // Engine should return NULL_MOVE without crashing
@@ -27,7 +27,7 @@ static bool test_no_legal_moves(Board& b) {
     for (const auto& tc : test_cases) {
         b.load_from_fen(tc.fen);
 
-        MoveList moves = generate_moves<ALL>(b);
+        MoveList moves = generate_moves<MoveGenMode::All>(b);
         if (!moves.is_empty()) {
             std::clog << "[FAILURE] 'no_legal_moves' - Position has legal moves but should have none\n";
             std::clog << "Case: " << tc.description << "\n";
@@ -134,7 +134,7 @@ static bool test_engine_finds_stalemate(Board& b) {
     }
 
     b.make_move(best);
-    MoveList moves = generate_moves<ALL>(b);
+    MoveList moves = generate_moves<MoveGenMode::All>(b);
     if (!moves.is_empty() || b.in_check()) {
         std::clog << "[FAILURE] 'engine_finds_stalemate' - Expected stalemate after move a2a1\n";
         return false;

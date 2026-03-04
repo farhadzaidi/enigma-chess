@@ -1,10 +1,10 @@
 #include <iostream>
 #include <set>
 
-#include "types.hpp"
-#include "board.hpp"
-#include "utils.hpp"
-#include "move_generator.hpp"
+#include "core/types.hpp"
+#include "board/board.hpp"
+#include "utils/notation.hpp"
+#include "move_generator/move_generator.hpp"
 
 // Make/unmake should restore exact hash for all move types
 static bool test_zobrist_make_unmake(Board& b) {
@@ -39,18 +39,18 @@ static bool test_zobrist_make_unmake(Board& b) {
 
     for (const auto& tc : test_cases) {
         b.load_from_fen(tc.fen);
-        ZobristHash original_hash = b.zobrist_hash;
+        ZobristHash original_hash = b.position_hash;
         ZobristHash original_pawn_hash = b.pawn_hash;
 
         Move move = encode_move_from_uci(b, tc.uci);
         b.make_move(move);
         b.unmake_move(move);
 
-        if (b.zobrist_hash != original_hash || b.pawn_hash != original_pawn_hash) {
+        if (b.position_hash != original_hash || b.pawn_hash != original_pawn_hash) {
             std::clog << "[FAILURE] 'zobrist_make_unmake' - Hash mismatch after make/unmake\n";
             std::clog << "Case: " << tc.description << "\n";
             std::clog << "FEN: " << tc.fen << " Move: " << tc.uci << "\n";
-            std::clog << "Zobrist expected: " << original_hash << " Got: " << b.zobrist_hash << "\n";
+            std::clog << "Zobrist expected: " << original_hash << " Got: " << b.position_hash << "\n";
             std::clog << "Pawn hash expected: " << original_pawn_hash << " Got: " << b.pawn_hash << "\n";
             return false;
         }
@@ -66,7 +66,7 @@ static bool test_zobrist_transposition(Board& b) {
     b.make_move(encode_move_from_uci(b, "e2e4"));
     b.make_move(encode_move_from_uci(b, "d7d5"));
     b.make_move(encode_move_from_uci(b, "g1f3"));
-    ZobristHash hash_a = b.zobrist_hash;
+    ZobristHash hash_a = b.position_hash;
     ZobristHash pawn_hash_a = b.pawn_hash;
 
     // Path B: 1.Nf3 d5 2.e4
@@ -74,7 +74,7 @@ static bool test_zobrist_transposition(Board& b) {
     b.make_move(encode_move_from_uci(b, "g1f3"));
     b.make_move(encode_move_from_uci(b, "d7d5"));
     b.make_move(encode_move_from_uci(b, "e2e4"));
-    ZobristHash hash_b = b.zobrist_hash;
+    ZobristHash hash_b = b.position_hash;
     ZobristHash pawn_hash_b = b.pawn_hash;
 
     if (hash_a != hash_b || pawn_hash_a != pawn_hash_b) {
@@ -91,7 +91,7 @@ static bool test_zobrist_transposition(Board& b) {
     b.make_move(encode_move_from_uci(b, "c2c4"));
     b.make_move(encode_move_from_uci(b, "e7e6"));
     b.make_move(encode_move_from_uci(b, "g1f3"));
-    ZobristHash hash_c = b.zobrist_hash;
+    ZobristHash hash_c = b.position_hash;
     ZobristHash pawn_hash_c = b.pawn_hash;
 
     // Path D: 1.Nf3 Nf6 2.c4 e6 3.d4
@@ -101,7 +101,7 @@ static bool test_zobrist_transposition(Board& b) {
     b.make_move(encode_move_from_uci(b, "c2c4"));
     b.make_move(encode_move_from_uci(b, "e7e6"));
     b.make_move(encode_move_from_uci(b, "d2d4"));
-    ZobristHash hash_d = b.zobrist_hash;
+    ZobristHash hash_d = b.position_hash;
     ZobristHash pawn_hash_d = b.pawn_hash;
 
     if (hash_c != hash_d || pawn_hash_c != pawn_hash_d) {
@@ -171,11 +171,11 @@ static bool test_zobrist_state_components(Board& b) {
 
     for (const auto& tc : test_cases) {
         b.load_from_fen(tc.fen_a);
-        ZobristHash hash_a = b.zobrist_hash;
+        ZobristHash hash_a = b.position_hash;
         ZobristHash pawn_hash_a = b.pawn_hash;
 
         b.load_from_fen(tc.fen_b);
-        ZobristHash hash_b = b.zobrist_hash;
+        ZobristHash hash_b = b.position_hash;
         ZobristHash pawn_hash_b = b.pawn_hash;
 
         bool zobrist_equal = hash_a == hash_b;
@@ -263,7 +263,7 @@ static bool test_zobrist_incremental_matches_reloaded(Board& b) {
         b.load_from_fen(tc.pre_fen);
         Move move = encode_move_from_uci(b, tc.uci);
 
-        MoveList legal_moves = generate_moves<ALL>(b);
+        MoveList legal_moves = generate_moves<MoveGenMode::All>(b);
         bool is_legal = false;
         for (const Move& legal : legal_moves) {
             if (legal == move) {
@@ -280,12 +280,12 @@ static bool test_zobrist_incremental_matches_reloaded(Board& b) {
         }
 
         b.make_move(move);
-        ZobristHash incremental_hash = b.zobrist_hash;
+        ZobristHash incremental_hash = b.position_hash;
         ZobristHash incremental_pawn_hash = b.pawn_hash;
 
         Board rebuilt;
         rebuilt.load_from_fen(tc.post_fen);
-        ZobristHash rebuilt_hash = rebuilt.zobrist_hash;
+        ZobristHash rebuilt_hash = rebuilt.position_hash;
         ZobristHash rebuilt_pawn_hash = rebuilt.pawn_hash;
 
         if (incremental_hash != rebuilt_hash || incremental_pawn_hash != rebuilt_pawn_hash) {
@@ -320,14 +320,14 @@ static bool test_zobrist_uniqueness(Board& b) {
     for (const char* fen : fens) {
         b.load_from_fen(fen);
 
-        if (hashes.count(b.zobrist_hash)) {
+        if (hashes.count(b.position_hash)) {
             std::clog << "[FAILURE] 'zobrist_uniqueness' - Hash collision detected\n";
             std::clog << "FEN: " << fen << "\n";
-            std::clog << "Hash: " << b.zobrist_hash << "\n";
+            std::clog << "Hash: " << b.position_hash << "\n";
             return false;
         }
 
-        hashes.insert(b.zobrist_hash);
+        hashes.insert(b.position_hash);
     }
 
     const char* pawn_fens[] = {

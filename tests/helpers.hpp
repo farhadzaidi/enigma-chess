@@ -1,13 +1,13 @@
 #pragma once
 
-#include "types.hpp"
-#include "board.hpp"
+#include "core/types.hpp"
+#include "board/board.hpp"
 
 // Compare two board states for test assertions.
 // include_eval_state=false preserves older tests that only validated core state;
 // include_eval_state=true also checks incremental eval bookkeeping fields.
 inline bool board_position_equal(const Board& a, const Board& b, bool include_eval_state = false) {
-    if (a.zobrist_hash != b.zobrist_hash) return false;
+    if (a.position_hash != b.position_hash) return false;
     if (a.pawn_hash != b.pawn_hash) return false;
     if (a.occupied != b.occupied) return false;
     if (a.to_move != b.to_move) return false;

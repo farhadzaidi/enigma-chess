@@ -2,9 +2,10 @@
 #include <string>
 #include <iostream>
 
-#include "types.hpp"
-#include "board.hpp"
-#include "utils.hpp"
+#include "core/types.hpp"
+#include "board/board.hpp"
+#include "utils/notation.hpp"
+#include "utils/file_io.hpp"
 
 static bool test_positions_in_check(Board& b) {
     std::vector<std::string> in_check_buffer;

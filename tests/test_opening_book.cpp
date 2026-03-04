@@ -1,10 +1,10 @@
 #include <iostream>
 #include <set>
 
-#include "types.hpp"
-#include "board.hpp"
-#include "opening_book.hpp"
-#include "utils.hpp"
+#include "core/types.hpp"
+#include "board/board.hpp"
+#include "search/opening_book.hpp"
+#include "utils/notation.hpp"
 
 // Known opening positions should return a move
 static bool test_book_hits(Board& b, OpeningBook& book) {

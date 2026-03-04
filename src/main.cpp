@@ -5,14 +5,50 @@
 #include <algorithm>
 #include <iomanip>
 
-#include "bench.hpp"
-#include "uci.hpp"
-#include "board.hpp"
-#include "perft.hpp"
-#include "utils.hpp"
-#include "search.hpp"
+#include "bench/bench.hpp"
+#include "core/uci.hpp"
+#include "board/board.hpp"
+#include "bench/perft.hpp"
+#include "utils/notation.hpp"
+#include "search/search.hpp"
+#include "move_generator/move_generator.hpp"
 
-#include "../tests/test.hpp"
+#include "test.hpp"
+
+inline void debug_board(Board& b) {
+    std::string input = "";
+    while (true) {
+        std::clog << "\n\n============================================================================\n";
+        b.print_board();
+        b.print_board_state();
+        std::clog << "============================================================================\n";
+        MoveList legal_moves = generate_moves<MoveGenMode::All>(b);
+        std::cin >> input;
+        if (input == "quit") {
+            break;
+        } else if (input == "undo") {
+            if (b.ply > 0) {
+                b.unmake_move(b.move_history[b.ply - 1]);
+            } else {
+                std::clog << "Error: Cannot undo move from starting positon.";
+            }
+        } else {
+            Move move = encode_move_from_uci(b, input);
+            bool is_legal_move = false;
+            for (Move legal_move : legal_moves) {
+                if (move == legal_move) {
+                    is_legal_move = true;
+                    break;
+                }
+            }
+            if (is_legal_move) {
+                b.make_move(move);
+            } else {
+                std::clog << "Error: Invalid or illegal move '" << input <<"'";
+            }
+        }
+    }
+}
 
 int main(int argc, char* argv[]) {
     // Extract command line arguments
@@ -51,8 +87,8 @@ int main(int argc, char* argv[]) {
         }
 
         run_bench(flags);
-    } 
-    
+    }
+
     // ### PERFT / SEARCH - Test move generation or search a position
     else if (cmd == "perft" || cmd == "search") {
         // Require depth
@@ -92,8 +128,8 @@ int main(int argc, char* argv[]) {
             Move best_move = search_depth(b, depth);
             std::cout << "Best move: " << decode_move_to_uci(best_move) << "\n";
         }
-    } 
-    
+    }
+
     // ### TEST - Run test suite
     else if (cmd == "test") {
         std::vector<std::string> tests(args.begin() + 1, args.end());
@@ -112,14 +148,14 @@ int main(int argc, char* argv[]) {
         }
         std::clog << "All tests passed.\n";
     }
-    
+
     // ### DEBUG - Runs in debug mode
     else if  (cmd == "debug") {
         Board b;
         b.load_from_fen();
-        b.debug();
-    } 
-    
+        debug_board(b);
+    }
+
     else {
         std::clog << "Error: Unknown argument " << "'" << args[0] << "'\n";
         return EXIT_FAILURE;

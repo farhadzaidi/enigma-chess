@@ -1,10 +1,10 @@
 #include <iostream>
 
-#include "board.hpp"
-#include "evaluate.hpp"
-#include "pawn_table.hpp"
-#include "types.hpp"
-#include "utils.hpp"
+#include "board/board.hpp"
+#include "eval/eval.hpp"
+#include "eval/pawn_table.hpp"
+#include "core/types.hpp"
+#include "utils/notation.hpp"
 
 static bool pawn_entry_equal(const PawnTableEntry& a, const PawnTableEntry& b) {
     return (

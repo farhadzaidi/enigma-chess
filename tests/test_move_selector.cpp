@@ -3,13 +3,13 @@
 #include <unordered_set>
 #include <vector>
 
-#include "types.hpp"
-#include "board.hpp"
-#include "move.hpp"
-#include "move_generator.hpp"
-#include "move_selector.hpp"
-#include "search_state.hpp"
-#include "utils.hpp"
+#include "core/types.hpp"
+#include "board/board.hpp"
+#include "core/move.hpp"
+#include "move_generator/move_generator.hpp"
+#include "search/move_selector.hpp"
+#include "search/search_state.hpp"
+#include "utils/notation.hpp"
 #include "helpers.hpp"
 
 static SearchState make_search_state(const Board& b) {
@@ -17,8 +17,8 @@ static SearchState make_search_state(const Board& b) {
     ss.ply_offset = b.ply;
     ss.killer_1.fill(NULL_MOVE);
     ss.killer_2.fill(NULL_MOVE);
-    ss.color_piece_to = {};
-    ss.from_to = {};
+    ss.color_piece_to_history = {};
+    ss.from_to_history = {};
     return ss;
 }
 
@@ -185,7 +185,7 @@ static bool test_move_selector_completeness_and_uniqueness(Board& b) {
         b.load_from_fen(fen);
         SearchState ss = make_search_state(b);
 
-        MoveList expected = generate_moves<ALL>(b);
+        MoveList expected = generate_moves<MoveGenMode::All>(b);
         MoveList selected;
         std::string context = "set-equivalence on FEN: " + fen;
 
@@ -256,7 +256,7 @@ static bool test_move_selector_ordering_priority(Board& b) {
     int first_non_hint_quiet = -1;
     for (int i = 0; i < selected.size; i++) {
         Move move = selected[i];
-        if (move.type() == QUIET && move != prev_best && move != killer) {
+        if (move.type() == MoveType::Quiet && move != prev_best && move != killer) {
             first_non_hint_quiet = i;
             break;
         }
@@ -274,7 +274,7 @@ static bool test_move_selector_ordering_priority(Board& b) {
         return false;
     }
 
-    MoveList expected = generate_moves<ALL>(b);
+    MoveList expected = generate_moves<MoveGenMode::All>(b);
     if (!assert_no_duplicates(selected, "move_selector_ordering", "ordered sequence dedup")) return false;
     if (!assert_same_move_set(expected, selected, "move_selector_ordering", "ordered sequence set-equality")) return false;
 
@@ -316,7 +316,7 @@ static bool test_move_selector_hint_deduplication(Board& b) {
         return false;
     }
 
-    MoveList expected = generate_moves<ALL>(b);
+    MoveList expected = generate_moves<MoveGenMode::All>(b);
     if (!assert_no_duplicates(selected, "move_selector_hint_dedup", "global dedup")) return false;
     if (!assert_same_move_set(expected, selected, "move_selector_hint_dedup", "set-equivalence")) return false;
 
@@ -329,9 +329,9 @@ static bool test_move_selector_stale_hint_rejection(Board& b) {
     SearchState ss = make_search_state(b);
     int ply = ss.search_ply(b.ply);
 
-    Move stale_tt(E2, E4, QUIET, NORMAL);
-    Move stale_killer_1(A1, A8, QUIET, NORMAL);
-    Move stale_killer_2(H2, H4, QUIET, NORMAL);
+    Move stale_tt(E2, E4, MoveType::Quiet, MoveFlag::Normal);
+    Move stale_killer_1(A1, A8, MoveType::Quiet, MoveFlag::Normal);
+    Move stale_killer_2(H2, H4, MoveType::Quiet, MoveFlag::Normal);
 
     ss.killer_1[ply] = stale_killer_1;
     ss.killer_2[ply] = stale_killer_2;
@@ -353,7 +353,7 @@ static bool test_move_selector_stale_hint_rejection(Board& b) {
         return false;
     }
 
-    MoveList expected = generate_moves<ALL>(b);
+    MoveList expected = generate_moves<MoveGenMode::All>(b);
     if (!assert_no_duplicates(selected, "move_selector_stale_hint", "stale-hint rejection")) return false;
     if (!assert_same_move_set(expected, selected, "move_selector_stale_hint", "stale-hint rejection")) return false;
 
@@ -375,10 +375,10 @@ static bool test_move_selector_quiet_history_order(Board& b) {
 
     Piece higher_piece = b.piece_map[higher.from()];
     Piece lower_piece = b.piece_map[lower.from()];
-    ss.color_piece_to[b.to_move][higher_piece][higher.to()] = 8000;
-    ss.from_to[higher.from()][higher.to()] = 8000;
-    ss.color_piece_to[b.to_move][lower_piece][lower.to()] = 1000;
-    ss.from_to[lower.from()][lower.to()] = 1000;
+    ss.color_piece_to_history[b.to_move][higher_piece][higher.to()] = 8000;
+    ss.from_to_history[higher.from()][higher.to()] = 8000;
+    ss.color_piece_to_history[b.to_move][lower_piece][lower.to()] = 1000;
+    ss.from_to_history[lower.from()][lower.to()] = 1000;
 
     MoveList selected;
     if (!collect_selector_moves(
@@ -456,7 +456,7 @@ static bool test_move_selector_see_phase_split(Board& b) {
     int first_quiet = -1;
     int last_quiet = -1;
     for (int i = 0; i < selected.size; i++) {
-        if (selected[i].type() == QUIET) {
+        if (selected[i].type() == MoveType::Quiet) {
             if (first_quiet == -1) first_quiet = i;
             last_quiet = i;
         }
@@ -480,7 +480,7 @@ static bool test_move_selector_see_phase_split(Board& b) {
     }
 
     for (int i = bad_index + 1; i < selected.size; i++) {
-        if (selected[i].type() == QUIET) {
+        if (selected[i].type() == MoveType::Quiet) {
             std::clog << "[FAILURE] 'move_selector_see_phase_split' - Quiet move appeared after bad capture phase\n";
             std::clog << "Quiet move: " << decode_move_to_uci(selected[i]) << " at index " << i << "\n";
             return false;
@@ -545,12 +545,12 @@ static bool test_move_selector_in_check(Board& b) {
     SearchState ss = make_search_state(b);
     int ply = ss.search_ply(b.ply);
 
-    MoveList expected = generate_moves<ALL>(b);
-    Move stale_tt(E2, E4, QUIET, NORMAL);
+    MoveList expected = generate_moves<MoveGenMode::All>(b);
+    Move stale_tt(E2, E4, MoveType::Quiet, MoveFlag::Normal);
 
     Move legal_killer = NULL_MOVE;
     for (const Move move : expected) {
-        if (move.type() == QUIET) {
+        if (move.type() == MoveType::Quiet) {
             legal_killer = move;
             break;
         }

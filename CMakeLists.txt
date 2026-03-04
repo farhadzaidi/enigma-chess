@@ -10,12 +10,10 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the build type." FORCE)
 endif()
 
-# Compile include, src, and test files
-file(GLOB_RECURSE SRC CONFIGURE_DEPENDS src/*.cpp)
+# Compile src and test files
 file(GLOB_RECURSE TESTS CONFIGURE_DEPENDS tests/*.cpp)
-file(GLOB_RECURSE INCLUDE CONFIGURE_DEPENDS include/*.hpp)
-add_executable(${PROJECT_NAME} ${SRC} ${TESTS} ${INCLUDE})
-target_include_directories(${PROJECT_NAME} PRIVATE include)
+add_executable(${PROJECT_NAME} src/main.cpp ${TESTS})
+target_include_directories(${PROJECT_NAME} PRIVATE src tests)
 
 # Expose project root to source code
 add_compile_definitions(PROJECT_ROOT="${CMAKE_SOURCE_DIR}")

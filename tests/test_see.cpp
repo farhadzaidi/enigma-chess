@@ -1,11 +1,11 @@
 #include <iostream>
 #include <string>
 
-#include "types.hpp"
-#include "board.hpp"
-#include "move.hpp"
-#include "utils.hpp"
-#include "see.hpp"
+#include "core/types.hpp"
+#include "board/board.hpp"
+#include "core/move.hpp"
+#include "utils/notation.hpp"
+#include "search/see.hpp"
 #include "helpers.hpp"
 
 static bool assert_see_score(

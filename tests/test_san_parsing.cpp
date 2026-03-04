@@ -2,10 +2,10 @@
 #include <iostream>
 #include <iterator>
 
-#include "types.hpp"
-#include "board.hpp"
-#include "utils.hpp"
-#include "move_generator.hpp"
+#include "core/types.hpp"
+#include "board/board.hpp"
+#include "utils/notation.hpp"
+#include "move_generator/move_generator.hpp"
 
 struct SanTestCase {
     std::string fen;
@@ -97,7 +97,7 @@ static bool test_valid_san_cases(Board& b, const SanTestCase* tests, size_t coun
         }
 
         // SAN parser should always return a legal move in the given position.
-        MoveList legal_moves = generate_moves<ALL>(b);
+        MoveList legal_moves = generate_moves<MoveGenMode::All>(b);
         bool is_legal = false;
         for (const Move& legal : legal_moves) {
             if (move == legal) {

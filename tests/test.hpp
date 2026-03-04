@@ -5,7 +5,7 @@
 #include <string>
 #include <functional>
 
-#include "board.hpp"
+#include "board/board.hpp"
 
 struct TestEntry {
     std::string name;

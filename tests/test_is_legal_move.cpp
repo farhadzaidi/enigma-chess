@@ -3,11 +3,14 @@
 #include <unordered_set>
 #include <vector>
 
-#include "types.hpp"
-#include "board.hpp"
-#include "move.hpp"
-#include "move_generator.hpp"
-#include "utils.hpp"
+#include <filesystem>
+
+#include "core/types.hpp"
+#include "board/board.hpp"
+#include "core/move.hpp"
+#include "move_generator/move_generator.hpp"
+#include "utils/notation.hpp"
+#include "utils/file_io.hpp"
 #include "helpers.hpp"
 
 static bool assert_legal_result(Board& b, Move move, bool expected, const std::string& test_name, const std::string& fen, const std::string& move_uci, const std::string& context) {
@@ -111,7 +114,7 @@ static bool test_is_legal_move_stale_encoded_branches(Board& b) {
 
     b.reset();
     b.load_from_fen(ep_source_fen);
-    Move stale_ep = encode_move_from_uci(b, "e5d6"); // Encoded as CAPTURE + EN_PASSANT.
+    Move stale_ep = encode_move_from_uci(b, "e5d6"); // Encoded as MoveType::Capture + MoveFlag::EnPassant.
 
     b.reset();
     b.load_from_fen(ep_target_missing_fen);
@@ -147,7 +150,7 @@ static bool test_is_legal_move_stale_encoded_branches(Board& b) {
 
     b.reset();
     b.load_from_fen(promo_source_fen);
-    Move stale_promo = encode_move_from_uci(b, "a7a8q"); // Encoded as QUIET + PROMOTION_QUEEN.
+    Move stale_promo = encode_move_from_uci(b, "a7a8q"); // Encoded as MoveType::Quiet + MoveFlag::PromoQueen.
 
     b.reset();
     b.load_from_fen(promo_target_fen);
@@ -212,7 +215,7 @@ static bool test_is_legal_move_accepts_generated_legal_moves(Board& b) {
         b.reset();
         b.load_from_fen(fen);
 
-        MoveList legal_moves = generate_moves<ALL>(b);
+        MoveList legal_moves = generate_moves<MoveGenMode::All>(b);
         for (const Move& move : legal_moves) {
             std::string uci = decode_move_to_uci(move);
             if (!assert_legal_result(b, move, true, "is_legal_move", fen, uci, "generated legal move must be legal")) {
@@ -230,7 +233,7 @@ static bool test_is_legal_move_cross_position_rejects_stale_moves(Board& b) {
     // Under valid-encoding assumptions this models TT/killer stale-move reuse across positions.
     b.reset();
     b.load_from_fen(START_POS_FEN);
-    MoveList stale_moves = generate_moves<ALL>(b);
+    MoveList stale_moves = generate_moves<MoveGenMode::All>(b);
 
     const std::string black_to_move_start =
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1";
