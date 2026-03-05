@@ -1,6 +1,7 @@
 #pragma once
 
 #include <bit>
+#include <string>
 
 #ifdef __BMI2__
 #include <immintrin.h>

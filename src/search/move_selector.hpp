@@ -1,13 +1,14 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 
 #include "core/types.hpp"
+#include "core/constants.hpp"
 #include "core/move.hpp"
 #include "move_generator/check_info.hpp"
 #include "move_generator/move_generator.hpp"
 #include "search/search_state.hpp"
-#include "core/transposition_table.hpp"
 #include "search/see.hpp"
 
 // Indexed like MVV_LVA_TABLE[attacker][victim]

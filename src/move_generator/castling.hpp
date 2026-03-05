@@ -1,5 +1,7 @@
 #pragma once
 
+#include <bit>
+
 #include "core/types.hpp"
 #include "core/move.hpp"
 #include "board/board.hpp"

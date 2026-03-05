@@ -2,7 +2,7 @@
 
 #include <random>
 #include <cstdint>
-#include <bit>
+#include <limits>
 
 constexpr uint64_t PRNG_SEED = 0xC0DEC0FFEE1234ULL;
 

@@ -5,7 +5,6 @@
 #include "core/types.hpp"
 #include "core/constants.hpp"
 #include "core/move.hpp"
-#include "precompute/zobrist.hpp"
 
 constexpr uint64_t TRANSPOSITION_TABLE_SIZE = uint64_t{1} << 20;
 constexpr size_t TRANSPOSITION_TABLE_BUCKET_SIZE = 4;

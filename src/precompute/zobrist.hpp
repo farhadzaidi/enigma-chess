@@ -3,6 +3,7 @@
 #include <array>
 
 #include "core/types.hpp"
+#include "core/constants.hpp"
 #include "core/random.hpp"
 
 constexpr int CASTLING_RIGHTS_COMBINATIONS = 16;

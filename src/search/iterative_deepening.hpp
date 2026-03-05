@@ -1,5 +1,8 @@
 #pragma once
 
+#include <algorithm>
+#include <chrono>
+
 #include "core/types.hpp"
 #include "core/constants.hpp"
 #include "board/board.hpp"

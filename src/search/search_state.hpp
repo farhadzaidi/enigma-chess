@@ -1,9 +1,11 @@
 #pragma once
 
+#include <array>
 #include <chrono>
 #include <cstdint>
 
 #include "core/types.hpp"
+#include "core/constants.hpp"
 #include "core/move.hpp"
 
 struct SearchLimits {

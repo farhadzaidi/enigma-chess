@@ -1,7 +1,9 @@
 #pragma once
 
+#include <cstdint>
 #include <iostream>
 
+#include "core/types.hpp"
 #include "board/board.hpp"
 #include "core/move.hpp"
 #include "move_generator/move_generator.hpp"

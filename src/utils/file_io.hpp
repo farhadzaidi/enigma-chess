@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 #include <string>
 #include <filesystem>
@@ -9,7 +10,6 @@
 #include <unordered_map>
 
 #include "core/types.hpp"
-#include "core/move.hpp"
 
 #ifndef PROJECT_ROOT
 #define PROJECT_ROOT "./"

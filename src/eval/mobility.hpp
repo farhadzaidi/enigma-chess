@@ -1,6 +1,6 @@
 #pragma once
 
-#include <algorithm>
+#include <array>
 #include <bit>
 
 #include "core/types.hpp"

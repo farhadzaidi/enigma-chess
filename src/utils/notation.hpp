@@ -2,6 +2,7 @@
 
 #include <string>
 #include <cctype>
+#include <cstdlib>
 
 #include "core/types.hpp"
 #include "core/move.hpp"

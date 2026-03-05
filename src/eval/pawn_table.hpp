@@ -3,7 +3,7 @@
 #include <array>
 
 #include "core/types.hpp"
-#include "precompute/zobrist.hpp"
+#include "core/constants.hpp"
 
 
 constexpr uint64_t PAWN_TABLE_SIZE = uint64_t{1} << 16;

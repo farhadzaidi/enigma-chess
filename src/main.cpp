@@ -3,7 +3,6 @@
 #include <cstdlib>
 #include <iostream>
 #include <algorithm>
-#include <iomanip>
 
 #include "bench/bench.hpp"
 #include "core/uci.hpp"

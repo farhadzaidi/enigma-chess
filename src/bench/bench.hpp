@@ -13,10 +13,10 @@
 //
 // Usage: ./build/enigma bench [--fast] [--verbose] [--phased] [--movegen] [--engine]
 
+#include <algorithm>
 #include <string>
 #include <cstdint>
 #include <vector>
-#include <filesystem>
 #include <iostream>
 #include <chrono>
 #include <iomanip>

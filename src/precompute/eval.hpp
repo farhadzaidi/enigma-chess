@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+
 #include "core/types.hpp"
 #include "core/constants.hpp"
 #include "core/bitboard.hpp"

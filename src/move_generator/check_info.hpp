@@ -1,7 +1,7 @@
 #pragma once
 
 #include <array>
-#include <iostream>
+#include <bit>
 
 #include "core/types.hpp"
 #include "core/bitboard.hpp"
