@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+"""
+Pre-processes games.san into a compact C++ header for embedding the opening book.
+Truncates each game to the first 30 half-moves (15 per side) and outputs a string array.
+"""
+
+import sys
+from pathlib import Path
+
+OPENING_CUTOFF_PLY = 30
+INPUT_PATH = Path(__file__).parent.parent / "positions" / "games.san"
+OUTPUT_PATH = Path(__file__).parent.parent / "src" / "search" / "book_data.hpp"
+
+
+def truncate_game(line: str) -> str:
+    moves = line.strip().split()
+    return " ".join(moves[:OPENING_CUTOFF_PLY])
+
+
+def main():
+    if not INPUT_PATH.exists():
+        print(f"Error: {INPUT_PATH} not found", file=sys.stderr)
+        sys.exit(1)
+
+    games = []
+    with open(INPUT_PATH) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            truncated = truncate_game(line)
+            if truncated:
+                games.append(truncated)
+
+    # Deduplicate identical openings
+    games = sorted(set(games))
+
+    with open(OUTPUT_PATH, "w") as out:
+        out.write("#pragma once\n\n")
+        out.write(f"inline const size_t BOOK_SIZE = {len(games)};\n\n")
+        out.write(f"inline const char* const BOOK_DATA[] = {{\n")
+        for game in games:
+            escaped = game.replace("\\", "\\\\").replace('"', '\\"')
+            out.write(f'    "{escaped}",\n')
+        out.write("};\n")
+
+    print(f"Generated {OUTPUT_PATH}")
+    print(f"  {len(games)} unique openings (from {INPUT_PATH})")
+
+
+if __name__ == "__main__":
+    main()

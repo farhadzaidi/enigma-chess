@@ -10,16 +10,9 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the build type." FORCE)
 endif()
 
-# Compile src and test files
-file(GLOB_RECURSE TESTS CONFIGURE_DEPENDS tests/*.cpp)
-add_executable(${PROJECT_NAME} src/main.cpp ${TESTS})
-target_include_directories(${PROJECT_NAME} PRIVATE src tests)
+# --- Shared compiler/linker options ---
 
-# Expose project root to source code
-add_compile_definitions(PROJECT_ROOT="${CMAKE_SOURCE_DIR}")
-
-# Compiler options for maximum optimization
-target_compile_options(${PROJECT_NAME} PRIVATE
+set(COMMON_COMPILE_OPTIONS
   $<$<CXX_COMPILER_ID:GNU,Clang>:
     -O3 -march=native -mtune=native -DNDEBUG
     -ffunction-sections -fdata-sections
@@ -31,8 +24,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE
   >
 )
 
-# Linker options for maxmimum optimization
-target_link_options(${PROJECT_NAME} PRIVATE
+set(COMMON_LINK_OPTIONS
   $<$<CXX_COMPILER_ID:GNU>:
     -flto -Wl,--gc-sections
   >
@@ -44,9 +36,27 @@ target_link_options(${PROJECT_NAME} PRIVATE
   >
 )
 
-# Interprocedural optimization
+# --- Engine binary ---
+
+add_executable(enigma src/main.cpp)
+target_include_directories(enigma PRIVATE src)
+target_compile_options(enigma PRIVATE ${COMMON_COMPILE_OPTIONS})
+target_link_options(enigma PRIVATE ${COMMON_LINK_OPTIONS})
+
+# --- Debug binary (tests + bench) ---
+
+file(GLOB_RECURSE DEBUG_SOURCES CONFIGURE_DEPENDS debug/tests/*.cpp)
+add_executable(enigma-debug debug/main.cpp ${DEBUG_SOURCES})
+target_include_directories(enigma-debug PRIVATE src debug debug/tests)
+target_compile_definitions(enigma-debug PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_DIR}")
+target_compile_options(enigma-debug PRIVATE ${COMMON_COMPILE_OPTIONS})
+target_link_options(enigma-debug PRIVATE ${COMMON_LINK_OPTIONS})
+
+# --- Interprocedural optimization ---
+
 include(CheckIPOSupported)
 check_ipo_supported(RESULT ipo_supported OUTPUT ipo_msg)
 if(ipo_supported)
-  set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+  set_property(TARGET enigma PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+  set_property(TARGET enigma-debug PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()

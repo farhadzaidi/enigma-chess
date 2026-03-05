@@ -1,6 +1,6 @@
 # Enigma Chess
 
-Enigma is a UCI-compatible chess engine written in C++.  
+Enigma is a UCI-compatible chess engine written in C++.
 [Play against it on Lichess!](https://lichess.org/@/enigma-chess-bot)
 
 #### Lichess Ratings (as of 03/03/2026)
@@ -19,10 +19,11 @@ cmake -B build
 cmake --build build
 ```
 
-Binary path:
+Binaries:
 
 ```bash
-./build/enigma
+./build/enigma        # Engine (UCI)
+./build/enigma-debug  # Tests and benchmarks
 ```
 
 ## Usage
@@ -38,32 +39,6 @@ You can also run utility modes directly:
 ```bash
 ./build/enigma <command> [args...]
 ```
-
-#### `bench [flags...]`
-
-Runs benchmark suites.
-
-- By default, runs both move generation and engine search benches.
-- Add flags to narrow scope or change output.
-
-Flags:
-
-- `--verbose`: print detailed per-position output
-- `--fast`: run a reduced benchmark set
-- `--phased`: use phased move generation in movegen bench
-- `--movegen`: run only movegen bench
-- `--engine`: run only engine bench
-
-Examples:
-
-```bash
-./build/enigma bench
-./build/enigma bench --fast
-./build/enigma bench --movegen --phased
-./build/enigma bench --engine --verbose
-```
-
----
 
 #### `perft <depth> [fen...]`
 
@@ -97,41 +72,9 @@ Examples:
 ./build/enigma search 8 "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 2 3"
 ```
 
----
+## Debug Binary
 
-#### `test [selector...]`
-
-Runs the built-in test suite.
-
-- With no selectors, all tests run.
-- Supported selectors include groups (`core`, `search`, `protocol`, `behavior`),
-  and full selectors (`group/name`).
-
-Examples:
-
-```bash
-./build/enigma test
-./build/enigma test core
-./build/enigma test core/zobrist search/move_selector
-```
-
-See [`tests/README.md`](tests/README.md) for test layout and selector details.
-
----
-
-#### `debug`
-
-Starts an interactive board debugger.
-
-- Enter moves in UCI format (for example `e2e4`).
-- Use `undo` to take back one move.
-- Use `quit` to exit.
-
-Example:
-
-```bash
-./build/enigma debug
-```
+Tests and benchmarks are built as a separate binary. See [`debug/README.md`](debug/README.md) for details.
 
 ## License
 

@@ -3,23 +3,14 @@
 #include <vector>
 #include <unordered_map>
 #include <sstream>
-#include <random>
 #include <cmath>
-#include <filesystem>
 
 #include "core/move.hpp"
 #include "board/board.hpp"
 #include "core/random.hpp"
 #include "utils/notation.hpp"
-#include "utils/file_io.hpp"
+#include "search/book_data.hpp"
 
-#ifndef PROJECT_ROOT
-#define PROJECT_ROOT "./"
-#endif
-
-inline const std::filesystem::path GAMES_SAN_PATH = DATA_DIR / "games.san";
-
-constexpr size_t OPENING_CUTOFF_PLY = 30;
 constexpr double OPENING_MIN_MOVE_FREQUENCY = 0.05;
 constexpr double OPENING_MOVE_TEMPERATURE = 1.0;
 
@@ -32,8 +23,6 @@ struct BookMove {
 struct OpeningBook {
     inline OpeningBook() {
         initialize_book();
-
-        // This is to prevent picking low frequency moves which may correlate to being bad moves
         remove_low_frequency_moves();
     }
 
@@ -58,8 +47,6 @@ private:
     std::unordered_map<ZobristHash, std::vector<BookMove>> book;
 
     inline void add_book_move(ZobristHash position, Move move) {
-        // Loop through the already seen moves in this position and if this
-        // move has already been seen, then increment its frequency.
         for (BookMove& book_move: book[position]) {
             if (book_move.move == move) {
                 book_move.frequency++;
@@ -67,41 +54,33 @@ private:
             }
         }
 
-        // Otherwise, add it to the book
         book[position].push_back(BookMove(move, 1));
     }
 
     inline void initialize_book() {
         Board b;
-        std::vector<std::string> games;
-        read_file(games, GAMES_SAN_PATH);
 
-        for (const std::string& game: games) {
-            // Reset board to start position
+        for (size_t i = 0; i < BOOK_SIZE; i++) {
             b.load_from_fen();
 
-            int ply = 0;
+            std::string game(BOOK_DATA[i]);
             std::istringstream iss(game);
             std::string san;
-            while(std::getline(iss, san, ' ') && ply < static_cast<int>(OPENING_CUTOFF_PLY)) {
+            while (std::getline(iss, san, ' ')) {
                 Move move = parse_move_from_san(b, san);
                 add_book_move(b.position_hash, move);
                 b.make_move(move);
-                ply += 1;
             }
         }
     }
 
     inline void remove_low_frequency_moves() {
         for (auto& [_, book_moves]: book) {
-
-            // Get sum of all move frequencies at this position
             int frequency_sum = 0;
             for (BookMove& book_move: book_moves) {
                 frequency_sum += book_move.frequency;
             }
 
-            // Remove all moves whose frequencies are below the threshold
             std::erase_if(book_moves, [&](const BookMove& book_move) {
                 double relative_frequency = static_cast<double>(book_move.frequency) / frequency_sum;
                 return relative_frequency < OPENING_MIN_MOVE_FREQUENCY;

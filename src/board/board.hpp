@@ -85,8 +85,6 @@ public:
     // ### PUBLIC API
 
     inline void load_from_fen(const std::string& fen = START_POS_FEN);
-    inline void print_board() const;
-    inline void print_board_state() const;
     inline void make_move(Move move);
     inline void unmake_move(Move move);
     inline void make_null_move();
@@ -146,4 +144,3 @@ private:
 #include "board/utils.ipp"
 #include "board/fen.ipp"
 #include "board/moves.ipp"
-#include "board/display.ipp"

@@ -23,8 +23,8 @@
 
 #include "core/types.hpp"
 #include "board/board.hpp"
-#include "bench/perft.hpp"
-#include "utils/file_io.hpp"
+#include "move_generator/perft.hpp"
+#include "io.hpp"
 #include "utils/notation.hpp"
 #include "search/search.hpp"
 

@@ -29,27 +29,18 @@ bool test_transposition_table();
 bool test_null_move(Board& b);
 bool test_pawn_table(Board& b);
 bool test_search_helpers();
-bool test_file_parsing();
 bool test_uci_helpers(Board& b);
 
 inline const std::vector<std::string> TEST_GROUPS = {
     "core",
     "search",
     "protocol",
-    "behavior",
 };
 
 inline bool test_matches_selector(const TestEntry& test, const std::string& selector) {
-    std::string normalized = selector;
-    if (selector == "behavior") {
-        normalized = "search";
-    } else if (selector.rfind("behavior/", 0) == 0) {
-        normalized = "search/" + selector.substr(9);
-    }
-
     return (
-        normalized == test.group
-        || normalized == (test.group + "/" + test.name)
+        selector == test.group
+        || selector == (test.group + "/" + test.name)
     );
 }
 
@@ -70,7 +61,6 @@ inline bool is_valid_test_selector(const std::string& selector) {
         {"core",      "null_move",           []() { Board b; return test_null_move(b); }},
         {"core",      "pawn_table",          []() { Board b; return test_pawn_table(b); }},
         {"search",    "search_helpers",      []() { return test_search_helpers(); }},
-        {"protocol",  "file_parsing",        []() { return test_file_parsing(); }},
         {"protocol",  "uci_helpers",         []() { Board b; return test_uci_helpers(b); }},
     };
 
@@ -105,7 +95,6 @@ inline int run_tests(const std::vector<std::string>& selected) {
         {"core",      "null_move",           [&]() { return test_null_move(b); }},
         {"core",      "pawn_table",          [&]() { return test_pawn_table(b); }},
         {"search",    "search_helpers",      [&]() { return test_search_helpers(); }},
-        {"protocol",  "file_parsing",        [&]() { return test_file_parsing(); }},
         {"protocol",  "uci_helpers",         [&]() { return test_uci_helpers(b); }},
     };
 
