@@ -10,7 +10,7 @@
 #include "search/move_selector.hpp"
 #include "search/search_state.hpp"
 #include "utils/notation.hpp"
-#include "helpers.hpp"
+#include "tests/helpers.hpp"
 
 static SearchState make_search_state(const Board& b) {
     SearchState ss{};
@@ -598,7 +598,7 @@ bool test_move_selector(Board& b) {
 #include "core/move.hpp"
 #include "utils/notation.hpp"
 #include "search/see.hpp"
-#include "helpers.hpp"
+#include "tests/helpers.hpp"
 
 static bool assert_see_score(
     Board& b,

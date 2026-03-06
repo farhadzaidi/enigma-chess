@@ -3,7 +3,7 @@
 #include "core/types.hpp"
 #include "board/board.hpp"
 #include "utils/notation.hpp"
-#include "helpers.hpp"
+#include "tests/helpers.hpp"
 
 // make/unmake null move should restore board state exactly
 static bool test_null_move_restore(Board& b) {

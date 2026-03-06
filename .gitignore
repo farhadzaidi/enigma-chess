@@ -2,3 +2,4 @@
 build/
 versions/
 *__pycache__*
+.python-version

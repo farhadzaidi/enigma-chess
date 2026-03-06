@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+Shared path constants and environment helpers used by other scripts.
+"""
+
 import os
 from pathlib import Path
 

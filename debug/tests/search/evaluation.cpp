@@ -101,11 +101,11 @@ bool test_eval(Board& b) {
 #include "search/see.hpp"
 #include "eval/eval.hpp"
 #include "utils/notation.hpp"
-#include "helpers.hpp"
+#include "tests/helpers.hpp"
 
 static bool test_quiescence_stand_pat_cutoff(Board& b) {
     b.load_from_fen("4k3/8/8/8/8/8/8/4K3 w - - 0 1");
-    reset_g_search_state_for_test(b);
+    reset_search_state_for_test(b);
 
     Board before = b;
     PositionScore score = quiescence_search<SearchMode::Depth>(b, -50, -10);
@@ -132,7 +132,7 @@ static bool test_quiescence_stand_pat_cutoff(Board& b) {
 
 static bool test_quiescence_in_check_mate_score(Board& b) {
     b.load_from_fen("rnb1kbnr/pppp1ppp/4p3/8/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3");
-    reset_g_search_state_for_test(b);
+    reset_search_state_for_test(b);
 
     PositionScore expected = -CHECKMATE_SCORE + g_search_state.search_ply(b.ply);
     PositionScore score = quiescence_search<SearchMode::Depth>(b, -CHECKMATE_SCORE, CHECKMATE_SCORE);
@@ -148,7 +148,7 @@ static bool test_quiescence_in_check_mate_score(Board& b) {
 
 static bool test_quiescence_see_bad_capture_pruning(Board& b) {
     b.load_from_fen("4k3/8/2p5/3p4/3Q4/8/8/4K3 w - - 0 1");
-    reset_g_search_state_for_test(b);
+    reset_search_state_for_test(b);
 
     Move bad_capture = encode_move_from_uci(b, "d4d5");
     MoveList tacticals = generate_moves<MoveGenMode::TacticalOnly>(b);
@@ -192,7 +192,7 @@ static bool test_quiescence_see_bad_capture_pruning(Board& b) {
 
 static bool test_quiescence_draw_detection(Board& b) {
     b.load_from_fen("4k3/8/8/8/8/8/8/4K3 w - - 100 50");
-    reset_g_search_state_for_test(b);
+    reset_search_state_for_test(b);
 
     PositionScore score_halfmove = quiescence_search<SearchMode::Depth>(b, -CHECKMATE_SCORE, CHECKMATE_SCORE);
     if (score_halfmove != STALEMATE_SCORE) {
@@ -211,7 +211,7 @@ static bool test_quiescence_draw_detection(Board& b) {
         return false;
     }
 
-    reset_g_search_state_for_test(b);
+    reset_search_state_for_test(b);
     PositionScore score_rep = quiescence_search<SearchMode::Depth>(b, -CHECKMATE_SCORE, CHECKMATE_SCORE);
     if (score_rep != STALEMATE_SCORE) {
         std::clog << "[FAILURE] 'quiescence_draw_detection' - Repetition draw not detected\n";
@@ -238,7 +238,7 @@ bool test_quiescence(Board& b) {
 #include "core/transposition_table.hpp"
 #include "search/helpers.hpp"
 #include "utils/notation.hpp"
-#include "helpers.hpp"
+#include "tests/helpers.hpp"
 
 static bool test_tt_score_normalization_round_trip() {
     const int ply = 7;
@@ -266,7 +266,7 @@ static bool test_tt_score_normalization_round_trip() {
 
 static bool test_store_tt_result_node_classification(Board& b) {
     b.load_from_fen(START_POS_FEN);
-    reset_g_search_state_for_test(b);
+    reset_search_state_for_test(b);
     g_transposition_table.clear();
     g_transposition_table.generation = 12;
 
@@ -298,7 +298,7 @@ static bool test_store_tt_result_node_classification(Board& b) {
 
 static bool test_update_killer_table_rotation(Board& b) {
     b.load_from_fen(START_POS_FEN);
-    reset_g_search_state_for_test(b);
+    reset_search_state_for_test(b);
 
     Move m1 = encode_move_from_uci(b, "e2e4");
     Move m2 = encode_move_from_uci(b, "d2d4");
@@ -327,7 +327,7 @@ static bool test_update_killer_table_rotation(Board& b) {
 
 static bool test_handle_beta_cutoff_updates(Board& b) {
     b.load_from_fen(START_POS_FEN);
-    reset_g_search_state_for_test(b);
+    reset_search_state_for_test(b);
 
     Move quiet_penalized = encode_move_from_uci(b, "e2e4");
     Move quiet_cutoff = encode_move_from_uci(b, "d2d4");
@@ -362,7 +362,7 @@ static bool test_handle_beta_cutoff_updates(Board& b) {
         return false;
     }
 
-    reset_g_search_state_for_test(b);
+    reset_search_state_for_test(b);
     MoveList empty;
     Move tactical(A1, A2, MoveType::Capture, MoveFlag::Normal);
     handle_beta_cutoff(b, tactical, 4, empty);

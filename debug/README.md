@@ -14,8 +14,11 @@ cmake --build build --target enigma-debug
 ```text
 debug/
   main.cpp        # Entry point
-  bench.hpp       # Benchmark suites (movegen + engine)
-  io.hpp          # File I/O and EPD parsing utilities
+  parse.hpp       # File I/O and EPD parsing utilities
+  bench/
+    bench.hpp     # Bench runner
+    movegen.hpp   # Movegen benchmark
+    engine.hpp    # Engine benchmark
   tests/
     test.hpp      # Test runner and registration
     helpers.hpp   # Shared test helpers
@@ -49,11 +52,13 @@ Run by selector. Multiple selectors can be combined in one command.
 ```bash
 ./build/enigma-debug bench
 ```
+Run both movegen and engine benchmarks.
 
-Modes (mutually exclusive):
-
-- `--movegen`: run only movegen bench
-- `--engine`: run only engine bench
+```bash
+./build/enigma-debug bench movegen
+./build/enigma-debug bench engine
+```
+Run a specific benchmark.
 
 Flags:
 
@@ -63,6 +68,6 @@ Flags:
 
 ```bash
 ./build/enigma-debug bench --fast
-./build/enigma-debug bench --movegen --phased --verbose
-./build/enigma-debug bench --engine --fast
+./build/enigma-debug bench movegen --phased --verbose
+./build/enigma-debug bench engine --fast
 ```

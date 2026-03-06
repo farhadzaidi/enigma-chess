@@ -52,7 +52,7 @@ inline bool move_list_contains(const MoveList& moves, Move target) {
     return false;
 }
 
-inline void reset_g_search_state_for_test(const Board& b, bool clear_g_stop_requested = true) {
+inline void reset_search_state_for_test(const Board& b, bool clear_stop_requested = true) {
     g_search_state = {};
     g_search_state.ply_offset = b.ply;
     g_search_state.killer_1.fill(NULL_MOVE);
@@ -62,7 +62,7 @@ inline void reset_g_search_state_for_test(const Board& b, bool clear_g_stop_requ
     g_search_state.search_interrupted = false;
     g_search_state.nodes = 0;
 
-    if (clear_g_stop_requested) {
+    if (clear_stop_requested) {
         g_stop_requested = false;
     }
 }

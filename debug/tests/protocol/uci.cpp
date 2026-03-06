@@ -8,7 +8,7 @@
 #include "eval/pawn_table.hpp"
 #include "board/board.hpp"
 #include "utils/notation.hpp"
-#include "helpers.hpp"
+#include "tests/helpers.hpp"
 
 // Expected FEN snapshots generated and validated with python-chess 1.11.2.
 static constexpr const char* STARTPOS_SEQ_EXPECTED_FEN =

@@ -9,7 +9,7 @@
 #include "board/board.hpp"
 #include "core/random.hpp"
 #include "utils/notation.hpp"
-#include "search/book_data.hpp"
+#include "data/book.hpp"
 
 constexpr double OPENING_MIN_MOVE_FREQUENCY = 0.05;
 constexpr double OPENING_MOVE_TEMPERATURE = 1.0;

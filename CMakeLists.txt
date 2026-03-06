@@ -47,7 +47,7 @@ target_link_options(enigma PRIVATE ${COMMON_LINK_OPTIONS})
 
 file(GLOB_RECURSE DEBUG_SOURCES CONFIGURE_DEPENDS debug/tests/*.cpp)
 add_executable(enigma-debug debug/main.cpp ${DEBUG_SOURCES})
-target_include_directories(enigma-debug PRIVATE src debug debug/tests)
+target_include_directories(enigma-debug PRIVATE src debug)
 target_compile_definitions(enigma-debug PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_DIR}")
 target_compile_options(enigma-debug PRIVATE ${COMMON_COMPILE_OPTIONS})
 target_link_options(enigma-debug PRIVATE ${COMMON_LINK_OPTIONS})

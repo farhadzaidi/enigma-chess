@@ -5,7 +5,7 @@
 #include "core/types.hpp"
 #include "board/board.hpp"
 #include "utils/notation.hpp"
-#include "io.hpp"
+#include "parse.hpp"
 
 static bool test_positions_in_check(Board& b) {
     std::vector<std::string> in_check_buffer;
@@ -97,8 +97,8 @@ bool test_in_check(Board& b) {
 #include "core/move.hpp"
 #include "move_generator/move_generator.hpp"
 #include "utils/notation.hpp"
-#include "io.hpp"
-#include "helpers.hpp"
+#include "parse.hpp"
+#include "tests/helpers.hpp"
 
 static bool assert_legal_result(Board& b, Move move, bool expected, const std::string& test_name, const std::string& fen, const std::string& move_uci, const std::string& context) {
     Board before = b;

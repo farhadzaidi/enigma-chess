@@ -3,8 +3,8 @@
 #include <cstdlib>
 #include <iostream>
 
-#include "test.hpp"
-#include "bench.hpp"
+#include "tests/test.hpp"
+#include "bench/bench.hpp"
 
 int main(int argc, char* argv[]) {
     std::vector<std::string> args;
@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
     if (args.empty()) {
         std::clog << "Usage:\n";
         std::clog << "  enigma-debug test [group/name ...]\n";
-        std::clog << "  enigma-debug bench [--fast] [--verbose] [--phased] [--movegen] [--engine]\n";
+        std::clog << "  enigma-debug bench [movegen|engine] [--fast] [--verbose] [--phased]\n";
         return EXIT_FAILURE;
     }
 
@@ -40,26 +40,42 @@ int main(int argc, char* argv[]) {
     }
 
     else if (cmd == "bench") {
-        BenchFlags flags = {false, false, false, false, false};
+        std::string type;
+        bool verbose = false;
+        bool fast = false;
+        bool phased = false;
+        size_t flags_start = 1;
 
-        for (size_t i = 1; i < args.size(); i++) {
-            if (args[i] == "--verbose") {
-                flags.verbose = true;
-            } else if (args[i] == "--fast") {
-                flags.fast = true;
-            } else if (args[i] == "--phased") {
-                flags.phased = true;
-            } else if (args[i] == "--movegen") {
-                flags.movegen_only = true;
-            } else if (args[i] == "--engine") {
-                flags.engine_only = true;
-            } else {
-                std::clog << "Error: Unknown option for bench '" << args[i] << "'\n";
+        if (args.size() > 1 && args[1][0] != '-') {
+            type = args[1];
+            flags_start = 2;
+
+            if (type != "movegen" && type != "engine") {
+                std::clog << "Error: Unknown bench type '" << type << "'\n";
+                std::clog << "Available: movegen, engine\n";
                 return EXIT_FAILURE;
             }
         }
 
-        run_bench(flags);
+        for (size_t i = flags_start; i < args.size(); i++) {
+            if (args[i] == "--verbose") {
+                verbose = true;
+            } else if (args[i] == "--fast") {
+                fast = true;
+            } else if (args[i] == "--phased") {
+                phased = true;
+            } else {
+                std::clog << "Error: Unknown option '" << args[i] << "'\n";
+                return EXIT_FAILURE;
+            }
+        }
+
+        if (phased && type == "engine") {
+            std::clog << "Error: --phased is only valid for movegen bench\n";
+            return EXIT_FAILURE;
+        }
+
+        run_bench(type, verbose, fast, phased);
     }
 
     else {

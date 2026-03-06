@@ -72,9 +72,13 @@ Examples:
 ./build/enigma search 8 "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 2 3"
 ```
 
-## Debug Binary
+## Debug
 
 Tests and benchmarks are built as a separate binary. See [`debug/README.md`](debug/README.md) for details.
+
+## Scripts
+
+Utility scripts for data generation, version management, and engine matches. See [`scripts/README.md`](scripts/README.md) for details.
 
 ## License
 

@@ -5,7 +5,7 @@
 #include "board/board.hpp"
 #include "search/search.hpp"
 #include "move_generator/move_generator.hpp"
-#include "helpers.hpp"
+#include "tests/helpers.hpp"
 
 static bool test_search_nodes_zero_fallback(Board& b) {
     const bool old_book = g_use_own_book;

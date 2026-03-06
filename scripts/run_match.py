@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
+"""
+Runs a match between two engine versions using cutechess-cli.
+Supports standard fixed-game matches and SPRT testing.
+"""
 
 import argparse
 import subprocess
-import re
 
-from paths import CUTECHESS_CLI_BINARY_PATH, VERSIONS_DIR, BINARY_PATH, OPENINGS_PATH, require_env
+from lib.path import CUTECHESS_CLI_BINARY_PATH, BINARY_PATH, OPENINGS_PATH, require_env
+from lib.version import find_version, find_latest_version
 
 require_env('cutechess_cli_binary')
 
@@ -21,45 +25,6 @@ RESIGN_MOVECOUNT = 8
 RESIGN_SCORE = 600
 SPRT_ALPHA = 0.05
 SPRT_BETA = 0.05
-
-
-def find_binary(version_prefix):
-    matches = []
-    if VERSIONS_DIR.exists():
-        for file in VERSIONS_DIR.iterdir():
-            if file.name.startswith(f'{version_prefix}_'):
-                matches.append(file)
-
-    if len(matches) == 0:
-        print(f'Error: No binary found for version "{version_prefix}"')
-        exit(1)
-    elif len(matches) > 1:
-        print(f'Error: Multiple binaries found for version "{version_prefix}"')
-        for m in matches:
-            print(f'  {m}')
-        exit(1)
-
-    return matches[0].resolve()
-
-
-def find_latest_version():
-    latest_version = -1
-    latest_file = None
-
-    if VERSIONS_DIR.exists():
-        for file in VERSIONS_DIR.iterdir():
-            match = re.match(r'v(\d+)_(.+)', file.name)
-            if match:
-                version_num = int(match.group(1))
-                if version_num > latest_version:
-                    latest_version = version_num
-                    latest_file = file
-
-    if latest_file is None:
-        print('Error: No versions found in versions directory')
-        exit(1)
-
-    return latest_file.resolve()
 
 
 def build_cmd(engine_a, engine_b, engine_a_name, engine_b_name, sprt=None, max_games=STANDARD_MAX_GAMES):
@@ -107,18 +72,22 @@ args = parser.parse_args()
 if args.engine_a_version is None and args.engine_b_version is None:
     engine_a = BINARY_PATH.resolve()
     engine_b = find_latest_version()
+    if engine_b is None:
+        print('Error: No versions found in versions directory')
+        exit(1)
+    engine_b = engine_b.resolve()
     engine_a_name = 'current'
     engine_b_name = engine_b.name
 
 elif args.engine_a_version is not None and args.engine_b_version is None:
     engine_a = BINARY_PATH.resolve()
-    engine_b = find_binary(args.engine_a_version)
+    engine_b = find_version(args.engine_a_version)
     engine_a_name = 'current'
     engine_b_name = engine_b.name
 
 elif args.engine_a_version is not None and args.engine_b_version is not None:
-    engine_a = find_binary(args.engine_a_version)
-    engine_b = find_binary(args.engine_b_version)
+    engine_a = find_version(args.engine_a_version)
+    engine_b = find_version(args.engine_b_version)
     engine_a_name = engine_a.name
     engine_b_name = engine_b.name
 
