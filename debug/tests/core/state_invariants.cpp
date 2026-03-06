@@ -34,7 +34,7 @@ static bool test_null_move_restore(Board& b) {
         b.make_null_move();
         b.unmake_null_move();
 
-        if (!board_position_equal(b, before, true)) {
+        if (!board_position_equal(b, before)) {
             std::clog << "[FAILURE] 'null_move_restore' - Board state not restored after make/unmake null move\n";
             std::clog << "Case: " << tc.description << "\n";
             std::clog << "FEN: " << tc.fen << "\n";
@@ -67,10 +67,7 @@ static bool test_null_move_clears_en_passant(Board& b) {
     // After 1.e4 (en passant target = e3)
     b.load_from_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
 
-    if (b.en_passant_target == NO_SQUARE) {
-        std::clog << "[FAILURE] 'null_move_clears_en_passant' - Test precondition failed: EP target not set\n";
-        return false;
-    }
+    ASSERT(b.en_passant_target != NO_SQUARE, "null_move_clears_en_passant", "Test precondition failed: EP target not set");
 
     b.make_null_move();
 
@@ -204,11 +201,7 @@ static bool test_null_move_ply(Board& b) {
 
     b.unmake_null_move();
 
-    if (b.ply != original_ply) {
-        std::clog << "[FAILURE] 'null_move_ply' - Ply not restored\n";
-        std::clog << "Expected: " << original_ply << " Got: " << b.ply << "\n";
-        return false;
-    }
+    ASSERT_EQ(b.ply, original_ply, "null_move_ply", "Ply not restored");
 
     return true;
 }
@@ -231,10 +224,7 @@ static bool test_null_move_then_real_move(Board& b) {
     b.unmake_move(nf6);
     b.unmake_null_move();
 
-    if (!board_position_equal(b, before, true)) {
-        std::clog << "[FAILURE] 'null_move_then_real_move' - Board state not restored\n";
-        return false;
-    }
+    ASSERT_BOARD(b, before, "null_move_then_real_move", "Board state not restored");
 
     return true;
 }

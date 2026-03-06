@@ -21,7 +21,7 @@ static bool board_position_equal_ignoring_ply(const Board& a, const Board& b) {
     Board a_copy = a;
     Board b_copy = b;
     b_copy.ply = a_copy.ply;
-    return board_position_equal(a_copy, b_copy, true);
+    return board_position_equal(a_copy, b_copy);
 }
 
 static bool test_calc_time_limit_movestogo_branch(Board& b) {
@@ -104,10 +104,8 @@ static bool test_cmd_position_parsing(Board& b) {
     Board expected_startpos_seq;
     expected_startpos_seq.load_from_fen(STARTPOS_SEQ_EXPECTED_FEN);
 
-    if (!board_position_equal_ignoring_ply(b, expected_startpos_seq)) {
-        std::clog << "[FAILURE] 'uci_helpers_cmd_position' - startpos+moves mismatch\n";
-        return false;
-    }
+    ASSERT(board_position_equal_ignoring_ply(b, expected_startpos_seq),
+           "uci_helpers_cmd_position", "startpos+moves mismatch");
 
     // fen + moves
     cmd_position(
@@ -118,10 +116,8 @@ static bool test_cmd_position_parsing(Board& b) {
     Board expected_fen_seq;
     expected_fen_seq.load_from_fen(FEN_SEQ_EXPECTED_FEN);
 
-    if (!board_position_equal_ignoring_ply(b, expected_fen_seq)) {
-        std::clog << "[FAILURE] 'uci_helpers_cmd_position' - fen+moves mismatch\n";
-        return false;
-    }
+    ASSERT(board_position_equal_ignoring_ply(b, expected_fen_seq),
+           "uci_helpers_cmd_position", "fen+moves mismatch");
 
     return true;
 }
@@ -144,21 +140,15 @@ static bool test_cmd_ucinewgame_clears_state(Board& b) {
 
     cmd_ucinewgame(b);
 
-    if (b.to_move != NO_SIDE || b.occupied != EMPTY_BITBOARD || b.ply != 0) {
-        std::clog << "[FAILURE] 'uci_helpers_ucinewgame' - Board reset state mismatch\n";
-        return false;
-    }
+    ASSERT(b.to_move == NO_SIDE && b.occupied == EMPTY_BITBOARD && b.ply == 0,
+           "uci_helpers_ucinewgame", "Board reset state mismatch");
 
-    if (g_transposition_table.generation != 0 || g_transposition_table.get_entry(saved_position_hash) != nullptr) {
-        std::clog << "[FAILURE] 'uci_helpers_ucinewgame' - TT should be cleared\n";
-        return false;
-    }
+    ASSERT(g_transposition_table.generation == 0 && g_transposition_table.get_entry(saved_position_hash) == nullptr,
+           "uci_helpers_ucinewgame", "TT should be cleared");
 
     PawnTableEntry& probed = g_pawn_table.get_entry(saved_pawn_hash);
-    if (g_pawn_table.is_valid_entry(saved_pawn_hash, probed)) {
-        std::clog << "[FAILURE] 'uci_helpers_ucinewgame' - Pawn table should be cleared\n";
-        return false;
-    }
+    ASSERT(!g_pawn_table.is_valid_entry(saved_pawn_hash, probed),
+           "uci_helpers_ucinewgame", "Pawn table should be cleared");
 
     return true;
 }

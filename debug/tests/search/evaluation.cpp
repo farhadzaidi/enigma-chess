@@ -110,22 +110,11 @@ static bool test_quiescence_stand_pat_cutoff(Board& b) {
     Board before = b;
     PositionScore score = quiescence_search<SearchMode::Depth>(b, -50, -10);
 
-    if (!board_position_equal(before, b, true)) {
-        std::clog << "[FAILURE] 'quiescence_stand_pat_cutoff' - Board mutated\n";
-        return false;
-    }
+    ASSERT_BOARD(b, before, "quiescence_stand_pat_cutoff", "Board mutated")
 
-    if (score != 0) {
-        std::clog << "[FAILURE] 'quiescence_stand_pat_cutoff' - Expected stand-pat score 0\n";
-        std::clog << "Got: " << score << "\n";
-        return false;
-    }
+    ASSERT_EQ(score, 0, "quiescence_stand_pat_cutoff", "Expected stand-pat score 0")
 
-    if (g_search_state.nodes != 1) {
-        std::clog << "[FAILURE] 'quiescence_stand_pat_cutoff' - Expected single-node cutoff\n";
-        std::clog << "Nodes: " << g_search_state.nodes << "\n";
-        return false;
-    }
+    ASSERT_EQ(g_search_state.nodes, 1, "quiescence_stand_pat_cutoff", "Expected single-node cutoff")
 
     return true;
 }
@@ -137,11 +126,7 @@ static bool test_quiescence_in_check_mate_score(Board& b) {
     PositionScore expected = -CHECKMATE_SCORE + g_search_state.search_ply(b.ply);
     PositionScore score = quiescence_search<SearchMode::Depth>(b, -CHECKMATE_SCORE, CHECKMATE_SCORE);
 
-    if (score != expected) {
-        std::clog << "[FAILURE] 'quiescence_in_check_mate' - Mate score mismatch\n";
-        std::clog << "Expected: " << expected << " Got: " << score << "\n";
-        return false;
-    }
+    ASSERT_EQ(score, expected, "quiescence_in_check_mate", "Mate score mismatch")
 
     return true;
 }
@@ -160,32 +145,18 @@ static bool test_quiescence_see_bad_capture_pruning(Board& b) {
         }
     }
 
-    if (!found) {
-        std::clog << "[FAILURE] 'quiescence_see_pruning' - Fixture move d4d5 not in tactical list\n";
-        return false;
-    }
+    ASSERT(found, "quiescence_see_pruning", "Fixture move d4d5 not in tactical list")
 
     int bad_see = see(b, bad_capture);
-    if (bad_see >= SEE_CUTOFF) {
-        std::clog << "[FAILURE] 'quiescence_see_pruning' - Fixture must be SEE-below cutoff\n";
-        std::clog << "SEE(d4d5): " << bad_see << " cutoff: " << SEE_CUTOFF << "\n";
-        return false;
-    }
+    ASSERT(bad_see < SEE_CUTOFF, "quiescence_see_pruning",
+        "Fixture must be SEE-below cutoff\n" << "SEE(d4d5): " << bad_see << " cutoff: " << SEE_CUTOFF)
 
     PositionScore static_eval = evaluate(b);
     PositionScore score = quiescence_search<SearchMode::Depth>(b, static_eval - 1, CHECKMATE_SCORE);
 
-    if (score != static_eval) {
-        std::clog << "[FAILURE] 'quiescence_see_pruning' - Expected stand-pat to be preserved\n";
-        std::clog << "Static eval: " << static_eval << " Got: " << score << "\n";
-        return false;
-    }
+    ASSERT_EQ(score, static_eval, "quiescence_see_pruning", "Expected stand-pat to be preserved")
 
-    if (g_search_state.nodes != 1) {
-        std::clog << "[FAILURE] 'quiescence_see_pruning' - Expected no recursive search on pruned capture\n";
-        std::clog << "Nodes: " << g_search_state.nodes << "\n";
-        return false;
-    }
+    ASSERT_EQ(g_search_state.nodes, 1, "quiescence_see_pruning", "Expected no recursive search on pruned capture")
 
     return true;
 }
@@ -195,10 +166,7 @@ static bool test_quiescence_draw_detection(Board& b) {
     reset_search_state_for_test(b);
 
     PositionScore score_halfmove = quiescence_search<SearchMode::Depth>(b, -CHECKMATE_SCORE, CHECKMATE_SCORE);
-    if (score_halfmove != STALEMATE_SCORE) {
-        std::clog << "[FAILURE] 'quiescence_draw_detection' - 50-move draw not detected\n";
-        return false;
-    }
+    ASSERT_EQ(score_halfmove, STALEMATE_SCORE, "quiescence_draw_detection", "50-move draw not detected")
 
     b.load_from_fen(START_POS_FEN);
     b.make_move(encode_move_from_uci(b, "g1f3"));
@@ -206,17 +174,11 @@ static bool test_quiescence_draw_detection(Board& b) {
     b.make_move(encode_move_from_uci(b, "f3g1"));
     b.make_move(encode_move_from_uci(b, "f6g8"));
 
-    if (!b.has_repeated()) {
-        std::clog << "[FAILURE] 'quiescence_draw_detection' - Repetition precondition failed\n";
-        return false;
-    }
+    ASSERT(b.has_repeated(), "quiescence_draw_detection", "Repetition precondition failed")
 
     reset_search_state_for_test(b);
     PositionScore score_rep = quiescence_search<SearchMode::Depth>(b, -CHECKMATE_SCORE, CHECKMATE_SCORE);
-    if (score_rep != STALEMATE_SCORE) {
-        std::clog << "[FAILURE] 'quiescence_draw_detection' - Repetition draw not detected\n";
-        return false;
-    }
+    ASSERT_EQ(score_rep, STALEMATE_SCORE, "quiescence_draw_detection", "Repetition draw not detected")
 
     return true;
 }
@@ -274,24 +236,18 @@ static bool test_store_tt_result_node_classification(Board& b) {
 
     store_tt_result(b, m, 5, 150, 100, 200);
     TTEntry* exact = g_transposition_table.get_entry(b.position_hash);
-    if (!exact || exact->node != TTNode::Exact || exact->best_move != m) {
-        std::clog << "[FAILURE] 'search_helpers_store_tt' - Exact node classification failed\n";
-        return false;
-    }
+    ASSERT(exact && exact->node == TTNode::Exact && exact->best_move == m,
+        "search_helpers_store_tt", "Exact node classification failed")
 
     store_tt_result(b, m, 5, 250, 100, 200);
     TTEntry* fail_high = g_transposition_table.get_entry(b.position_hash);
-    if (!fail_high || fail_high->node != TTNode::FailHigh) {
-        std::clog << "[FAILURE] 'search_helpers_store_tt' - FailHigh classification failed\n";
-        return false;
-    }
+    ASSERT(fail_high && fail_high->node == TTNode::FailHigh,
+        "search_helpers_store_tt", "FailHigh classification failed")
 
     store_tt_result(b, m, 5, 90, 100, 200);
     TTEntry* fail_low = g_transposition_table.get_entry(b.position_hash);
-    if (!fail_low || fail_low->node != TTNode::FailLow) {
-        std::clog << "[FAILURE] 'search_helpers_store_tt' - FailLow classification failed\n";
-        return false;
-    }
+    ASSERT(fail_low && fail_low->node == TTNode::FailLow,
+        "search_helpers_store_tt", "FailLow classification failed")
 
     return true;
 }
@@ -305,22 +261,16 @@ static bool test_update_killer_table_rotation(Board& b) {
     const int ply = 0;
 
     update_killer_table(m1, ply);
-    if (g_search_state.killer_1[ply] != m1 || g_search_state.killer_2[ply] != NULL_MOVE) {
-        std::clog << "[FAILURE] 'search_helpers_killer' - First insertion failed\n";
-        return false;
-    }
+    ASSERT(g_search_state.killer_1[ply] == m1 && g_search_state.killer_2[ply] == NULL_MOVE,
+        "search_helpers_killer", "First insertion failed")
 
     update_killer_table(m2, ply);
-    if (g_search_state.killer_1[ply] != m2 || g_search_state.killer_2[ply] != m1) {
-        std::clog << "[FAILURE] 'search_helpers_killer' - Rotation failed\n";
-        return false;
-    }
+    ASSERT(g_search_state.killer_1[ply] == m2 && g_search_state.killer_2[ply] == m1,
+        "search_helpers_killer", "Rotation failed")
 
     update_killer_table(m2, ply);
-    if (g_search_state.killer_1[ply] != m2 || g_search_state.killer_2[ply] != m1) {
-        std::clog << "[FAILURE] 'search_helpers_killer' - Duplicate insert should not rotate\n";
-        return false;
-    }
+    ASSERT(g_search_state.killer_1[ply] == m2 && g_search_state.killer_2[ply] == m1,
+        "search_helpers_killer", "Duplicate insert should not rotate")
 
     return true;
 }
@@ -342,35 +292,27 @@ static bool test_handle_beta_cutoff_updates(Board& b) {
     handle_beta_cutoff(b, quiet_cutoff, 4, searched_quiets);
 
     int ply = g_search_state.search_ply(b.ply);
-    if (g_search_state.killer_1[ply] != quiet_cutoff) {
-        std::clog << "[FAILURE] 'search_helpers_beta_cutoff' - Quiet cutoff should update killer_1\n";
-        return false;
-    }
+    ASSERT(g_search_state.killer_1[ply] == quiet_cutoff,
+        "search_helpers_beta_cutoff", "Quiet cutoff should update killer_1")
 
     MoveScore cutoff_hist = g_search_state.side_piece_to_history[b.to_move][cutoff_piece][quiet_cutoff.to()]
         + g_search_state.from_to_history[quiet_cutoff.from()][quiet_cutoff.to()];
     MoveScore penalized_hist = g_search_state.side_piece_to_history[b.to_move][penalty_piece][quiet_penalized.to()]
         + g_search_state.from_to_history[quiet_penalized.from()][quiet_penalized.to()];
 
-    if (cutoff_hist <= 0) {
-        std::clog << "[FAILURE] 'search_helpers_beta_cutoff' - Cutoff move should get positive history bonus\n";
-        return false;
-    }
+    ASSERT(cutoff_hist > 0,
+        "search_helpers_beta_cutoff", "Cutoff move should get positive history bonus")
 
-    if (penalized_hist >= 0) {
-        std::clog << "[FAILURE] 'search_helpers_beta_cutoff' - Earlier quiet move should get negative history malus\n";
-        return false;
-    }
+    ASSERT(penalized_hist < 0,
+        "search_helpers_beta_cutoff", "Earlier quiet move should get negative history malus")
 
     reset_search_state_for_test(b);
     MoveList empty;
     Move tactical(A1, A2, MoveType::Capture, MoveFlag::Normal);
     handle_beta_cutoff(b, tactical, 4, empty);
 
-    if (g_search_state.killer_1[ply] != NULL_MOVE || g_search_state.killer_2[ply] != NULL_MOVE) {
-        std::clog << "[FAILURE] 'search_helpers_beta_cutoff' - Tactical cutoff should not update killers\n";
-        return false;
-    }
+    ASSERT(g_search_state.killer_1[ply] == NULL_MOVE && g_search_state.killer_2[ply] == NULL_MOVE,
+        "search_helpers_beta_cutoff", "Tactical cutoff should not update killers")
 
     return true;
 }

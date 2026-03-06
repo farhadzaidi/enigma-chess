@@ -25,15 +25,8 @@ static bool test_search_nodes_zero_fallback(Board& b) {
 
     g_use_own_book = old_book;
 
-    if (!board_position_equal(before, b, true)) {
-        std::clog << "[FAILURE] 'search_nodes_zero_fallback' - Search mutated board\n";
-        return false;
-    }
-
-    if (best != legal_moves[0]) {
-        std::clog << "[FAILURE] 'search_nodes_zero_fallback' - Expected fallback to first legal move\n";
-        return false;
-    }
+    ASSERT_BOARD(before, b, "search_nodes_zero_fallback", "Search mutated board")
+    ASSERT(best == legal_moves[0], "search_nodes_zero_fallback", "Expected fallback to first legal move")
 
     return true;
 }
@@ -52,15 +45,8 @@ static bool test_search_g_stop_requested_fallback(Board& b) {
 
     g_use_own_book = old_book;
 
-    if (!board_position_equal(before, b, true)) {
-        std::clog << "[FAILURE] 'search_g_stop_requested_fallback' - Search mutated board\n";
-        return false;
-    }
-
-    if (best != legal_moves[0]) {
-        std::clog << "[FAILURE] 'search_g_stop_requested_fallback' - Expected fallback to first legal move when stop is pre-set\n";
-        return false;
-    }
+    ASSERT_BOARD(before, b, "search_g_stop_requested_fallback", "Search mutated board")
+    ASSERT(best == legal_moves[0], "search_g_stop_requested_fallback", "Expected fallback to first legal move when stop is pre-set")
 
     return true;
 }
@@ -77,15 +63,8 @@ static bool test_search_nodes_small_limit_returns_legal(Board& b) {
 
     g_use_own_book = old_book;
 
-    if (!board_position_equal(before, b, true)) {
-        std::clog << "[FAILURE] 'search_nodes_small_limit' - Search mutated board\n";
-        return false;
-    }
-
-    if (best == NULL_MOVE || !move_list_contains(legal_moves, best)) {
-        std::clog << "[FAILURE] 'search_nodes_small_limit' - Expected legal non-null move\n";
-        return false;
-    }
+    ASSERT_BOARD(before, b, "search_nodes_small_limit", "Search mutated board")
+    ASSERT(best != NULL_MOVE && move_list_contains(legal_moves, best), "search_nodes_small_limit", "Expected legal non-null move")
 
     return true;
 }

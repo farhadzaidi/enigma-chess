@@ -54,7 +54,7 @@ static bool collect_selector_moves(
         }
     }
 
-    if (!board_position_equal(before, b, true)) {
+    if (!board_position_equal(before, b)) {
         std::clog << "[FAILURE] '" << test_name << "' - Board mutated while selecting moves\n";
         std::clog << "Case: " << context << "\n";
         return false;
@@ -156,7 +156,7 @@ static bool assert_all_moves_legal(
             std::clog << "Move: " << decode_move_to_uci(move) << "\n";
             return false;
         }
-        if (!board_position_equal(before, b, true)) {
+        if (!board_position_equal(before, b)) {
             std::clog << "[FAILURE] '" << test_name << "' - Board mutated while validating legality\n";
             std::clog << "Case: " << context << "\n";
             std::clog << "Move: " << decode_move_to_uci(move) << "\n";
@@ -208,10 +208,8 @@ static bool test_move_selector_ordering_priority(Board& b) {
     Move tt_move = encode_move_from_uci(b, "d5e4");
     Move killer = encode_move_from_uci(b, "e8d7");
 
-    if (!b.is_legal_move(prev_best) || !b.is_legal_move(tt_move) || !b.is_legal_move(killer)) {
-        std::clog << "[FAILURE] 'move_selector_ordering' - Setup moves must be legal\n";
-        return false;
-    }
+    ASSERT(b.is_legal_move(prev_best) && b.is_legal_move(tt_move) && b.is_legal_move(killer),
+           "move_selector_ordering", "Setup moves must be legal");
 
     ss.killer_1[ply] = killer;
 
@@ -228,30 +226,18 @@ static bool test_move_selector_ordering_priority(Board& b) {
         return false;
     }
 
-    if (selected.size < 3) {
-        std::clog << "[FAILURE] 'move_selector_ordering' - Expected at least 3 moves in setup position\n";
-        return false;
-    }
+    ASSERT(selected.size >= 3,
+           "move_selector_ordering", "Expected at least 3 moves in setup position");
 
-    if (selected[0] != prev_best) {
-        std::clog << "[FAILURE] 'move_selector_ordering' - Previous best was not first\n";
-        std::clog << "Expected: " << decode_move_to_uci(prev_best)
-                  << " Got: " << decode_move_to_uci(selected[0]) << "\n";
-        return false;
-    }
+    ASSERT_EQ(decode_move_to_uci(selected[0]), decode_move_to_uci(prev_best),
+              "move_selector_ordering", "Previous best was not first");
 
-    if (selected[1] != tt_move) {
-        std::clog << "[FAILURE] 'move_selector_ordering' - TT move was not second\n";
-        std::clog << "Expected: " << decode_move_to_uci(tt_move)
-                  << " Got: " << decode_move_to_uci(selected[1]) << "\n";
-        return false;
-    }
+    ASSERT_EQ(decode_move_to_uci(selected[1]), decode_move_to_uci(tt_move),
+              "move_selector_ordering", "TT move was not second");
 
     int killer_index = find_move_index(selected, killer);
-    if (killer_index == -1) {
-        std::clog << "[FAILURE] 'move_selector_ordering' - Legal killer move not returned\n";
-        return false;
-    }
+    ASSERT(killer_index != -1,
+           "move_selector_ordering", "Legal killer move not returned");
 
     int first_non_hint_quiet = -1;
     for (int i = 0; i < selected.size; i++) {
@@ -262,17 +248,16 @@ static bool test_move_selector_ordering_priority(Board& b) {
         }
     }
 
-    if (first_non_hint_quiet != -1 && killer_index > first_non_hint_quiet) {
-        std::clog << "[FAILURE] 'move_selector_ordering' - Killer should precede regular quiet moves\n";
-        std::clog << "Killer index: " << killer_index
-                  << " First regular quiet index: " << first_non_hint_quiet << "\n";
-        return false;
-    }
+    ASSERT(first_non_hint_quiet == -1 || killer_index <= first_non_hint_quiet,
+           "move_selector_ordering",
+           "Killer should precede regular quiet moves\n"
+           << "Killer index: " << killer_index
+           << " First regular quiet index: " << first_non_hint_quiet);
 
-    if (count_occurrences(selected, prev_best) != 1 || count_occurrences(selected, tt_move) != 1 || count_occurrences(selected, killer) != 1) {
-        std::clog << "[FAILURE] 'move_selector_ordering' - Hint moves should appear exactly once\n";
-        return false;
-    }
+    ASSERT(count_occurrences(selected, prev_best) == 1
+           && count_occurrences(selected, tt_move) == 1
+           && count_occurrences(selected, killer) == 1,
+           "move_selector_ordering", "Hint moves should appear exactly once");
 
     MoveList expected = generate_moves<MoveGenMode::All>(b);
     if (!assert_no_duplicates(selected, "move_selector_ordering", "ordered sequence dedup")) return false;
@@ -288,10 +273,8 @@ static bool test_move_selector_hint_deduplication(Board& b) {
     int ply = ss.search_ply(b.ply);
 
     Move repeated_hint = encode_move_from_uci(b, "e2e4");
-    if (!b.is_legal_move(repeated_hint)) {
-        std::clog << "[FAILURE] 'move_selector_hint_dedup' - Setup move e2e4 should be legal\n";
-        return false;
-    }
+    ASSERT(b.is_legal_move(repeated_hint),
+           "move_selector_hint_dedup", "Setup move e2e4 should be legal");
 
     ss.killer_1[ply] = repeated_hint;
     ss.killer_2[ply] = repeated_hint;
@@ -309,12 +292,11 @@ static bool test_move_selector_hint_deduplication(Board& b) {
         return false;
     }
 
-    if (count_occurrences(selected, repeated_hint) != 1) {
-        std::clog << "[FAILURE] 'move_selector_hint_dedup' - Repeated hint move returned multiple times\n";
-        std::clog << "Move: " << decode_move_to_uci(repeated_hint)
-                  << " Count: " << count_occurrences(selected, repeated_hint) << "\n";
-        return false;
-    }
+    ASSERT(count_occurrences(selected, repeated_hint) == 1,
+           "move_selector_hint_dedup",
+           "Repeated hint move returned multiple times\n"
+           << "Move: " << decode_move_to_uci(repeated_hint)
+           << " Count: " << count_occurrences(selected, repeated_hint));
 
     MoveList expected = generate_moves<MoveGenMode::All>(b);
     if (!assert_no_duplicates(selected, "move_selector_hint_dedup", "global dedup")) return false;
@@ -348,10 +330,10 @@ static bool test_move_selector_stale_hint_rejection(Board& b) {
         return false;
     }
 
-    if (contains_move(selected, stale_tt) || contains_move(selected, stale_killer_1) || contains_move(selected, stale_killer_2)) {
-        std::clog << "[FAILURE] 'move_selector_stale_hint' - Stale hint leaked into output\n";
-        return false;
-    }
+    ASSERT(!contains_move(selected, stale_tt)
+           && !contains_move(selected, stale_killer_1)
+           && !contains_move(selected, stale_killer_2),
+           "move_selector_stale_hint", "Stale hint leaked into output");
 
     MoveList expected = generate_moves<MoveGenMode::All>(b);
     if (!assert_no_duplicates(selected, "move_selector_stale_hint", "stale-hint rejection")) return false;
@@ -368,10 +350,8 @@ static bool test_move_selector_quiet_history_order(Board& b) {
     Move higher = encode_move_from_uci(b, "e2e4");
     Move lower = encode_move_from_uci(b, "d2d4");
 
-    if (!b.is_legal_move(higher) || !b.is_legal_move(lower)) {
-        std::clog << "[FAILURE] 'move_selector_quiet_history' - Setup quiet moves must be legal\n";
-        return false;
-    }
+    ASSERT(b.is_legal_move(higher) && b.is_legal_move(lower),
+           "move_selector_quiet_history", "Setup quiet moves must be legal");
 
     Piece higher_piece = b.piece_map[higher.from()];
     Piece lower_piece = b.piece_map[lower.from()];
@@ -393,10 +373,8 @@ static bool test_move_selector_quiet_history_order(Board& b) {
 
     int higher_index = find_move_index(selected, higher);
     int lower_index = find_move_index(selected, lower);
-    if (higher_index == -1 || lower_index == -1) {
-        std::clog << "[FAILURE] 'move_selector_quiet_history' - Expected quiet moves not found in selector output\n";
-        return false;
-    }
+    ASSERT(higher_index != -1 && lower_index != -1,
+           "move_selector_quiet_history", "Expected quiet moves not found in selector output");
 
     if (higher_index >= lower_index) {
         std::clog << "[FAILURE] 'move_selector_quiet_history' - Quiet history ordering not respected\n";
@@ -416,18 +394,15 @@ static bool test_move_selector_see_phase_split(Board& b) {
     Move good_capture = encode_move_from_uci(b, "e4d5");
     Move bad_capture = encode_move_from_uci(b, "d1d5");
 
-    if (!b.is_legal_move(good_capture) || !b.is_legal_move(bad_capture)) {
-        std::clog << "[FAILURE] 'move_selector_see_phase_split' - Setup captures must be legal\n";
-        return false;
-    }
+    ASSERT(b.is_legal_move(good_capture) && b.is_legal_move(bad_capture),
+           "move_selector_see_phase_split", "Setup captures must be legal");
 
     int good_see = see(b, good_capture);
     int bad_see = see(b, bad_capture);
-    if (good_see < 0 || bad_see >= 0) {
-        std::clog << "[FAILURE] 'move_selector_see_phase_split' - Setup must produce one good and one bad capture\n";
-        std::clog << "good_see(e4d5)=" << good_see << " bad_see(d1d5)=" << bad_see << "\n";
-        return false;
-    }
+    ASSERT(good_see >= 0 && bad_see < 0,
+           "move_selector_see_phase_split",
+           "Setup must produce one good and one bad capture\n"
+           << "good_see(e4d5)=" << good_see << " bad_see(d1d5)=" << bad_see);
 
     MoveList selected;
     if (!collect_selector_moves(
@@ -442,16 +417,13 @@ static bool test_move_selector_see_phase_split(Board& b) {
 
     int good_index = find_move_index(selected, good_capture);
     int bad_index = find_move_index(selected, bad_capture);
-    if (good_index == -1 || bad_index == -1) {
-        std::clog << "[FAILURE] 'move_selector_see_phase_split' - Expected captures not found in selector output\n";
-        return false;
-    }
+    ASSERT(good_index != -1 && bad_index != -1,
+           "move_selector_see_phase_split", "Expected captures not found in selector output");
 
-    if (good_index >= bad_index) {
-        std::clog << "[FAILURE] 'move_selector_see_phase_split' - Good capture should precede bad capture\n";
-        std::clog << "good index=" << good_index << " bad index=" << bad_index << "\n";
-        return false;
-    }
+    ASSERT(good_index < bad_index,
+           "move_selector_see_phase_split",
+           "Good capture should precede bad capture\n"
+           << "good index=" << good_index << " bad index=" << bad_index);
 
     int first_quiet = -1;
     int last_quiet = -1;
@@ -462,29 +434,24 @@ static bool test_move_selector_see_phase_split(Board& b) {
         }
     }
 
-    if (first_quiet == -1) {
-        std::clog << "[FAILURE] 'move_selector_see_phase_split' - Expected at least one quiet move in setup\n";
-        return false;
-    }
+    ASSERT(first_quiet != -1,
+           "move_selector_see_phase_split", "Expected at least one quiet move in setup");
 
-    if (good_index > first_quiet) {
-        std::clog << "[FAILURE] 'move_selector_see_phase_split' - Good capture should be before first quiet\n";
-        std::clog << "good index=" << good_index << " first quiet index=" << first_quiet << "\n";
-        return false;
-    }
+    ASSERT(good_index <= first_quiet,
+           "move_selector_see_phase_split",
+           "Good capture should be before first quiet\n"
+           << "good index=" << good_index << " first quiet index=" << first_quiet);
 
-    if (bad_index < last_quiet) {
-        std::clog << "[FAILURE] 'move_selector_see_phase_split' - Bad capture should be after quiet phase\n";
-        std::clog << "bad index=" << bad_index << " last quiet index=" << last_quiet << "\n";
-        return false;
-    }
+    ASSERT(bad_index >= last_quiet,
+           "move_selector_see_phase_split",
+           "Bad capture should be after quiet phase\n"
+           << "bad index=" << bad_index << " last quiet index=" << last_quiet);
 
     for (int i = bad_index + 1; i < selected.size; i++) {
-        if (selected[i].type() == MoveType::Quiet) {
-            std::clog << "[FAILURE] 'move_selector_see_phase_split' - Quiet move appeared after bad capture phase\n";
-            std::clog << "Quiet move: " << decode_move_to_uci(selected[i]) << " at index " << i << "\n";
-            return false;
-        }
+        ASSERT(selected[i].type() != MoveType::Quiet,
+               "move_selector_see_phase_split",
+               "Quiet move appeared after bad capture phase\n"
+               << "Quiet move: " << decode_move_to_uci(selected[i]) << " at index " << i);
     }
 
     return true;
@@ -498,18 +465,15 @@ static bool test_move_selector_bad_capture_ordering(Board& b) {
     Move rook_bad = encode_move_from_uci(b, "a1a5");
     Move queen_bad = encode_move_from_uci(b, "d1d5");
 
-    if (!b.is_legal_move(rook_bad) || !b.is_legal_move(queen_bad)) {
-        std::clog << "[FAILURE] 'move_selector_bad_capture_ordering' - Setup captures must be legal\n";
-        return false;
-    }
+    ASSERT(b.is_legal_move(rook_bad) && b.is_legal_move(queen_bad),
+           "move_selector_bad_capture_ordering", "Setup captures must be legal");
 
     int rook_see = see(b, rook_bad);
     int queen_see = see(b, queen_bad);
-    if (rook_see >= 0 || queen_see >= 0) {
-        std::clog << "[FAILURE] 'move_selector_bad_capture_ordering' - Setup captures should both be SEE-negative\n";
-        std::clog << "rook_see(a1a5)=" << rook_see << " queen_see(d1d5)=" << queen_see << "\n";
-        return false;
-    }
+    ASSERT(rook_see < 0 && queen_see < 0,
+           "move_selector_bad_capture_ordering",
+           "Setup captures should both be SEE-negative\n"
+           << "rook_see(a1a5)=" << rook_see << " queen_see(d1d5)=" << queen_see);
 
     MoveList selected;
     if (!collect_selector_moves(
@@ -524,10 +488,8 @@ static bool test_move_selector_bad_capture_ordering(Board& b) {
 
     int rook_index = find_move_index(selected, rook_bad);
     int queen_index = find_move_index(selected, queen_bad);
-    if (rook_index == -1 || queen_index == -1) {
-        std::clog << "[FAILURE] 'move_selector_bad_capture_ordering' - Expected bad captures not found\n";
-        return false;
-    }
+    ASSERT(rook_index != -1 && queen_index != -1,
+           "move_selector_bad_capture_ordering", "Expected bad captures not found");
 
     if (rook_index >= queen_index) {
         std::clog << "[FAILURE] 'move_selector_bad_capture_ordering' - Bad capture ordering mismatch\n";
@@ -622,7 +584,7 @@ static bool assert_see_score(
     Board before = b;
     int actual_score = see(b, move);
 
-    if (!board_position_equal(before, b, true)) {
+    if (!board_position_equal(before, b)) {
         std::clog << "[FAILURE] 'see' - Board mutated during SEE evaluation\n";
         std::clog << "Case: " << description << "\n";
         std::clog << "FEN: " << fen << "\n";

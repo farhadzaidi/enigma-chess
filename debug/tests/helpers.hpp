@@ -6,10 +6,26 @@
 #include "board/board.hpp"
 #include "search/search_state.hpp"
 
-// Compare two board states for test assertions.
-// include_eval_state=false preserves older tests that only validated core state;
-// include_eval_state=true also checks incremental eval bookkeeping fields.
-inline bool board_position_equal(const Board& a, const Board& b, bool include_eval_state = false) {
+// Test assertion macros.
+// msg is streamed, so it can contain << operators: ASSERT(x, "test", "got " << x)
+
+#define ASSERT(cond, test_name, msg) \
+    if (!(cond)) { std::clog << "[FAILURE] '" << (test_name) << "' - " << msg << "\n"; return false; }
+
+#define ASSERT_EQ(actual, expected, test_name, msg) \
+    if ((actual) != (expected)) { \
+        std::clog << "[FAILURE] '" << (test_name) << "' - " << msg << "\n"; \
+        std::clog << "  Expected: " << (expected) << "  Got: " << (actual) << "\n"; \
+        return false; \
+    }
+
+#define ASSERT_BOARD(board, before, test_name, msg) \
+    if (!board_position_equal(board, before)) { \
+        std::clog << "[FAILURE] '" << (test_name) << "' - " << msg << "\n"; \
+        return false; \
+    }
+
+inline bool board_position_equal(const Board& a, const Board& b) {
     if (a.position_hash != b.position_hash) return false;
     if (a.pawn_hash != b.pawn_hash) return false;
     if (a.occupied != b.occupied) return false;
@@ -19,19 +35,13 @@ inline bool board_position_equal(const Board& a, const Board& b, bool include_ev
     if (a.halfmoves != b.halfmoves) return false;
     if (a.fullmoves != b.fullmoves) return false;
     if (a.ply != b.ply) return false;
-
-    if (include_eval_state) {
-        if (a.game_phase != b.game_phase) return false;
-    }
+    if (a.game_phase != b.game_phase) return false;
 
     for (int side = 0; side < NUM_SIDES; side++) {
         if (a.sides[side] != b.sides[side]) return false;
         if (a.king_squares[side] != b.king_squares[side]) return false;
-
-        if (include_eval_state) {
-            if (a.early_score[side] != b.early_score[side]) return false;
-            if (a.late_score[side] != b.late_score[side]) return false;
-        }
+        if (a.early_score[side] != b.early_score[side]) return false;
+        if (a.late_score[side] != b.late_score[side]) return false;
 
         for (int piece = 0; piece < NUM_PIECES; piece++) {
             if (a.pieces[side][piece] != b.pieces[side][piece]) return false;

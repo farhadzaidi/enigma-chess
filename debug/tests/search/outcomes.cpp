@@ -5,6 +5,7 @@
 #include "search/search.hpp"
 #include "utils/notation.hpp"
 #include "move_generator/move_generator.hpp"
+#include "tests/helpers.hpp"
 
 // Positions that are already checkmate or stalemate (no legal moves)
 // Engine should return NULL_MOVE without crashing
@@ -135,10 +136,7 @@ static bool test_engine_finds_stalemate(Board& b) {
 
     b.make_move(best);
     MoveList moves = generate_moves<MoveGenMode::All>(b);
-    if (!moves.is_empty() || b.in_check()) {
-        std::clog << "[FAILURE] 'engine_finds_stalemate' - Expected stalemate after move a2a1\n";
-        return false;
-    }
+    ASSERT(moves.is_empty() && !b.in_check(), "engine_finds_stalemate", "Expected stalemate after move a2a1");
 
     return true;
 }
@@ -176,18 +174,12 @@ static bool test_repetition(Board& b) {
     Move m4 = encode_move_from_uci(b, "f6g8");
     b.make_move(m4);
 
-    if (!b.has_repeated()) {
-        std::clog << "[FAILURE] 'repetition' - Expected has_repeated() to return true\n";
-        return false;
-    }
+    ASSERT(b.has_repeated(), "repetition", "Expected has_repeated() to return true");
 
     // Unmake last move, repetition should no longer be detected
     b.unmake_move(m4);
 
-    if (b.has_repeated()) {
-        std::clog << "[FAILURE] 'repetition' - Expected has_repeated() to return false after unmake\n";
-        return false;
-    }
+    ASSERT(!b.has_repeated(), "repetition", "Expected has_repeated() to return false after unmake");
 
     return true;
 }
@@ -199,11 +191,7 @@ static bool test_fifty_move_rule(Board& b) {
     // After a quiet move (Rh2), halfmoves should hit 100 and trigger draw
     b.make_move(encode_move_from_uci(b, "h1h2"));
 
-    if (b.halfmoves < FIFTY_MOVE_PLY_LIMIT) {
-        std::clog << "[FAILURE] 'fifty_move_rule' - Expected halfmoves >= 100 after quiet move\n";
-        std::clog << "Halfmoves: " << b.halfmoves << "\n";
-        return false;
-    }
+    ASSERT(b.halfmoves >= FIFTY_MOVE_PLY_LIMIT, "fifty_move_rule", "Expected halfmoves >= 100 after quiet move, Halfmoves: " << b.halfmoves);
 
     return true;
 }
@@ -225,6 +213,7 @@ bool test_game_end(Board& b) {
 #include "board/board.hpp"
 #include "search/opening_book.hpp"
 #include "utils/notation.hpp"
+#include "tests/helpers.hpp"
 
 // Known opening positions should return a move
 static bool test_book_hits(Board& b, OpeningBook& book) {
@@ -249,10 +238,7 @@ static bool test_book_hits(Board& b, OpeningBook& book) {
         }
 
         Move book_move = book.pick_move(b);
-        if (book_move == NULL_MOVE) {
-            std::clog << "[FAILURE] 'book_hits' - Expected book move " << tc.description << " but got NULL_MOVE\n";
-            return false;
-        }
+        ASSERT(book_move != NULL_MOVE, "book_hits", "Expected book move " << tc.description << " but got NULL_MOVE");
     }
 
     return true;
@@ -263,10 +249,7 @@ static bool test_book_miss(Board& b, OpeningBook& book) {
     b.load_from_fen("r1bq1rk1/pp3ppp/2n1pn2/2pp4/1bPP4/2NBPN2/PP3PPP/R1BQK2R w KQ - 4 7");
 
     Move book_move = book.pick_move(b);
-    if (book_move != NULL_MOVE) {
-        std::clog << "[FAILURE] 'book_miss' - Expected NULL_MOVE for non-book position but got a move\n";
-        return false;
-    }
+    ASSERT(book_move == NULL_MOVE, "book_miss", "Expected NULL_MOVE for non-book position but got a move");
 
     return true;
 }
@@ -285,10 +268,7 @@ static bool test_book_move_variety(Board& b, OpeningBook& book) {
         }
     }
 
-    if (seen_moves.size() < 2) {
-        std::clog << "[FAILURE] 'book_move_variety' - Expected at least 2 distinct moves after 1.e4, got " << seen_moves.size() << "\n";
-        return false;
-    }
+    ASSERT(seen_moves.size() >= 2, "book_move_variety", "Expected at least 2 distinct moves after 1.e4, got " << seen_moves.size());
 
     return true;
 }

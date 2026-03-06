@@ -6,6 +6,7 @@
 #include "board/board.hpp"
 #include "utils/notation.hpp"
 #include "parse.hpp"
+#include "tests/helpers.hpp"
 
 static bool test_positions_in_check(Board& b) {
     std::vector<std::string> in_check_buffer;
@@ -51,30 +52,15 @@ static bool test_in_check_side(Board& b) {
     b.reset();
     b.load_from_fen("4k3/8/8/4Q3/8/8/8/4K3 b - - 0 1");
     if (!b.in_check()) return false;
-    if (!b.in_check(BLACK)) {
-        std::clog << "[FAILURE] 'in_check_side' - Expected black king to be in check\n";
-        return false;
-    }
-    if (b.in_check(WHITE)) {
-        std::clog << "[FAILURE] 'in_check_side' - Expected white king to not be in check\n";
-        return false;
-    }
+    ASSERT(b.in_check(BLACK), "in_check_side", "Expected black king to be in check");
+    ASSERT(!b.in_check(WHITE), "in_check_side", "Expected white king to not be in check");
 
     // Black to move and white king is checked by black queen.
     b.reset();
     b.load_from_fen("4k3/8/8/8/4q3/8/8/4K3 b - - 0 1");
-    if (b.in_check()) {
-        std::clog << "[FAILURE] 'in_check_side' - Expected side to move (black) to not be in check\n";
-        return false;
-    }
-    if (b.in_check(BLACK)) {
-        std::clog << "[FAILURE] 'in_check_side' - Expected black king to not be in check\n";
-        return false;
-    }
-    if (!b.in_check(WHITE)) {
-        std::clog << "[FAILURE] 'in_check_side' - Expected white king to be in check\n";
-        return false;
-    }
+    ASSERT(!b.in_check(), "in_check_side", "Expected side to move (black) to not be in check");
+    ASSERT(!b.in_check(BLACK), "in_check_side", "Expected black king to not be in check");
+    ASSERT(b.in_check(WHITE), "in_check_side", "Expected white king to be in check");
 
     return true;
 }
