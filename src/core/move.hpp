@@ -52,9 +52,6 @@ inline Piece get_promoted_piece(MoveFlag flag) {
     }
 }
 
-// Killer move type definition
-using KillerMoves = std::array<Move, MAX_SEARCH_PLY>;
-
 // --- MoveList ---
 
 struct MoveList {

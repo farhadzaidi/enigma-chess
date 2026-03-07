@@ -9,8 +9,6 @@
 constexpr uint64_t TRANSPOSITION_TABLE_SIZE = uint64_t{1} << 20;
 constexpr size_t TRANSPOSITION_TABLE_BUCKET_SIZE = 4;
 
-// --- TRANSPOSITION TABLE ---
-
 struct TTEntry {
     ZobristHash hash;
     Move best_move;

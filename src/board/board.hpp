@@ -37,34 +37,21 @@ struct UndoState {
 
 struct Board {
 
-    // --- Board-local type aliases ---
-private:
-    using PieceBitboards    = std::array<std::array<Bitboard, NUM_PIECES>, NUM_SIDES>;
-    using SideBitboards     = std::array<Bitboard, NUM_SIDES>;
-    using PieceMap          = std::array<Piece, NUM_SQUARES>;
-    using KingSquares       = std::array<Square, NUM_SIDES>;
-    using MoveStack         = std::array<Move, MAX_GAME_PLY>;
-    using StateStack        = std::array<UndoState, MAX_GAME_PLY>;
-    using HashStack         = std::array<ZobristHash, MAX_GAME_PLY + 1>;
-    using SideScore         = std::array<int, NUM_SIDES>;
-
-public:
-
     // --- Board Representation ---
-    PieceBitboards pieces;
-    SideBitboards sides;
-    PieceMap piece_map;
+    std::array<std::array<Bitboard, NUM_PIECES>, NUM_SIDES> pieces;
+    std::array<Bitboard, NUM_SIDES> sides;
+    std::array<Piece, NUM_SQUARES> piece_map;
 
     ZobristHash position_hash;
     ZobristHash pawn_hash;
 
     // Additional information
-    KingSquares king_squares;
+    std::array<Square, NUM_SIDES> king_squares;
     Bitboard occupied;
 
     // Score
-    SideScore early_score;
-    SideScore late_score;
+    std::array<int, NUM_SIDES> early_score;
+    std::array<int, NUM_SIDES> late_score;
     int game_phase;
 
     // Board state information
@@ -77,10 +64,10 @@ public:
     // These stacks are implemented as arrays using ply as a pointer to the top
     // They are useful for undoing moves
     int ply;
-    MoveStack move_history; // Keeps track of made moves
-    StateStack state_history; // Keeps track of irreversible board state
-    HashStack position_hashes; // Position hash for each ply (used for repetition detection)
-    HashStack pawn_hashes; // Hash for pawn configuration
+    std::array<Move, MAX_GAME_PLY> move_history; // Keeps track of made moves
+    std::array<UndoState, MAX_GAME_PLY> state_history; // Keeps track of irreversible board state
+    std::array<ZobristHash, MAX_GAME_PLY + 1> position_hashes; // Position hash for each ply (used for repetition detection)
+    std::array<ZobristHash, MAX_GAME_PLY + 1> pawn_hashes; // Hash for pawn configuration
 
     // ### PUBLIC API
 

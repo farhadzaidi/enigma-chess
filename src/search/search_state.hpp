@@ -16,7 +16,7 @@ struct SearchLimits {
 };
 
 struct SearchState {
-    // --- Board-local type aliases ---
+    using KillerMoves = std::array<Move, MAX_SEARCH_PLY>;
     using SidePieceToHistory = std::array<std::array<std::array<MoveScore, NUM_SQUARES>, NUM_PIECES>, NUM_SIDES>;
     using FromToHistory = std::array<std::array<MoveScore, NUM_SQUARES>, NUM_SQUARES>;
 
