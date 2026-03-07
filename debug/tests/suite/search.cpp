@@ -154,7 +154,6 @@ bool test_engine_avoids_stalemate(Board& b) {
     return true;
 }
 
-// FENs generated with python-chess.
 bool test_engine_captures_hanging_piece(Board& b) {
     struct TestCase {
         std::string fen;
@@ -187,7 +186,6 @@ bool test_engine_captures_hanging_piece(Board& b) {
     return true;
 }
 
-// FEN generated with python-chess.
 bool test_engine_promotes(Board& b) {
     // Pawn on e7 vs black rook — promoting to queen is clearly winning
     b.load_from_fen("7k/4P3/8/8/8/8/6r1/K7 w - - 0 1");
@@ -207,7 +205,7 @@ bool test_engine_promotes(Board& b) {
 
 } // namespace
 
-bool test_game_end(Board& b) {
+bool test_search(Board& b) {
     if (!test_no_legal_moves(b)) return false;
     if (!test_mate_in_1(b)) return false;
     if (!test_mate_in_2(b)) return false;

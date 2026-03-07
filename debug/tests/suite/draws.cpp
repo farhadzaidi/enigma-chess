@@ -69,7 +69,6 @@ bool test_no_repetition_across_capture(Board& b) {
 // King moves that lose castling rights should not produce a repetition
 // even if the king returns to its original square.
 bool test_no_repetition_with_changed_castling(Board& b) {
-    // FEN generated with python-chess
     b.load_from_fen("r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1");
 
     // Kd1 Kd8 Ke1 Ke8 - kings return to original squares but castling rights are gone

@@ -18,7 +18,7 @@ bool test_null_move_restore(Board& b) {
     TestCase test_cases[] = {
         // Starting position (white to move, EP clear)
         {START_POS_FEN, "starting position"},
-        // Position with en passant target set (generated from python-chess: after 1.e4)
+        // Position with en passant target set (after 1.e4)
         {"rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1", "position with en passant target"},
         // Position with partial castling rights
         {"r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w Kk - 0 1", "partial castling rights"},

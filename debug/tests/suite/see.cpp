@@ -59,7 +59,6 @@ bool test_see_cases(Board& b) {
         std::string description;
     };
 
-    // FENs generated and verified with python-chess.
     // SEE piece values: P=100, N=300, B=325, R=500, Q=900, K=0
 
     TestCase tests[] = {
