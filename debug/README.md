@@ -1,4 +1,4 @@
-# Debug Binary
+# Debug
 
 `enigma-debug` is a separate binary for running tests and benchmarks against the engine.
 
@@ -22,9 +22,7 @@ debug/
   tests/
     test.hpp      # Test runner and registration
     helpers.hpp   # Shared test helpers
-    core/         # Board legality, hashing, state invariants, tables
-    search/       # Move ordering, eval, limits, outcome-oriented behavior
-    protocol/     # SAN/UCI parsing and command semantics
+    suite/        # Test case files
 ```
 
 ## Tests
@@ -35,17 +33,10 @@ debug/
 Run all tests.
 
 ```bash
-./build/enigma-debug test core
-./build/enigma-debug test search
-./build/enigma-debug test protocol
+./build/enigma-debug test zobrist
+./build/enigma-debug test zobrist move_selector
 ```
-Run by group.
-
-```bash
-./build/enigma-debug test core/zobrist
-./build/enigma-debug test core/zobrist search/move_selector
-```
-Run by selector. Multiple selectors can be combined in one command.
+Run by name. Multiple names can be combined in one command.
 
 ## Bench
 

@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
 
     if (args.empty()) {
         std::clog << "Usage:\n";
-        std::clog << "  enigma-debug test [group/name ...]\n";
+        std::clog << "  enigma-debug test [name ...]\n";
         std::clog << "  enigma-debug bench [movegen|engine] [--fast] [--verbose] [--phased]\n";
         return EXIT_FAILURE;
     }

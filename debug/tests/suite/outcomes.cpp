@@ -1,10 +1,8 @@
 #include <iostream>
-#include <set>
 
 #include "core/types.hpp"
 #include "board/board.hpp"
 #include "search/search.hpp"
-#include "search/opening_book.hpp"
 #include "utils/notation.hpp"
 #include "move_generator/move_generator.hpp"
 #include "tests/helpers.hpp"
@@ -156,92 +154,53 @@ bool test_engine_avoids_stalemate(Board& b) {
     return true;
 }
 
-bool test_repetition(Board& b) {
-    b.load_from_fen();
-
-    // Play Nf3 Nf6 Ng1 Ng8 - back to start
-    Move m1 = encode_move_from_uci(b, "g1f3");
-    b.make_move(m1);
-    Move m2 = encode_move_from_uci(b, "g8f6");
-    b.make_move(m2);
-    Move m3 = encode_move_from_uci(b, "f3g1");
-    b.make_move(m3);
-    Move m4 = encode_move_from_uci(b, "f6g8");
-    b.make_move(m4);
-
-    ASSERT(b.has_repeated(), "repetition", "Expected has_repeated() to return true");
-
-    // Unmake last move, repetition should no longer be detected
-    b.unmake_move(m4);
-
-    ASSERT(!b.has_repeated(), "repetition", "Expected has_repeated() to return false after unmake");
-
-    return true;
-}
-
-bool test_fifty_move_rule(Board& b) {
-    b.load_from_fen("4k3/8/8/8/8/8/8/4K2R w - - 99 50");
-
-    // After a quiet move (Rh2), halfmoves should hit 100 and trigger draw
-    b.make_move(encode_move_from_uci(b, "h1h2"));
-
-    ASSERT(b.halfmoves >= FIFTY_MOVE_PLY_LIMIT, "fifty_move_rule", "Expected halfmoves >= 100 after quiet move, Halfmoves: " << b.halfmoves);
-
-    return true;
-}
-
-// --- Opening book tests ---
-
-bool test_book_hits(Board& b, OpeningBook& book) {
+// FENs generated with python-chess.
+bool test_engine_captures_hanging_piece(Board& b) {
     struct TestCase {
+        std::string fen;
+        std::string expected_uci;
         std::string description;
-        std::vector<std::string> moves;
     };
 
     TestCase test_cases[] = {
-        {"after 1.e4", {"e2e4"}},
-        {"after 1.d4", {"d2d4"}},
-        {"after 1.Nf3", {"g1f3"}},
-        {"after 1.c4", {"c2c4"}},
-        {"after 1.e4 c5 (Sicilian)", {"e2e4", "c7c5"}},
-        {"after 1.d4 Nf6 2.c4 (Indian)", {"d2d4", "g8f6", "c2c4"}},
+        // Queen captures hanging knight
+        {"7k/8/8/3n4/8/8/8/3Q3K w - - 0 1", "d1d5", "queen captures hanging knight"},
+        // Rook captures hanging rook
+        {"4k3/8/8/r7/8/8/8/R3K3 w - - 0 1", "a1a5", "rook captures hanging rook"},
     };
 
     for (const auto& tc : test_cases) {
-        b.load_from_fen();
-        for (const auto& uci : tc.moves) {
-            b.make_move(encode_move_from_uci(b, uci));
-        }
+        b.load_from_fen(tc.fen);
 
-        Move book_move = book.pick_move(b);
-        ASSERT(book_move != NULL_MOVE, "book_hits", "Expected book move " << tc.description << " but got NULL_MOVE");
+        Move best = search_depth(b, 2);
+        std::string uci = decode_move_to_uci(best);
+
+        if (uci != tc.expected_uci) {
+            std::clog << "[FAILURE] 'engine_captures_hanging_piece' - Wrong move\n";
+            std::clog << "Case: " << tc.description << "\n";
+            std::clog << "FEN: " << tc.fen << "\n";
+            std::clog << "Expected: " << tc.expected_uci << " Got: " << uci << "\n";
+            return false;
+        }
     }
 
     return true;
 }
 
-bool test_book_miss(Board& b, OpeningBook& book) {
-    b.load_from_fen("r1bq1rk1/pp3ppp/2n1pn2/2pp4/1bPP4/2NBPN2/PP3PPP/R1BQK2R w KQ - 4 7");
+// FEN generated with python-chess.
+bool test_engine_promotes(Board& b) {
+    // Pawn on e7 vs black rook — promoting to queen is clearly winning
+    b.load_from_fen("7k/4P3/8/8/8/8/6r1/K7 w - - 0 1");
 
-    Move book_move = book.pick_move(b);
-    ASSERT(book_move == NULL_MOVE, "book_miss", "Expected NULL_MOVE for non-book position but got a move");
+    Move best = search_depth(b, 2);
+    std::string uci = decode_move_to_uci(best);
 
-    return true;
-}
-
-bool test_book_move_variety(Board& b, OpeningBook& book) {
-    b.load_from_fen();
-    b.make_move(encode_move_from_uci(b, "e2e4"));
-
-    std::set<uint16_t> seen_moves;
-    for (int i = 0; i < 100; i++) {
-        Move m = book.pick_move(b);
-        if (m != NULL_MOVE) {
-            seen_moves.insert(m.move);
-        }
+    if (uci != "e7e8q") {
+        std::clog << "[FAILURE] 'engine_promotes' - Engine should promote to queen\n";
+        std::clog << "FEN: 7k/4P3/8/8/8/8/6r1/K7 w - - 0 1\n";
+        std::clog << "Expected: e7e8q Got: " << uci << "\n";
+        return false;
     }
-
-    ASSERT(seen_moves.size() >= 2, "book_move_variety", "Expected at least 2 distinct moves after 1.e4, got " << seen_moves.size());
 
     return true;
 }
@@ -254,15 +213,7 @@ bool test_game_end(Board& b) {
     if (!test_mate_in_2(b)) return false;
     if (!test_engine_finds_stalemate(b)) return false;
     if (!test_engine_avoids_stalemate(b)) return false;
-    if (!test_repetition(b)) return false;
-    if (!test_fifty_move_rule(b)) return false;
-    return true;
-}
-
-bool test_opening_book(Board& b) {
-    OpeningBook book;
-    if (!test_book_hits(b, book)) return false;
-    if (!test_book_miss(b, book)) return false;
-    if (!test_book_move_variety(b, book)) return false;
+    if (!test_engine_captures_hanging_piece(b)) return false;
+    if (!test_engine_promotes(b)) return false;
     return true;
 }
