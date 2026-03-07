@@ -14,23 +14,10 @@ using Piece         = uint8_t;
 using CastlingRights = uint8_t;
 using SearchDepth   = uint8_t;
 using Direction     = int;
+using MoveType      = uint16_t;
+using MoveFlag      = uint16_t;
 
 // --- Scoped Enums ---
-
-enum class MoveType : uint16_t {
-    Quiet   = 0,
-    Capture = 1
-};
-
-enum class MoveFlag : uint16_t {
-    Normal         = 0,
-    EnPassant      = 1,
-    Castle         = 2,
-    PromoBishop    = 3,
-    PromoKnight    = 4,
-    PromoRook      = 5,
-    PromoQueen     = 6
-};
 
 enum class MoveGenMode : uint8_t {
     All,
@@ -61,7 +48,22 @@ enum class MoveSelPhase : uint8_t {
     BadCapture
 };
 
-// --- Unscoped Enums (used as array indices) ---
+// --- Unscoped Enums ---
+
+enum MoveTypeEnum : MoveType {
+    MT_QUIET   = 0,
+    MT_CAPTURE = 1
+};
+
+enum MoveFlagEnum : MoveFlag {
+    MF_NORMAL       = 0,
+    MF_EN_PASSANT   = 1,
+    MF_CASTLE       = 2,
+    MF_PROMO_BISHOP = 3,
+    MF_PROMO_KNIGHT = 4,
+    MF_PROMO_ROOK   = 5,
+    MF_PROMO_QUEEN  = 6
+};
 
 enum SquareEnum : Square {
     A1, B1, C1, D1, E1, F1, G1, H1,

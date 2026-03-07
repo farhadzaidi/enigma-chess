@@ -190,7 +190,7 @@ inline bool Board::is_legal_move(Move move) {
     // Must have rights, rook in place and ours, path clear,
     // not currently in check, and transit square not attacked.
     // Destination safety is handled by make/unmake + in_check below.
-    if (flag == MoveFlag::Castle) {
+    if (flag == MF_CASTLE) {
         if (piece != KING || in_check(friendly_side)) return false;
 
         if (friendly_side == WHITE && to == G1) {
@@ -223,7 +223,7 @@ inline bool Board::is_legal_move(Move move) {
 
     // --- En passant ---
     // EP target must match, to square must be empty, and enemy pawn must be behind it.
-    } else if (flag == MoveFlag::EnPassant) {
+    } else if (flag == MF_EN_PASSANT) {
         if (piece != PAWN) return false;
         if (to != en_passant_target) return false;
         if (piece_map[to] != NO_PIECE) return false;
@@ -235,7 +235,7 @@ inline bool Board::is_legal_move(Move move) {
     // --- Normal moves and promotions ---
     } else {
         // Capture must target an enemy piece, quiet must target an empty square
-        if (move.type() == MoveType::Capture) {
+        if (move.type() == MT_CAPTURE) {
             if (piece_map[to] == NO_PIECE || get_side(to) != enemy_side) return false;
         } else {
             if (piece_map[to] != NO_PIECE) return false;
@@ -246,7 +246,7 @@ inline bool Board::is_legal_move(Move move) {
 
         // Piece geometry - can the piece actually reach 'to' from 'from'?
         if (piece == PAWN) {
-            if (move.type() == MoveType::Capture) {
+            if (move.type() == MT_CAPTURE) {
                 bool valid_attack = PAWN_ATTACK_MAPS[enemy_side][from] & to_mask;
                 if (!valid_attack) return false;
             } else {

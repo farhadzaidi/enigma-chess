@@ -86,7 +86,7 @@ inline void handle_beta_cutoff(
     SearchDepth depth,
     MoveList& searched_quiet_moves
 ) {
-    if (cutoff_move.type() != MoveType::Quiet) return;
+    if (cutoff_move.type() != MT_QUIET) return;
 
     // Pop the cutoff move itself — it was added to searched_quiet_moves before
     // the beta check, but shouldn't receive a penalty

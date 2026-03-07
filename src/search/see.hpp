@@ -51,13 +51,13 @@ inline int see(Board& b, Move move) {
     int num_exchanges = 0;
 
     // Force initial capture
-    exchange_scores[0] = move.flag() == MoveFlag::EnPassant
+    exchange_scores[0] = move.flag() == MF_EN_PASSANT
         ? SEE_PIECE_VALUES[PAWN]
         : SEE_PIECE_VALUES[b.piece_map[target_sq]];
     last_attacker_piece = b.piece_map[move.from()];
 
     occupied ^= get_mask(move.from());
-    if (move.flag() == MoveFlag::EnPassant) {
+    if (move.flag() == MF_EN_PASSANT) {
         Square cap_sq = en_passant_capture_square(target_sq, b.to_move);
         occupied ^= get_mask(cap_sq);
         occupied |= get_mask(target_sq);

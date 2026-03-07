@@ -62,7 +62,7 @@ inline PositionScore quiescence_search(Board& b, PositionScore alpha, PositionSc
     for (Move move : moves) {
         // Skip losing captures (determined via SEE) unless we're in check
         // We don't hard-prune on SEE < 0, since our SEE implementation is an approximation
-        if (!in_check && move.type() == MoveType::Capture && see(b, move) < SEE_CUTOFF) continue;
+        if (!in_check && move.type() == MT_CAPTURE && see(b, move) < SEE_CUTOFF) continue;
 
         b.make_move(move);
         PositionScore score = -quiescence_search<SM>(b, -beta, -alpha);

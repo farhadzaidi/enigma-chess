@@ -37,7 +37,7 @@ inline Piece Board::handle_capture(Square capture_square, Side moving_side, Move
     halfmoves = 0;
     Side captured_side = opposite_side(moving_side);
 
-    if (move_flag == MoveFlag::EnPassant) {
+    if (move_flag == MF_EN_PASSANT) {
         capture_square = en_passant_capture_square(capture_square, moving_side);
     }
 
@@ -109,7 +109,7 @@ inline void Board::make_move(Move move) {
     remove_piece(moving_side, moving_piece, from);
 
     // Handle capture logic including en passant
-    if (move_type == MoveType::Capture) {
+    if (move_type == MT_CAPTURE) {
         state.captured_piece = handle_capture(to, moving_side, move_flag);
     }
 
@@ -122,7 +122,7 @@ inline void Board::make_move(Move move) {
     // place the piece on the "to" square
     place_piece(moving_side, moving_piece, to);
 
-    if (move_flag == MoveFlag::Castle) {
+    if (move_flag == MF_CASTLE) {
         handle_castle(to);
     }
 
@@ -176,14 +176,14 @@ inline void Board::unmake_move(Move move) {
     place_piece(moving_side, moving_piece, from);
 
     // Restore the captured piece
-    if (move_type == MoveType::Capture) {
-        Square capture_sq = move_flag == MoveFlag::EnPassant
+    if (move_type == MT_CAPTURE) {
+        Square capture_sq = move_flag == MF_EN_PASSANT
             ? en_passant_capture_square(to, moving_side)
             : to;
         place_piece(opposite_side(moving_side), prev_state.captured_piece, capture_sq);
     }
 
-    if (move_flag == MoveFlag::Castle) {
+    if (move_flag == MF_CASTLE) {
         undo_castle(to);
     }
 

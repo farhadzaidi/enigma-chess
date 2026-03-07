@@ -161,7 +161,7 @@ private:
         // Split captures into good tacticals and bad captures based on SEE
         // Promotions without capture are always good (free material)
         for (const Move move : all_tacticals) {
-            if (move.type() == MoveType::Capture && see(b, move) < 0) {
+            if (move.type() == MT_CAPTURE && see(b, move) < 0) {
                 bad_captures.add(move);
             } else {
                 tactical_moves.add(move);
@@ -183,14 +183,14 @@ private:
     inline MoveScore get_tactical_score(const Board& b, Move move) {
         MoveScore score = 0;
 
-        if (move.type() == MoveType::Capture) {
+        if (move.type() == MT_CAPTURE) {
             Piece attacker = b.piece_map[move.from()];
-            Piece victim = move.flag() == MoveFlag::EnPassant ? PAWN : b.piece_map[move.to()];
+            Piece victim = move.flag() == MF_EN_PASSANT ? PAWN : b.piece_map[move.to()];
             score += MVV_LVA_TABLE[attacker][victim];
         }
 
         if (move.is_promotion()) {
-            score += PROMOTION_BONUS[static_cast<int>(move.flag())];
+            score += PROMOTION_BONUS[move.flag()];
         }
 
         return score;

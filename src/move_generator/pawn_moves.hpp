@@ -30,10 +30,10 @@ inline void encode_pawn_moves(
         }
 
         if constexpr (IS_PROMOTION) {
-            moves.add(Move(from, to, MT, MoveFlag::PromoQueen));
-            moves.add(Move(from, to, MT, MoveFlag::PromoRook));
-            moves.add(Move(from, to, MT, MoveFlag::PromoBishop));
-            moves.add(Move(from, to, MT, MoveFlag::PromoKnight));
+            moves.add(Move(from, to, MT, MF_PROMO_QUEEN));
+            moves.add(Move(from, to, MT, MF_PROMO_ROOK));
+            moves.add(Move(from, to, MT, MF_PROMO_BISHOP));
+            moves.add(Move(from, to, MT, MF_PROMO_KNIGHT));
         } else {
             if constexpr (IS_EN_PASSANT) {
                 // Handle en passant edge cases
@@ -66,9 +66,9 @@ inline void encode_pawn_moves(
                 b.occupied ^= from_mask;
 
                 if (is_attacked) return;
-                moves.add(Move(from, to, MT, MoveFlag::EnPassant));
+                moves.add(Move(from, to, MT, MF_EN_PASSANT));
             } else {
-                moves.add(Move(from, to, MT, MoveFlag::Normal));
+                moves.add(Move(from, to, MT, MF_NORMAL));
             }
         }
     }
@@ -100,8 +100,8 @@ inline void generate_pawn_moves(Board& b, MoveList& moves, CheckInfo& check_info
         // Mask single push with must cover (we didn't do it earlier to generate double_push)
         single_push &= check_info.must_cover;
 
-        encode_pawn_moves<S, FWD, MoveType::Quiet>(b, moves, check_info, single_push);
-        encode_pawn_moves<S, FWD_FWD, MoveType::Quiet>(b, moves, check_info, double_push);
+        encode_pawn_moves<S, FWD, MT_QUIET>(b, moves, check_info, single_push);
+        encode_pawn_moves<S, FWD_FWD, MT_QUIET>(b, moves, check_info, double_push);
     }
 
     if constexpr (M == MoveGenMode::TacticalOnly || M == MoveGenMode::All) {
@@ -122,14 +122,14 @@ inline void generate_pawn_moves(Board& b, MoveList& moves, CheckInfo& check_info
             left_en_passant  = shift<FWD_LEFT>(non_promo_pawns) & en_passant_target_mask;
         }
 
-        encode_pawn_moves<S, FWD_RIGHT, MoveType::Capture, true>(b, moves, check_info, right_capture_promo);
-        encode_pawn_moves<S, FWD_LEFT,  MoveType::Capture, true>(b, moves, check_info, left_capture_promo);
-        encode_pawn_moves<S, FWD,       MoveType::Quiet,   true>(b, moves, check_info, push_promo);
+        encode_pawn_moves<S, FWD_RIGHT, MT_CAPTURE, true>(b, moves, check_info, right_capture_promo);
+        encode_pawn_moves<S, FWD_LEFT,  MT_CAPTURE, true>(b, moves, check_info, left_capture_promo);
+        encode_pawn_moves<S, FWD,       MT_QUIET,   true>(b, moves, check_info, push_promo);
 
-        encode_pawn_moves<S, FWD_RIGHT, MoveType::Capture>(b, moves, check_info, right_capture);
-        encode_pawn_moves<S, FWD_LEFT,  MoveType::Capture>(b, moves, check_info, left_capture);
+        encode_pawn_moves<S, FWD_RIGHT, MT_CAPTURE>(b, moves, check_info, right_capture);
+        encode_pawn_moves<S, FWD_LEFT,  MT_CAPTURE>(b, moves, check_info, left_capture);
 
-        encode_pawn_moves<S, FWD_RIGHT, MoveType::Capture, false, true>(b, moves, check_info, right_en_passant);
-        encode_pawn_moves<S, FWD_LEFT,  MoveType::Capture, false, true>(b, moves, check_info, left_en_passant);
+        encode_pawn_moves<S, FWD_RIGHT, MT_CAPTURE, false, true>(b, moves, check_info, right_en_passant);
+        encode_pawn_moves<S, FWD_LEFT,  MT_CAPTURE, false, true>(b, moves, check_info, left_en_passant);
     }
 }

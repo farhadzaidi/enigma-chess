@@ -48,7 +48,7 @@ inline void generate_castling_moves(Board& b, MoveList& moves, CheckInfo& check_
         && ((b.occupied & SHORT_CASTLE_PATH) == 0)  // Path is clear
         && ((king_short_castle_path & check_info.unsafe) == 0) // King doesn't pass thru check
     ) {
-        moves.add(Move(KING_SQUARE, SHORT_TO, MoveType::Quiet, MoveFlag::Castle));
+        moves.add(Move(KING_SQUARE, SHORT_TO, MT_QUIET, MF_CASTLE));
     }
 
     // Long castle
@@ -57,6 +57,6 @@ inline void generate_castling_moves(Board& b, MoveList& moves, CheckInfo& check_
         && ((b.occupied & LONG_CASTLE_PATH) == 0)
         && ((king_long_castle_path & check_info.unsafe) == 0)
     ) {
-        moves.add(Move(KING_SQUARE, LONG_TO, MoveType::Quiet, MoveFlag::Castle));
+        moves.add(Move(KING_SQUARE, LONG_TO, MT_QUIET, MF_CASTLE));
     }
 }

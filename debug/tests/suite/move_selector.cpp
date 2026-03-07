@@ -249,7 +249,7 @@ bool test_move_selector_ordering_priority(Board& b) {
     int first_non_hint_quiet = -1;
     for (int i = 0; i < selected.size; i++) {
         Move move = selected[i];
-        if (move.type() == MoveType::Quiet && move != prev_best && move != killer) {
+        if (move.type() == MT_QUIET && move != prev_best && move != killer) {
             first_non_hint_quiet = i;
             break;
         }
@@ -318,9 +318,9 @@ bool test_move_selector_stale_hint_rejection(Board& b) {
     SearchState ss = make_search_state(b);
     int ply = ss.search_ply(b.ply);
 
-    Move stale_tt(E2, E4, MoveType::Quiet, MoveFlag::Normal);
-    Move stale_killer_1(A1, A8, MoveType::Quiet, MoveFlag::Normal);
-    Move stale_killer_2(H2, H4, MoveType::Quiet, MoveFlag::Normal);
+    Move stale_tt(E2, E4, MT_QUIET, MF_NORMAL);
+    Move stale_killer_1(A1, A8, MT_QUIET, MF_NORMAL);
+    Move stale_killer_2(H2, H4, MT_QUIET, MF_NORMAL);
 
     ss.killer_1[ply] = stale_killer_1;
     ss.killer_2[ply] = stale_killer_2;
@@ -435,7 +435,7 @@ bool test_move_selector_see_phase_split(Board& b) {
     int first_quiet = -1;
     int last_quiet = -1;
     for (int i = 0; i < selected.size; i++) {
-        if (selected[i].type() == MoveType::Quiet) {
+        if (selected[i].type() == MT_QUIET) {
             if (first_quiet == -1) first_quiet = i;
             last_quiet = i;
         }
@@ -455,7 +455,7 @@ bool test_move_selector_see_phase_split(Board& b) {
            << "bad index=" << bad_index << " last quiet index=" << last_quiet);
 
     for (int i = bad_index + 1; i < selected.size; i++) {
-        ASSERT(selected[i].type() != MoveType::Quiet,
+        ASSERT(selected[i].type() != MT_QUIET,
                "move_selector_see_phase_split",
                "Quiet move appeared after bad capture phase\n"
                << "Quiet move: " << decode_move_to_uci(selected[i]) << " at index " << i);
@@ -515,11 +515,11 @@ bool test_move_selector_in_check(Board& b) {
     int ply = ss.search_ply(b.ply);
 
     MoveList expected = generate_moves<MoveGenMode::All>(b);
-    Move stale_tt(E2, E4, MoveType::Quiet, MoveFlag::Normal);
+    Move stale_tt(E2, E4, MT_QUIET, MF_NORMAL);
 
     Move legal_killer = NULL_MOVE;
     for (const Move move : expected) {
-        if (move.type() == MoveType::Quiet) {
+        if (move.type() == MT_QUIET) {
             legal_killer = move;
             break;
         }

@@ -37,12 +37,12 @@ int main(int argc, char* argv[]) {
         }
 
         int requested_depth = std::stoi(depth_str);
-        SearchDepth depth = static_cast<SearchDepth>(std::min(requested_depth, MAX_SEARCH_PLY - 1));
+        SearchDepth depth = std::min(requested_depth, MAX_SEARCH_PLY - 1);
 
         Board b;
         if (args.size() >= 3) {
             std::string fen;
-            for (int i = 2; i < static_cast<int>(args.size()); i++) {
+            for (size_t i = 2; i < args.size(); i++) {
                 if (i > 2) fen += " ";
                 fen += args[i];
             }

@@ -67,7 +67,7 @@ inline void generate_piece_moves(Board& b, MoveList& moves, CheckInfo& check_inf
             Bitboard quiet_moves = attack_mask & empty;
             while (quiet_moves) {
                 Square to = pop_lsb(quiet_moves);
-                moves.add(Move(from, to, MoveType::Quiet, MoveFlag::Normal));
+                moves.add(Move(from, to, MT_QUIET, MF_NORMAL));
             }
         }
 
@@ -86,7 +86,7 @@ inline void generate_piece_moves(Board& b, MoveList& moves, CheckInfo& check_inf
                     if (is_attacked) continue;
                 }
 
-                moves.add(Move(from, to, MoveType::Capture, MoveFlag::Normal));
+                moves.add(Move(from, to, MT_CAPTURE, MF_NORMAL));
             }
         }
     }

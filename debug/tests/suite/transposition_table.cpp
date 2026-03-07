@@ -33,7 +33,7 @@ bool test_tt_store_probe() {
     g_transposition_table.generation = 7;
 
     ZobristHash hash = 0xDEADBEEF12345678ULL;
-    Move move(E2, E4, MoveType::Quiet, MoveFlag::Normal);
+    Move move(E2, E4, MT_QUIET, MF_NORMAL);
     TTEntry entry(hash, move, 10, 150, TTNode::Exact);
 
     g_transposition_table.add_entry(entry);
@@ -67,7 +67,7 @@ bool test_tt_clear() {
     g_transposition_table.generation = 3;
 
     ZobristHash hash = 0xABCDEF0123456789ULL;
-    g_transposition_table.add_entry(TTEntry(hash, Move(E2, E4, MoveType::Quiet, MoveFlag::Normal), 6, 42, TTNode::Exact));
+    g_transposition_table.add_entry(TTEntry(hash, Move(E2, E4, MT_QUIET, MF_NORMAL), 6, 42, TTNode::Exact));
     g_transposition_table.clear();
 
     ASSERT(!g_transposition_table.get_entry(hash), "tt_clear", "Entry should not exist after clear()");
@@ -83,15 +83,15 @@ bool test_tt_replace_same_hash() {
     ZobristHash hash = 0x5555AAAA1234FEDCULL;
 
     g_transposition_table.generation = 1;
-    g_transposition_table.add_entry(TTEntry(hash, Move(B1, C3, MoveType::Quiet, MoveFlag::Normal), 3, 50, TTNode::FailLow));
+    g_transposition_table.add_entry(TTEntry(hash, Move(B1, C3, MT_QUIET, MF_NORMAL), 3, 50, TTNode::FailLow));
 
     g_transposition_table.generation = 5;
-    g_transposition_table.add_entry(TTEntry(hash, Move(B1, A3, MoveType::Quiet, MoveFlag::Normal), 8, 220, TTNode::Exact));
+    g_transposition_table.add_entry(TTEntry(hash, Move(B1, A3, MT_QUIET, MF_NORMAL), 8, 220, TTNode::Exact));
 
     TTEntry* probed = g_transposition_table.get_entry(hash);
     ASSERT(probed, "tt_replace_same_hash", "Replaced entry should exist");
 
-    ASSERT(entry_matches(*probed, hash, Move(B1, A3, MoveType::Quiet, MoveFlag::Normal), 8, 220, TTNode::Exact, 5), "tt_replace_same_hash", "Replaced entry fields mismatch");
+    ASSERT(entry_matches(*probed, hash, Move(B1, A3, MT_QUIET, MF_NORMAL), 8, 220, TTNode::Exact, 5), "tt_replace_same_hash", "Replaced entry fields mismatch");
 
     return true;
 }

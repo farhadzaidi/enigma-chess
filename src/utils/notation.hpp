@@ -55,7 +55,7 @@ struct ParsedSan {
     Piece piece_type = PAWN;
     Square to_square = NO_SQUARE;
     bool is_capture = false;
-    MoveFlag promotion_flag = MoveFlag::Normal;
+    MoveFlag promotion_flag = MF_NORMAL;
     int from_file = -1;
     int from_rank = -1;
 };
@@ -152,10 +152,10 @@ inline ParsedSan parse_san_components(const std::string& san) {
     if (promotion_pos != std::string::npos && promotion_pos + 1 < san.length()) {
         char promo_piece = std::toupper(san[promotion_pos + 1]);
         switch (promo_piece) {
-            case 'Q': parsed.promotion_flag = MoveFlag::PromoQueen; break;
-            case 'R': parsed.promotion_flag = MoveFlag::PromoRook; break;
-            case 'B': parsed.promotion_flag = MoveFlag::PromoBishop; break;
-            case 'N': parsed.promotion_flag = MoveFlag::PromoKnight; break;
+            case 'Q': parsed.promotion_flag = MF_PROMO_QUEEN; break;
+            case 'R': parsed.promotion_flag = MF_PROMO_ROOK; break;
+            case 'B': parsed.promotion_flag = MF_PROMO_BISHOP; break;
+            case 'N': parsed.promotion_flag = MF_PROMO_KNIGHT; break;
         }
     }
 
@@ -213,28 +213,28 @@ inline Move encode_move_from_uci(const Board& b, std::string_view uci_move) {
     Square to = uci_to_index(uci_move.substr(2, 2));
 
     // The move was a capture if the "to" square is occupied (EP will be handled separately)
-    MoveType move_type = MoveType::Quiet;
+    MoveType move_type = MT_QUIET;
     if (b.piece_map[to] != NO_PIECE) {
-        move_type = MoveType::Capture;
+        move_type = MT_CAPTURE;
     }
 
     // Determine move flag
-    MoveFlag move_flag = MoveFlag::Normal;
+    MoveFlag move_flag = MF_NORMAL;
 
     // Optional 5th character indicates the kind of promotion
     if (uci_move.length() == 5) {
         switch(uci_move[4]) {
             case 'b':
-                move_flag = MoveFlag::PromoBishop;
+                move_flag = MF_PROMO_BISHOP;
                 break;
             case 'n':
-                move_flag = MoveFlag::PromoKnight;
+                move_flag = MF_PROMO_KNIGHT;
                 break;
             case 'r':
-                move_flag = MoveFlag::PromoRook;
+                move_flag = MF_PROMO_ROOK;
                 break;
             case 'q':
-                move_flag = MoveFlag::PromoQueen;
+                move_flag = MF_PROMO_QUEEN;
                 break;
         }
     }
@@ -242,16 +242,16 @@ inline Move encode_move_from_uci(const Board& b, std::string_view uci_move) {
     // We can determine if the move was a castle if the king moved 2 squares horizontally
     else if (
         b.piece_map[from] == KING &&
-        std::abs(static_cast<int>(from) - static_cast<int>(to)) == 2 // Type casting to prevent underflow
+        std::abs(from - to) == 2
     ) {
-        move_flag = MoveFlag::Castle;
+        move_flag = MF_CASTLE;
     }
 
     // If the moving piece was a pawn and it moved to the en passant target square,
     // then we know this move was an en passant
     else if (b.piece_map[from] == PAWN && to == b.en_passant_target) {
-        move_flag = MoveFlag::EnPassant;
-        move_type = MoveType::Capture;
+        move_flag = MF_EN_PASSANT;
+        move_type = MT_CAPTURE;
     }
 
     // Encode the move and return
@@ -267,16 +267,16 @@ inline std::string decode_move_to_uci(Move move) {
 
     std::string promotion = "";
     switch(move.flag()) {
-        case MoveFlag::PromoBishop:
+        case MF_PROMO_BISHOP:
             promotion = "b";
             break;
-        case MoveFlag::PromoKnight:
+        case MF_PROMO_KNIGHT:
             promotion = "n";
             break;
-        case MoveFlag::PromoRook:
+        case MF_PROMO_ROOK:
             promotion = "r";
             break;
-        case MoveFlag::PromoQueen:
+        case MF_PROMO_QUEEN:
             promotion = "q";
             break;
         default:
@@ -329,26 +329,26 @@ inline Move parse_move_from_san(Board& b, std::string_view san) {
 
         // Check capture flag matches (both directions)
         // If SAN indicates capture, move must be capture
-        if (parsed.is_capture && move.type() != MoveType::Capture) {
+        if (parsed.is_capture && move.type() != MT_CAPTURE) {
             continue;
         }
         // If SAN does NOT indicate capture, move must NOT be capture
-        if (!parsed.is_capture && move.type() == MoveType::Capture) {
+        if (!parsed.is_capture && move.type() == MT_CAPTURE) {
             continue;
         }
 
         // Check promotion flag matches (both directions)
         // If SAN has promotion, move must have that exact promotion
-        if (parsed.promotion_flag != MoveFlag::Normal && move.flag() != parsed.promotion_flag) {
+        if (parsed.promotion_flag != MF_NORMAL && move.flag() != parsed.promotion_flag) {
             continue;
         }
         // If SAN has NO promotion, move must NOT be a promotion
-        if (parsed.promotion_flag == MoveFlag::Normal && move.is_promotion()) {
+        if (parsed.promotion_flag == MF_NORMAL && move.is_promotion()) {
             continue;
         }
 
         // For castling, check the flag
-        if ((parsed.is_castling_kingside || parsed.is_castling_queenside) && move.flag() != MoveFlag::Castle) {
+        if ((parsed.is_castling_kingside || parsed.is_castling_queenside) && move.flag() != MF_CASTLE) {
             continue;
         }
 

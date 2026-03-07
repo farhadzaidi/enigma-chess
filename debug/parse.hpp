@@ -90,7 +90,7 @@ inline PerftEpdResult parse_perft_epd_line(std::string line) {
         if (!(pair_stream >> depth_str >> nodes)) continue;
         if (depth_str.size() < 2 || depth_str[0] != 'D') continue;
 
-        SearchDepth depth = static_cast<SearchDepth>(std::stoi(depth_str.substr(1)));
+        SearchDepth depth = std::stoi(depth_str.substr(1));
         depth_nodes[depth] = nodes;
     }
 

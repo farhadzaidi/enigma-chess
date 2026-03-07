@@ -240,7 +240,7 @@ inline PositionScore negamax(
             alpha = score;
         }
 
-        if (move.type() == MoveType::Quiet) {
+        if (move.type() == MT_QUIET) {
             searched_quiet_moves.add(move);
         }
 
