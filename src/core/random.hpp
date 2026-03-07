@@ -4,7 +4,13 @@
 #include <cstdint>
 #include <limits>
 
+namespace {
+
+// constants
 constexpr uint64_t PRNG_SEED = 0xC0DEC0FFEE1234ULL;
+
+} // namespace
+
 
 inline std::mt19937_64 prng(PRNG_SEED);
 inline std::mt19937_64 rng(std::random_device{}());

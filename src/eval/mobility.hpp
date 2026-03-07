@@ -8,47 +8,46 @@
 #include "move_generator/attacks.hpp"
 #include "core/bitboard.hpp"
 
-// --- Mobility ---
-
-constexpr size_t MAX_KNIGHT_MOBILITY = 9;
-constexpr size_t MAX_BISHOP_MOBILITY = 15;
-constexpr size_t MAX_ROOK_MOBILITY   = 16;
-constexpr size_t MAX_QUEEN_MOBILITY  = 29;
-
-constexpr std::array<PositionScore, MAX_KNIGHT_MOBILITY> KNIGHT_MOBILITY_EARLY = {
-    -25, -15,  -5,   0,   5,  10,  14,  16,  18
-};
-constexpr std::array<PositionScore, MAX_KNIGHT_MOBILITY> KNIGHT_MOBILITY_LATE = {
-    -30, -18,  -6,   0,   6,  12,  16,  18,  20
-};
-
-constexpr std::array<PositionScore, MAX_BISHOP_MOBILITY> BISHOP_MOBILITY_EARLY = {
-    -20, -15, -10,  -5,   0,   5,   8,  10,  12,  13,  14,  14,  15,  15,  15
-};
-constexpr std::array<PositionScore, MAX_BISHOP_MOBILITY> BISHOP_MOBILITY_LATE = {
-    -25, -18, -12,  -6,   0,   6,  10,  13,  15,  16,  17,  17,  18,  18,  18
-};
-
-constexpr std::array<PositionScore, MAX_ROOK_MOBILITY> ROOK_MOBILITY_EARLY = {
-    -20, -15, -10,  -5,  -2,   0,   3,   5,   7,   8,   9,  10,  10,  10,  10,  10
-};
-constexpr std::array<PositionScore, MAX_ROOK_MOBILITY> ROOK_MOBILITY_LATE = {
-    -30, -20, -12,  -6,  -2,   0,   5,   8,  11,  13,  14,  15,  16,  16,  16,  16
-};
-
-constexpr std::array<PositionScore, MAX_QUEEN_MOBILITY> QUEEN_MOBILITY_EARLY = {
-    -15, -10,  -8,  -5,  -3,  -1,   0,   1,   2,   3,   4,   5,   5,   6,   6,
-      6,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7
-};
-constexpr std::array<PositionScore, MAX_QUEEN_MOBILITY> QUEEN_MOBILITY_LATE = {
-    -20, -14, -10,  -6,  -3,  -1,   0,   2,   4,   6,   7,   8,   9,  10,  10,
-     11,  11,  11,  12,  12,  12,  12,  12,  12,  12,  12,  12,  12,  12
-};
-
 struct MobilityScore {
     PositionScore early = 0;
     PositionScore late = 0;
 };
+
+namespace {
+
+// constants
+
+constexpr std::array<PositionScore, 9> KNIGHT_MOBILITY_EARLY = {
+    -25, -15,  -5,   0,   5,  10,  14,  16,  18
+};
+constexpr std::array<PositionScore, 9> KNIGHT_MOBILITY_LATE = {
+    -30, -18,  -6,   0,   6,  12,  16,  18,  20
+};
+
+constexpr std::array<PositionScore, 15> BISHOP_MOBILITY_EARLY = {
+    -20, -15, -10,  -5,   0,   5,   8,  10,  12,  13,  14,  14,  15,  15,  15
+};
+constexpr std::array<PositionScore, 15> BISHOP_MOBILITY_LATE = {
+    -25, -18, -12,  -6,   0,   6,  10,  13,  15,  16,  17,  17,  18,  18,  18
+};
+
+constexpr std::array<PositionScore, 16> ROOK_MOBILITY_EARLY = {
+    -20, -15, -10,  -5,  -2,   0,   3,   5,   7,   8,   9,  10,  10,  10,  10,  10
+};
+constexpr std::array<PositionScore, 16> ROOK_MOBILITY_LATE = {
+    -30, -20, -12,  -6,  -2,   0,   5,   8,  11,  13,  14,  15,  16,  16,  16,  16
+};
+
+constexpr std::array<PositionScore, 29> QUEEN_MOBILITY_EARLY = {
+    -15, -10,  -8,  -5,  -3,  -1,   0,   1,   2,   3,   4,   5,   5,   6,   6,
+      6,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7
+};
+constexpr std::array<PositionScore, 29> QUEEN_MOBILITY_LATE = {
+    -20, -14, -10,  -6,  -3,  -1,   0,   2,   4,   6,   7,   8,   9,  10,  10,
+     11,  11,  11,  12,  12,  12,  12,  12,  12,  12,  12,  12,  12,  12
+};
+
+// functions
 
 inline MobilityScore compute_side_mobility(
     const Board& b,
@@ -95,6 +94,9 @@ inline MobilityScore compute_side_mobility(
 
     return score;
 }
+
+} // namespace
+
 
 inline MobilityScore get_mobility_score(const Board& b) {
     Side friendly_side = b.to_move;

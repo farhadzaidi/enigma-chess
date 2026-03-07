@@ -7,14 +7,16 @@
 #include "utils/notation.hpp"
 #include "move_generator/move_generator.hpp"
 
+namespace {
+
 struct SanTestCase {
-    std::string fen;
-    std::string san;
-    std::string expected_uci;
-    std::string description;
+    std::string_view fen;
+    std::string_view san;
+    std::string_view expected_uci;
+    std::string_view description;
 };
 
-static const SanTestCase SAN_TEST_CASES[] = {
+const SanTestCase SAN_TEST_CASES[] = {
     {"rnb1kbnr/pppp1ppp/4p3/6q1/4P3/5K2/PPPP1PPP/RNBQ1BNR b kq - 3 3", "Qg3+", "g5g3", "queen check"},
     {"1k1r4/pp1b1R2/3q2pp/4p3/2B5/4Q3/PPP2B2/2K5 b - -", "Qd1+", "d6d1", "queen check on back rank"},
     {"3r1k2/4npp1/1ppr3p/p6P/P2PPPP1/1NR5/5K2/2R5 w - -", "d5", "d4d5", "quiet pawn push"},
@@ -42,25 +44,25 @@ static const SanTestCase SAN_TEST_CASES[] = {
 };
 
 struct InvalidSanTestCase {
-    std::string fen;
-    std::string san;
-    std::string description;
+    std::string_view fen;
+    std::string_view san;
+    std::string_view description;
 };
 
-static const SanTestCase SAN_EDGE_CASES[] = {
+const SanTestCase SAN_EDGE_CASES[] = {
     {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1", "O-O-O", "e1c1", "white queenside castle"},
     {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1", "0-0", "e8g8", "black kingside castle with zero notation"},
     {"rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3", "exf6 e.p.", "e5f6", "en passant with suffix"},
 };
 
-static const InvalidSanTestCase INVALID_SAN_CASES[] = {
+const InvalidSanTestCase INVALID_SAN_CASES[] = {
     {START_POS_FEN, "Qh5", "illegal queen move from start position"},
     {"4k3/8/8/8/8/5N2/8/1N2K3 w - - 0 1", "Nd2", "ambiguous knight move without disambiguation"},
     {START_POS_FEN, "Nxf3", "capture marker when destination is empty"},
     {START_POS_FEN, "Qa9", "invalid destination square"},
 };
 
-static bool test_valid_san_cases(Board& b, const SanTestCase* tests, size_t count, const char* section_name) {
+bool test_valid_san_cases(Board& b, const SanTestCase* tests, size_t count, const std::string& section_name) {
     for (size_t i = 0; i < count; i++) {
         const SanTestCase& test = tests[i];
         // Load position
@@ -119,7 +121,7 @@ static bool test_valid_san_cases(Board& b, const SanTestCase* tests, size_t coun
     return true;
 }
 
-static bool test_invalid_san_cases(Board& b) {
+bool test_invalid_san_cases(Board& b) {
     for (const auto& test : INVALID_SAN_CASES) {
         b.reset();
         b.load_from_fen(test.fen);
@@ -137,6 +139,8 @@ static bool test_invalid_san_cases(Board& b) {
 
     return true;
 }
+
+} // namespace
 
 bool test_san_parsing(Board& b) {
     if (!test_valid_san_cases(b, SAN_TEST_CASES, std::size(SAN_TEST_CASES), "core")) return false;

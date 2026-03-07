@@ -9,10 +9,15 @@
 #include "move_generator/move_generator.hpp"
 #include "search/move_selector.hpp"
 #include "search/search_state.hpp"
+#include "search/see.hpp"
 #include "utils/notation.hpp"
 #include "tests/helpers.hpp"
 
-static SearchState make_search_state(const Board& b) {
+namespace {
+
+// --- Move selector helpers ---
+
+SearchState make_search_state(const Board& b) {
     SearchState ss{};
     ss.ply_offset = b.ply;
     ss.killer_1.fill(NULL_MOVE);
@@ -22,7 +27,7 @@ static SearchState make_search_state(const Board& b) {
     return ss;
 }
 
-static bool collect_selector_moves(
+bool collect_selector_moves(
     Board& b,
     SearchState& ss,
     MoveList& out,
@@ -63,21 +68,21 @@ static bool collect_selector_moves(
     return true;
 }
 
-static bool contains_move(const MoveList& moves, Move target) {
+bool contains_move(const MoveList& moves, Move target) {
     for (const Move move : moves) {
         if (move == target) return true;
     }
     return false;
 }
 
-static int find_move_index(const MoveList& moves, Move target) {
+int find_move_index(const MoveList& moves, Move target) {
     for (int i = 0; i < moves.size; i++) {
         if (moves[i] == target) return i;
     }
     return -1;
 }
 
-static int count_occurrences(const MoveList& moves, Move target) {
+int count_occurrences(const MoveList& moves, Move target) {
     int count = 0;
     for (const Move move : moves) {
         if (move == target) count++;
@@ -85,7 +90,7 @@ static int count_occurrences(const MoveList& moves, Move target) {
     return count;
 }
 
-static bool assert_no_duplicates(
+bool assert_no_duplicates(
     const MoveList& moves,
     const std::string& test_name,
     const std::string& context
@@ -102,7 +107,7 @@ static bool assert_no_duplicates(
     return true;
 }
 
-static bool assert_same_move_set(
+bool assert_same_move_set(
     const MoveList& expected,
     const MoveList& actual,
     const std::string& test_name,
@@ -142,7 +147,7 @@ static bool assert_same_move_set(
     return true;
 }
 
-static bool assert_all_moves_legal(
+bool assert_all_moves_legal(
     Board& b,
     const MoveList& moves,
     const std::string& test_name,
@@ -166,8 +171,10 @@ static bool assert_all_moves_legal(
     return true;
 }
 
-static bool test_move_selector_completeness_and_uniqueness(Board& b) {
-    std::vector<std::string> positions = {
+// --- Move selector tests ---
+
+bool test_move_selector_completeness_and_uniqueness(Board& b) {
+    std::vector<std::string_view> positions = {
         START_POS_FEN,
         KIWIPETE_FEN,
         POSITION_3_FEN,
@@ -180,14 +187,14 @@ static bool test_move_selector_completeness_and_uniqueness(Board& b) {
         "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1",
     };
 
-    for (const std::string& fen : positions) {
+    for (const std::string_view& fen : positions) {
         b.reset();
         b.load_from_fen(fen);
         SearchState ss = make_search_state(b);
 
         MoveList expected = generate_moves<MoveGenMode::All>(b);
         MoveList selected;
-        std::string context = "set-equivalence on FEN: " + fen;
+        std::string context = std::string{"set-equivalence on FEN: "} += fen;
 
         if (!collect_selector_moves(b, ss, selected, "move_selector_completeness", context)) return false;
         if (!assert_no_duplicates(selected, "move_selector_completeness", context)) return false;
@@ -198,7 +205,7 @@ static bool test_move_selector_completeness_and_uniqueness(Board& b) {
     return true;
 }
 
-static bool test_move_selector_ordering_priority(Board& b) {
+bool test_move_selector_ordering_priority(Board& b) {
     b.reset();
     b.load_from_fen("4k3/8/8/3p4/4P3/8/8/4K3 b - - 0 1");
     SearchState ss = make_search_state(b);
@@ -266,7 +273,7 @@ static bool test_move_selector_ordering_priority(Board& b) {
     return true;
 }
 
-static bool test_move_selector_hint_deduplication(Board& b) {
+bool test_move_selector_hint_deduplication(Board& b) {
     b.reset();
     b.load_from_fen(START_POS_FEN);
     SearchState ss = make_search_state(b);
@@ -305,7 +312,7 @@ static bool test_move_selector_hint_deduplication(Board& b) {
     return true;
 }
 
-static bool test_move_selector_stale_hint_rejection(Board& b) {
+bool test_move_selector_stale_hint_rejection(Board& b) {
     b.reset();
     b.load_from_fen("4k3/8/8/3p4/4P3/8/8/4K3 b - - 0 1");
     SearchState ss = make_search_state(b);
@@ -342,7 +349,7 @@ static bool test_move_selector_stale_hint_rejection(Board& b) {
     return true;
 }
 
-static bool test_move_selector_quiet_history_order(Board& b) {
+bool test_move_selector_quiet_history_order(Board& b) {
     b.reset();
     b.load_from_fen(START_POS_FEN);
     SearchState ss = make_search_state(b);
@@ -386,7 +393,7 @@ static bool test_move_selector_quiet_history_order(Board& b) {
     return true;
 }
 
-static bool test_move_selector_see_phase_split(Board& b) {
+bool test_move_selector_see_phase_split(Board& b) {
     b.reset();
     b.load_from_fen("4k3/8/2p5/3p4/4P3/8/8/3QK3 w - - 0 1");
     SearchState ss = make_search_state(b);
@@ -457,7 +464,7 @@ static bool test_move_selector_see_phase_split(Board& b) {
     return true;
 }
 
-static bool test_move_selector_bad_capture_ordering(Board& b) {
+bool test_move_selector_bad_capture_ordering(Board& b) {
     b.reset();
     b.load_from_fen("4k3/8/1pp5/p2p4/8/8/8/R2QK3 w - - 0 1");
     SearchState ss = make_search_state(b);
@@ -501,7 +508,7 @@ static bool test_move_selector_bad_capture_ordering(Board& b) {
     return true;
 }
 
-static bool test_move_selector_in_check(Board& b) {
+bool test_move_selector_in_check(Board& b) {
     b.reset();
     b.load_from_fen("4k3/8/8/4Q3/8/8/8/4K3 b - - 0 1");
     SearchState ss = make_search_state(b);
@@ -541,28 +548,9 @@ static bool test_move_selector_in_check(Board& b) {
     return true;
 }
 
-bool test_move_selector(Board& b) {
-    if (!test_move_selector_completeness_and_uniqueness(b)) return false;
-    if (!test_move_selector_ordering_priority(b)) return false;
-    if (!test_move_selector_hint_deduplication(b)) return false;
-    if (!test_move_selector_stale_hint_rejection(b)) return false;
-    if (!test_move_selector_quiet_history_order(b)) return false;
-    if (!test_move_selector_see_phase_split(b)) return false;
-    if (!test_move_selector_bad_capture_ordering(b)) return false;
-    if (!test_move_selector_in_check(b)) return false;
-    return true;
-}
-#include <iostream>
-#include <string>
+// --- SEE tests ---
 
-#include "core/types.hpp"
-#include "board/board.hpp"
-#include "core/move.hpp"
-#include "utils/notation.hpp"
-#include "search/see.hpp"
-#include "tests/helpers.hpp"
-
-static bool assert_see_score(
+bool assert_see_score(
     Board& b,
     const std::string& fen,
     const std::string& move_uci,
@@ -604,7 +592,7 @@ static bool assert_see_score(
     return true;
 }
 
-static bool test_see_basic_cases(Board& b) {
+bool test_see_basic_cases(Board& b) {
     struct TestCase {
         std::string fen;
         std::string move_uci;
@@ -645,6 +633,20 @@ static bool test_see_basic_cases(Board& b) {
         }
     }
 
+    return true;
+}
+
+} // namespace
+
+bool test_move_selector(Board& b) {
+    if (!test_move_selector_completeness_and_uniqueness(b)) return false;
+    if (!test_move_selector_ordering_priority(b)) return false;
+    if (!test_move_selector_hint_deduplication(b)) return false;
+    if (!test_move_selector_stale_hint_rejection(b)) return false;
+    if (!test_move_selector_quiet_history_order(b)) return false;
+    if (!test_move_selector_see_phase_split(b)) return false;
+    if (!test_move_selector_bad_capture_ordering(b)) return false;
+    if (!test_move_selector_in_check(b)) return false;
     return true;
 }
 

@@ -2,6 +2,10 @@
 
 #include "precompute/attacks.hpp"
 
+namespace {
+
+// constants
+
 // Ray masks from each square to the end of the board (not including the square)
 using RayMap = std::array<Bitboard, NUM_SQUARES>;
 
@@ -24,7 +28,7 @@ constexpr RayMap SOUTHEAST_RAY_MAP = compute_rays<SOUTHEAST>();
 constexpr RayMap SOUTHWEST_RAY_MAP = compute_rays<SOUTHWEST>();
 constexpr RayMap EMPTY_RAY_MAP{};
 
-
+// functions
 
 // Using custom absolute value function since std::abs is not constexpr
 constexpr int abs_val(int x) { return x > 0 ? x : -x;}
@@ -75,8 +79,11 @@ constexpr const RayMap& get_ray_map(Direction direction) {
     }
 }
 
+} // namespace
+
+
 template <Direction D>
-constexpr const RayMap& get_ray_map() {
+constexpr const auto& get_ray_map() {
     if constexpr (D == NORTH)     return NORTH_RAY_MAP;
     if constexpr (D == SOUTH)     return SOUTH_RAY_MAP;
     if constexpr (D == EAST)      return EAST_RAY_MAP;

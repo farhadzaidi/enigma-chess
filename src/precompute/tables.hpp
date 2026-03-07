@@ -6,6 +6,15 @@
 #include "core/types.hpp"
 #include "core/constants.hpp"
 
+namespace {
+
+// constants
+constexpr int LMR_MAX_MOVES = 128;
+constexpr double LMR_TUNING_CONSTANT = 2.0;
+
+} // namespace
+
+
 // --- Castling Rights Updates ---
 // Lookup table for which castling rights are lost when a piece moves from/to a square.
 
@@ -22,9 +31,6 @@ constexpr auto castling_rights_updates = []() {
 
 // --- LMR Table ---
 // R(depth, move_index) ~ floor(ln(depth + 1) * ln(move_index + 1) / tuning_constant)
-
-constexpr int LMR_MAX_MOVES = 128;
-constexpr double LMR_TUNING_CONSTANT = 2.0;
 
 inline const auto LMR_TABLE = []() {
     std::array<std::array<int, LMR_MAX_MOVES>, MAX_SEARCH_PLY> table{};

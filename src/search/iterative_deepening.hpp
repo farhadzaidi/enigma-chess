@@ -14,6 +14,9 @@
 #include "search/opening_book.hpp"
 #include "core/transposition_table.hpp"
 
+namespace {
+
+// constants
 constexpr int ASPIRATION_WINDOW = 25;
 constexpr int SCORE_DROP_THRESHOLD = 50;
 
@@ -22,7 +25,7 @@ struct SearchResult {
     PositionScore score;
 };
 
-// Searches all root moves at a given depth and returns the best move
+// functions
 template <SearchMode SM>
 inline SearchResult search_at_depth(
     Board& b,
@@ -92,7 +95,8 @@ inline SearchResult search_at_depth(
     return {best_move, best_score};
 }
 
-// --- Iterative Deepening Search ---
+} // namespace
+
 
 template <SearchMode SM>
 inline Move search(Board& b, const SearchLimits& limits) {

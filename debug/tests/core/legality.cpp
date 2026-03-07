@@ -1,14 +1,23 @@
-#include <vector>
-#include <string>
+#include <filesystem>
 #include <iostream>
+#include <string>
+#include <string_view>
+#include <unordered_set>
+#include <vector>
 
 #include "core/types.hpp"
+#include "core/move.hpp"
 #include "board/board.hpp"
+#include "move_generator/move_generator.hpp"
 #include "utils/notation.hpp"
 #include "parse.hpp"
 #include "tests/helpers.hpp"
 
-static bool test_positions_in_check(Board& b) {
+namespace {
+
+// --- in_check tests ---
+
+bool test_positions_in_check(Board& b) {
     std::vector<std::string> in_check_buffer;
     read_file(in_check_buffer, SINGLE_CHECK_EPD);
     read_file(in_check_buffer, DOUBLE_CHECK_EPD);
@@ -29,7 +38,7 @@ static bool test_positions_in_check(Board& b) {
     return true;
 }
 
-static bool test_positions_not_in_check(Board& b) {
+bool test_positions_not_in_check(Board& b) {
     std::vector<std::string> not_in_check_buffer;
     read_file(not_in_check_buffer, NOT_IN_CHECK_FEN);
     for (const auto& fen : not_in_check_buffer) {
@@ -47,7 +56,7 @@ static bool test_positions_not_in_check(Board& b) {
     return true;
 }
 
-static bool test_in_check_side(Board& b) {
+bool test_in_check_side(Board& b) {
     // Black to move and black king is checked by white queen.
     b.reset();
     b.load_from_fen("4k3/8/8/4Q3/8/8/8/4K3 b - - 0 1");
@@ -65,28 +74,9 @@ static bool test_in_check_side(Board& b) {
     return true;
 }
 
-bool test_in_check(Board& b) {
-    if (!test_positions_in_check(b)) return false;
-    if (!test_positions_not_in_check(b)) return false;
-    if (!test_in_check_side(b)) return false;
-    return true;
-}
-#include <iostream>
-#include <string>
-#include <unordered_set>
-#include <vector>
+// --- is_legal_move tests ---
 
-#include <filesystem>
-
-#include "core/types.hpp"
-#include "board/board.hpp"
-#include "core/move.hpp"
-#include "move_generator/move_generator.hpp"
-#include "utils/notation.hpp"
-#include "parse.hpp"
-#include "tests/helpers.hpp"
-
-static bool assert_legal_result(Board& b, Move move, bool expected, const std::string& test_name, const std::string& fen, const std::string& move_uci, const std::string& context) {
+bool assert_legal_result(Board& b, Move move, bool expected, std::string_view test_name, std::string_view fen, std::string_view move_uci, std::string_view context) {
     Board before = b;
     bool actual = b.is_legal_move(move);
 
@@ -111,12 +101,12 @@ static bool assert_legal_result(Board& b, Move move, bool expected, const std::s
     return true;
 }
 
-static bool test_is_legal_move_targeted(Board& b) {
+bool test_is_legal_move_targeted(Board& b) {
     struct TestCase {
-        std::string fen;
-        std::string uci;
+        std::string_view fen;
+        std::string_view uci;
         bool expected;
-        std::string description;
+        std::string_view description;
     };
 
     TestCase tests[] = {
@@ -179,7 +169,7 @@ static bool test_is_legal_move_targeted(Board& b) {
     return true;
 }
 
-static bool test_is_legal_move_stale_encoded_branches(Board& b) {
+bool test_is_legal_move_stale_encoded_branches(Board& b) {
     // Stale EN_PASSANT move: encoded in a position with EP target, validated in one without.
     const std::string ep_source_fen = "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1";
     const std::string ep_target_missing_fen = "4k3/8/8/3pP3/8/8/8/4K3 w - - 0 1";
@@ -242,13 +232,13 @@ static bool test_is_legal_move_stale_encoded_branches(Board& b) {
     return true;
 }
 
-static void append_fens(std::vector<std::string>& out, const std::vector<std::string>& in) {
+void append_fens(std::vector<std::string>& out, const std::vector<std::string>& in) {
     for (const std::string& fen : in) {
         if (!fen.empty()) out.push_back(fen);
     }
 }
 
-static void append_fens_from_perft_epd(std::vector<std::string>& out, std::filesystem::path path, int max_lines) {
+void append_fens_from_perft_epd(std::vector<std::string>& out, std::filesystem::path path, int max_lines) {
     std::vector<std::string> lines;
     read_file(lines, path, max_lines);
     for (const std::string& line : lines) {
@@ -257,14 +247,14 @@ static void append_fens_from_perft_epd(std::vector<std::string>& out, std::files
     }
 }
 
-static bool test_is_legal_move_accepts_generated_legal_moves(Board& b) {
+bool test_is_legal_move_accepts_generated_legal_moves(Board& b) {
     std::vector<std::string> positions = {
-        START_POS_FEN,
-        KIWIPETE_FEN,
-        POSITION_3_FEN,
-        POSITION_4_FEN,
-        POSITION_5_FEN,
-        POSITION_6_FEN,
+        std::string(START_POS_FEN),
+        std::string(KIWIPETE_FEN),
+        std::string(POSITION_3_FEN),
+        std::string(POSITION_4_FEN),
+        std::string(POSITION_5_FEN),
+        std::string(POSITION_6_FEN),
         "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1",
         "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1",
         "4k3/8/8/8/3Pp3/8/8/4K3 b - d3 0 1",
@@ -300,7 +290,7 @@ static bool test_is_legal_move_accepts_generated_legal_moves(Board& b) {
     return true;
 }
 
-static bool test_is_legal_move_cross_position_rejects_stale_moves(Board& b) {
+bool test_is_legal_move_cross_position_rejects_stale_moves(Board& b) {
     // Generate legal white moves from the standard start position.
     // Then validate those same encoded moves in the start position with black to move.
     // Under valid-encoding assumptions this models TT/killer stale-move reuse across positions.
@@ -320,6 +310,15 @@ static bool test_is_legal_move_cross_position_rejects_stale_moves(Board& b) {
         }
     }
 
+    return true;
+}
+
+} // namespace
+
+bool test_in_check(Board& b) {
+    if (!test_positions_in_check(b)) return false;
+    if (!test_positions_not_in_check(b)) return false;
+    if (!test_in_check_side(b)) return false;
     return true;
 }
 

@@ -7,14 +7,16 @@
 #include "core/globals.hpp"
 #include "tests/helpers.hpp"
 
-static constexpr uint64_t TT_INDEX_MASK = TRANSPOSITION_TABLE_SIZE - 1;
-static constexpr uint64_t COLLIDING_SLOT = 0x12345ULL;
+namespace {
 
-static ZobristHash colliding_hash(uint64_t variant) {
+constexpr uint64_t TT_INDEX_MASK = TRANSPOSITION_TABLE_SIZE - 1;
+constexpr uint64_t COLLIDING_SLOT = 0x12345ULL;
+
+ZobristHash colliding_hash(uint64_t variant) {
     return (COLLIDING_SLOT & TT_INDEX_MASK) | (variant << 20);
 }
 
-static bool entry_matches(
+bool entry_matches(
     const TTEntry& entry,
     ZobristHash hash,
     Move best_move,
@@ -34,7 +36,7 @@ static bool entry_matches(
 }
 
 // Store an entry and probe it back, verify all fields match and age is stamped.
-static bool test_tt_store_probe() {
+bool test_tt_store_probe() {
     g_transposition_table.clear();
     g_transposition_table.generation = 7;
 
@@ -52,7 +54,7 @@ static bool test_tt_store_probe() {
 }
 
 // Probing an empty or mismatched hash should return nullptr.
-static bool test_tt_invalid_probe() {
+bool test_tt_invalid_probe() {
     g_transposition_table.clear();
 
     ZobristHash empty_hash = 0x1234567890ABCDEFULL;
@@ -68,7 +70,7 @@ static bool test_tt_invalid_probe() {
 }
 
 // clear() should invalidate entries and reset generation.
-static bool test_tt_clear() {
+bool test_tt_clear() {
     g_transposition_table.clear();
     g_transposition_table.generation = 3;
 
@@ -84,7 +86,7 @@ static bool test_tt_clear() {
 }
 
 // Up to bucket size colliding hashes should coexist in the same bucket.
-static bool test_tt_bucket_collisions_fit() {
+bool test_tt_bucket_collisions_fit() {
     g_transposition_table.clear();
     g_transposition_table.generation = 4;
 
@@ -110,7 +112,7 @@ static bool test_tt_bucket_collisions_fit() {
 }
 
 // Writing the same hash again should replace the existing record in-place.
-static bool test_tt_replace_same_hash() {
+bool test_tt_replace_same_hash() {
     g_transposition_table.clear();
     ZobristHash hash = 0x5555AAAA1234FEDCULL;
 
@@ -138,7 +140,7 @@ static bool test_tt_replace_same_hash() {
 }
 
 // With a full bucket and same age, lowest depth should be replaced.
-static bool test_tt_bucket_replacement_by_depth() {
+bool test_tt_bucket_replacement_by_depth() {
     g_transposition_table.clear();
     g_transposition_table.generation = 0;
 
@@ -167,7 +169,7 @@ static bool test_tt_bucket_replacement_by_depth() {
 }
 
 // With equal depth, aging should make older entries less valuable and first to replace.
-static bool test_tt_bucket_replacement_by_age() {
+bool test_tt_bucket_replacement_by_age() {
     g_transposition_table.clear();
 
     std::array<ZobristHash, TRANSPOSITION_TABLE_BUCKET_SIZE> hashes = {
@@ -207,6 +209,8 @@ static bool test_tt_bucket_replacement_by_age() {
     return true;
 }
 
+} // namespace
+
 bool test_transposition_table() {
     if (!test_tt_store_probe()) return false;
     if (!test_tt_invalid_probe()) return false;
@@ -227,7 +231,9 @@ bool test_transposition_table() {
 #include "utils/notation.hpp"
 #include "tests/helpers.hpp"
 
-static bool pawn_entry_equal(const PawnTableEntry& a, const PawnTableEntry& b) {
+namespace {
+
+bool pawn_entry_equal(const PawnTableEntry& a, const PawnTableEntry& b) {
     return (
         a.hash == b.hash
         && a.early_pawn_score == b.early_pawn_score
@@ -236,7 +242,7 @@ static bool pawn_entry_equal(const PawnTableEntry& a, const PawnTableEntry& b) {
 }
 
 // Store an entry and probe it back, verify all fields match.
-static bool test_pawn_table_store_probe() {
+bool test_pawn_table_store_probe() {
     g_pawn_table.clear();
 
     PawnTableEntry entry;
@@ -255,7 +261,7 @@ static bool test_pawn_table_store_probe() {
 }
 
 // Probing an empty or mismatched hash should return invalid.
-static bool test_pawn_table_invalid_probe() {
+bool test_pawn_table_invalid_probe() {
     g_pawn_table.clear();
 
     ZobristHash hash = 0x1234567890ABCDEFULL;
@@ -278,7 +284,7 @@ static bool test_pawn_table_invalid_probe() {
 }
 
 // clear() should invalidate previously stored entries.
-static bool test_pawn_table_clear() {
+bool test_pawn_table_clear() {
     g_pawn_table.clear();
 
     PawnTableEntry entry;
@@ -296,7 +302,7 @@ static bool test_pawn_table_clear() {
 }
 
 // Two hashes mapping to the same slot should overwrite.
-static bool test_pawn_table_collision_overwrite() {
+bool test_pawn_table_collision_overwrite() {
     g_pawn_table.clear();
 
     ZobristHash hash_a = 0x0000000000001234ULL;
@@ -334,7 +340,7 @@ static bool test_pawn_table_collision_overwrite() {
 }
 
 // Writing the same hash again should replace its stored data.
-static bool test_pawn_table_replace_same_hash() {
+bool test_pawn_table_replace_same_hash() {
     g_pawn_table.clear();
 
     ZobristHash hash = 0x5555AAAA1234FEDCULL;
@@ -363,7 +369,7 @@ static bool test_pawn_table_replace_same_hash() {
 // get_pawn_score should cache by pawn hash:
 // non-pawn moves keep same pawn hash and reuse same pawn evaluation,
 // pawn moves change pawn hash and produce a new valid table entry.
-static bool test_pawn_table_eval_cache(Board& b) {
+bool test_pawn_table_eval_cache(Board& b) {
     g_pawn_table.clear();
     b.load_from_fen(START_POS_FEN);
 
@@ -388,6 +394,8 @@ static bool test_pawn_table_eval_cache(Board& b) {
 
     return true;
 }
+
+} // namespace
 
 bool test_pawn_table(Board& b) {
     if (!test_pawn_table_store_probe()) return false;

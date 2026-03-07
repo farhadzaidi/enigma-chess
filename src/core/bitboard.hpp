@@ -10,12 +10,23 @@
 #include "core/types.hpp"
 #include "core/constants.hpp"
 
-constexpr Bitboard EMPTY_BITBOARD = 0;
+namespace {
 
-// --- Bitboard Constants ---
-
+// constants
 constexpr Bitboard NOT_A_FILE = ~FILE_MASKS[A_FILE];
 constexpr Bitboard NOT_H_FILE = ~FILE_MASKS[H_FILE];
+
+// functions
+inline Square pop_msb(Bitboard& b) {
+    Square sq = 63 - std::countl_zero(b);
+    b &= ~(1ULL << sq);
+    return sq;
+}
+
+} // namespace
+
+
+constexpr Bitboard EMPTY_BITBOARD = 0;
 
 // --- Bitboard Shift ---
 
@@ -45,12 +56,6 @@ inline Square pop_lsb(Bitboard& b) {
     return sq;
 }
 
-inline Square pop_msb(Bitboard& b) {
-    Square sq = 63 - std::countl_zero(b);
-    b &= ~(1ULL << sq);
-    return sq;
-}
-
 constexpr Square get_lsb(Bitboard b) {
     return std::countr_zero(b);
 }
@@ -65,7 +70,6 @@ constexpr Square pop_next(Bitboard& b) {
 // --- Side & Square Utilities ---
 
 constexpr Side opposite_side(Side s) { return s ^ 1; }
-constexpr Square flip_square(Square sq) { return sq ^ 56; }
 
 // --- Square Utilities ---
 
@@ -92,16 +96,7 @@ inline bool is_relevant_sliding_piece(Piece piece) {
 
 constexpr bool is_slider(Piece p) { return (p == BISHOP || p == ROOK || p == QUEEN); }
 
-template <Piece P>
-constexpr bool is_slider() { return (P == BISHOP || P == ROOK || P == QUEEN); }
-
-// --- Attack Table Indexing ---
-
 // --- Square Notation ---
-
-inline std::string square_to_notation(Square sq) {
-    return {static_cast<char>('a' + get_file(sq)), static_cast<char>('1' + get_rank(sq))};
-}
 
 inline Square notation_to_square(const std::string& s) {
     return get_square(s[1] - '1', s[0] - 'a');

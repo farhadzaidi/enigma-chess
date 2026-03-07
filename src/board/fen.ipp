@@ -1,5 +1,8 @@
 // FEN string loading
 
+namespace {
+
+// functions
 inline Piece char_to_piece(char c) {
     switch (std::toupper(c)) {
         case 'P': return PAWN;   case 'B': return BISHOP;
@@ -9,12 +12,15 @@ inline Piece char_to_piece(char c) {
     }
 }
 
-inline void Board::load_from_fen(const std::string& fen) {
+} // namespace
+
+
+inline void Board::load_from_fen(std::string_view fen) {
     // Reset the board before loading from FEN
     reset();
 
     std::vector<std::string> parts;
-    std::istringstream iss(fen);
+    std::istringstream iss{std::string{fen}};
     std::string item;
 
     // Split the fen string using a space as the delimiter

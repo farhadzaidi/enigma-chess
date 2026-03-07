@@ -10,7 +10,13 @@
 #include "eval/eval.hpp"
 #include "search/see.hpp"
 
+namespace {
+
+// constants
 constexpr int SEE_CUTOFF = -200;
+
+} // namespace
+
 
 template <SearchMode SM>
 inline PositionScore quiescence_search(Board& b, PositionScore alpha, PositionScore beta) {

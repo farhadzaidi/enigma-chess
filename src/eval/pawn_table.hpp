@@ -5,8 +5,14 @@
 #include "core/types.hpp"
 #include "core/constants.hpp"
 
+namespace {
+
+// constants
 
 constexpr uint64_t PAWN_TABLE_SIZE = uint64_t{1} << 16;
+
+} // namespace
+
 
 struct PawnTableEntry {
     ZobristHash hash;
@@ -17,12 +23,6 @@ struct PawnTableEntry {
 };
 
 struct PawnTable {
-    std::array<PawnTableEntry, PAWN_TABLE_SIZE> table;
-
-    PawnTable() {
-        clear();
-    }
-
     void clear() {
         table.fill(PawnTableEntry{});
     }
@@ -41,7 +41,12 @@ struct PawnTable {
         return hash == entry.hash;
     }
 
+    PawnTable() {
+        clear();
+    }
+
 private:
+    std::array<PawnTableEntry, PAWN_TABLE_SIZE> table;
 
     inline uint64_t get_index(ZobristHash hash) {
         return hash & (PAWN_TABLE_SIZE - 1);

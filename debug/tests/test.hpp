@@ -31,27 +31,25 @@ bool test_pawn_table(Board& b);
 bool test_search_helpers();
 bool test_uci_helpers(Board& b);
 
-inline const std::vector<TestEntry>& get_tests() {
-    static const std::vector<TestEntry> tests = {
-        {"core",      "in_check",            [](Board& b) { return test_in_check(b); }},
-        {"core",      "is_legal_move",       [](Board& b) { return test_is_legal_move(b); }},
-        {"search",    "move_selector",       [](Board& b) { return test_move_selector(b); }},
-        {"search",    "see",                 [](Board& b) { return test_see(b); }},
-        {"search",    "eval",                [](Board& b) { return test_eval(b); }},
-        {"search",    "quiescence",          [](Board& b) { return test_quiescence(b); }},
-        {"protocol",  "san_parsing",         [](Board& b) { return test_san_parsing(b); }},
-        {"core",      "zobrist",             [](Board& b) { return test_zobrist(b); }},
-        {"search",    "opening_book",        [](Board& b) { return test_opening_book(b); }},
-        {"search",    "game_end",            [](Board& b) { return test_game_end(b); }},
-        {"search",    "search_limits",       [](Board& b) { return test_search_limits(b); }},
-        {"core",      "transposition_table", [](Board&)   { return test_transposition_table(); }},
-        {"core",      "null_move",           [](Board& b) { return test_null_move(b); }},
-        {"core",      "pawn_table",          [](Board& b) { return test_pawn_table(b); }},
-        {"search",    "search_helpers",      [](Board&)   { return test_search_helpers(); }},
-        {"protocol",  "uci_helpers",         [](Board& b) { return test_uci_helpers(b); }},
-    };
-    return tests;
-}
+
+inline const std::vector<TestEntry> TESTS = {
+    {"core",      "in_check",            [](Board& b) { return test_in_check(b); }},
+    {"core",      "is_legal_move",       [](Board& b) { return test_is_legal_move(b); }},
+    {"search",    "move_selector",       [](Board& b) { return test_move_selector(b); }},
+    {"search",    "see",                 [](Board& b) { return test_see(b); }},
+    {"search",    "eval",                [](Board& b) { return test_eval(b); }},
+    {"search",    "quiescence",          [](Board& b) { return test_quiescence(b); }},
+    {"protocol",  "san_parsing",         [](Board& b) { return test_san_parsing(b); }},
+    {"core",      "zobrist",             [](Board& b) { return test_zobrist(b); }},
+    {"search",    "opening_book",        [](Board& b) { return test_opening_book(b); }},
+    {"search",    "game_end",            [](Board& b) { return test_game_end(b); }},
+    {"search",    "search_limits",       [](Board& b) { return test_search_limits(b); }},
+    {"core",      "transposition_table", [](Board&)   { return test_transposition_table(); }},
+    {"core",      "null_move",           [](Board& b) { return test_null_move(b); }},
+    {"core",      "pawn_table",          [](Board& b) { return test_pawn_table(b); }},
+    {"search",    "search_helpers",      [](Board&)   { return test_search_helpers(); }},
+    {"protocol",  "uci_helpers",         [](Board& b) { return test_uci_helpers(b); }},
+};
 
 inline const std::vector<std::string> TEST_GROUPS = {
     "core",
@@ -71,7 +69,7 @@ inline bool is_valid_test_selector(const std::string& selector) {
         if (selector == group) return true;
     }
 
-    for (const auto& test : get_tests()) {
+    for (const auto& test : TESTS) {
         if (test_matches_selector(test, selector)) return true;
     }
 
@@ -82,7 +80,7 @@ inline int run_tests(const std::vector<std::string>& selected) {
     Board b;
     int failures = 0;
 
-    for (const auto& test : get_tests()) {
+    for (const auto& test : TESTS) {
         if (!selected.empty()) {
             bool matched = false;
             for (const auto& s : selected) {

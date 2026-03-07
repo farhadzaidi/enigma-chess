@@ -11,8 +11,9 @@
 #include "search/search_state.hpp"
 #include "search/see.hpp"
 
-// Indexed like MVV_LVA_TABLE[attacker][victim]
-// Incentivizes capturing high value pieces with low value pieces
+namespace {
+
+// constants
 constexpr std::array<std::array<MoveScore, NUM_PIECES>, NUM_PIECES> MVV_LVA_TABLE = {{
     {106, 206, 306, 406, 506, 0},
     {105, 205, 305, 405, 505, 0},
@@ -22,7 +23,6 @@ constexpr std::array<std::array<MoveScore, NUM_PIECES>, NUM_PIECES> MVV_LVA_TABL
     {101, 201, 301, 401, 501, 0},
 }};
 
-// Indexed by move flag
 constexpr int NUM_MOVE_FLAGS = 7;
 constexpr std::array<MoveScore, NUM_MOVE_FLAGS> PROMOTION_BONUS = {
     0, 0, 0, // Non-promotion flags
@@ -31,6 +31,9 @@ constexpr std::array<MoveScore, NUM_MOVE_FLAGS> PROMOTION_BONUS = {
     200, // Rook
     600, // Queen
 };
+
+} // namespace
+
 
 struct MoveSelector {
     MoveSelPhase phase;

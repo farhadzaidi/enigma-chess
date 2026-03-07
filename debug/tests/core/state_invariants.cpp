@@ -1,15 +1,18 @@
 #include <iostream>
+#include <string_view>
 
 #include "core/types.hpp"
 #include "board/board.hpp"
 #include "utils/notation.hpp"
 #include "tests/helpers.hpp"
 
+namespace {
+
 // make/unmake null move should restore board state exactly
-static bool test_null_move_restore(Board& b) {
+bool test_null_move_restore(Board& b) {
     struct TestCase {
-        std::string fen;
-        std::string description;
+        std::string_view fen;
+        std::string_view description;
     };
 
     TestCase test_cases[] = {
@@ -46,7 +49,7 @@ static bool test_null_move_restore(Board& b) {
 }
 
 // Null move should toggle side to move
-static bool test_null_move_toggles_side(Board& b) {
+bool test_null_move_toggles_side(Board& b) {
     b.load_from_fen(START_POS_FEN);
     Side original_side = b.to_move;
     b.make_null_move();
@@ -63,7 +66,7 @@ static bool test_null_move_toggles_side(Board& b) {
 }
 
 // Null move should clear en passant target
-static bool test_null_move_clears_en_passant(Board& b) {
+bool test_null_move_clears_en_passant(Board& b) {
     // After 1.e4 (en passant target = e3)
     b.load_from_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
 
@@ -83,7 +86,7 @@ static bool test_null_move_clears_en_passant(Board& b) {
 }
 
 // Null move should not modify piece positions
-static bool test_null_move_preserves_pieces(Board& b) {
+bool test_null_move_preserves_pieces(Board& b) {
     b.load_from_fen(KIWIPETE_FEN);
     Board before = b;
 
@@ -118,7 +121,7 @@ static bool test_null_move_preserves_pieces(Board& b) {
 }
 
 // Null move should not modify castling rights
-static bool test_null_move_preserves_castling(Board& b) {
+bool test_null_move_preserves_castling(Board& b) {
     b.load_from_fen("r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1");
     CastlingRights original_rights = b.castling_rights;
 
@@ -137,10 +140,10 @@ static bool test_null_move_preserves_castling(Board& b) {
 
 // Zobrist hash should differ after null move (side to move changes), while pawn hash
 // should remain unchanged. Both should restore after unmake.
-static bool test_null_move_zobrist(Board& b) {
+bool test_null_move_zobrist(Board& b) {
     struct TestCase {
-        std::string fen;
-        std::string description;
+        std::string_view fen;
+        std::string_view description;
     };
 
     TestCase test_cases[] = {
@@ -186,7 +189,7 @@ static bool test_null_move_zobrist(Board& b) {
 }
 
 // Null move should increment ply and restore it on unmake
-static bool test_null_move_ply(Board& b) {
+bool test_null_move_ply(Board& b) {
     b.load_from_fen(START_POS_FEN);
     int original_ply = b.ply;
 
@@ -207,7 +210,7 @@ static bool test_null_move_ply(Board& b) {
 }
 
 // A real move after a null move should work correctly
-static bool test_null_move_then_real_move(Board& b) {
+bool test_null_move_then_real_move(Board& b) {
     // After 1.e4 d5 (black to move... but let's null move, then play as white again)
     // FEN: rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2
     b.load_from_fen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2");
@@ -228,6 +231,8 @@ static bool test_null_move_then_real_move(Board& b) {
 
     return true;
 }
+
+} // namespace
 
 bool test_null_move(Board& b) {
     if (!test_null_move_restore(b)) return false;

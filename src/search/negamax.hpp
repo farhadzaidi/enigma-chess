@@ -12,8 +12,9 @@
 #include "eval/eval.hpp"
 #include "core/transposition_table.hpp"
 
-// --- Negamax Constants ---
+namespace {
 
+// constants
 constexpr SearchDepth MINIMUM_NULL_MOVE_DEPTH = 3;
 constexpr SearchDepth FUTILITY_CUTOFF_DEPTH = 4;
 constexpr SearchDepth MINIMUM_IID_DEPTH = 4;
@@ -24,8 +25,7 @@ constexpr SearchDepth NULL_MOVE_DEEPER_THRESHOLD = 6;
 constexpr int FUTILITY_MARGIN_PER_DEPTH = 90;
 constexpr int FUTILITY_MARGIN_BASE = 40;
 
-// --- Pruning Conditions ---
-
+// functions
 inline bool can_apply_null_move(
     bool in_check,
     SearchDepth depth,
@@ -58,8 +58,6 @@ inline bool can_apply_futility(
         depth < FUTILITY_CUTOFF_DEPTH
     );
 }
-
-// --- TT Probe + IID ---
 
 template <SearchMode SM>
 inline TTProbeResult probe_tt(
@@ -105,7 +103,8 @@ inline TTProbeResult probe_tt(
     return {NULL_MOVE, false, 0};
 }
 
-// --- Negamax ---
+} // namespace
+
 
 template <SearchMode SM>
 inline PositionScore negamax(

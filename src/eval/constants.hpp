@@ -4,14 +4,13 @@
 
 #include "core/types.hpp"
 
-// --- Eval Type Aliases ---
+namespace {
+
+// constants
 
 using PieceValues = std::array<int, NUM_PIECES>;
 using PieceSquareTable = std::array<std::array<int, NUM_SQUARES>, NUM_PIECES>;
 using EvalTable = std::array<std::array<std::array<int, NUM_SQUARES>, NUM_PIECES>, NUM_SIDES>;
-
-// --- Piece Values ---
-// Credit: https://www.chessprogramming.org/PeSTO%27s_Evaluation_Function
 
 constexpr PieceValues EARLY_PIECE_VALUES = {
     82, 337, 365, 477, 1025, 0
@@ -20,8 +19,6 @@ constexpr PieceValues EARLY_PIECE_VALUES = {
 constexpr PieceValues LATE_PIECE_VALUES = {
     94, 281, 297, 512, 936, 0
 };
-
-// --- Piece Square Tables ---
 
 constexpr PieceSquareTable EARLY_PSQT = {{
     // PAWN
@@ -161,7 +158,7 @@ constexpr PieceSquareTable LATE_PSQT = {{
     }},
 }};
 
-// --- Eval Table Generation ---
+// functions
 
 constexpr EvalTable create_eval_table(
     const PieceValues& piece_values,
@@ -177,10 +174,11 @@ constexpr EvalTable create_eval_table(
     return table;
 }
 
+} // namespace
+
+
 constexpr EvalTable EARLY_EVAL_TABLE = create_eval_table(EARLY_PIECE_VALUES, EARLY_PSQT);
 constexpr EvalTable LATE_EVAL_TABLE  = create_eval_table(LATE_PIECE_VALUES, LATE_PSQT);
-
-// --- Game Phase ---
 
 constexpr std::array<int, NUM_PIECES> GAME_PHASE_INCREMENT = {0, 1, 1, 2, 4, 0};
 constexpr int MAX_GAME_PHASE = (
@@ -190,11 +188,7 @@ constexpr int MAX_GAME_PHASE = (
     1 * GAME_PHASE_INCREMENT[QUEEN]
 ) * 2;
 
-// --- King Safety ---
-
 constexpr std::array<PositionScore, 4> KING_SHIELD_PENALTY = {-45, -25, -10, 0};
-
-// --- Bishop Pair ---
 
 constexpr PositionScore EARLY_BISHOP_PAIR_BONUS = 20;
 constexpr PositionScore LATE_BISHOP_PAIR_BONUS  = 40;

@@ -12,9 +12,20 @@
 #include "core/transposition_table.hpp"
 #include "precompute/tables.hpp"
 
+namespace {
+
+// constants
 constexpr uint64_t TIME_CHECK_PERIOD_MASK = 2047;
 
-// --- Helper Functions ---
+// functions
+inline void update_killer_table(Move move, int ply) {
+    if (move != g_search_state.killer_1[ply]) {
+        g_search_state.killer_2[ply] = g_search_state.killer_1[ply];
+        g_search_state.killer_1[ply] = move;
+    }
+}
+
+} // namespace
 
 template <SearchMode SM>
 inline bool should_stop_search() {
@@ -50,13 +61,9 @@ inline bool is_engine_draw(const Board& b) {
     return b.halfmoves >= FIFTY_MOVE_PLY_LIMIT || b.has_repeated();
 }
 
-inline void update_killer_table(Move move, int ply) {
-    if (move != g_search_state.killer_1[ply]) {
-        g_search_state.killer_2[ply] = g_search_state.killer_1[ply];
-        g_search_state.killer_1[ply] = move;
-    }
-}
+namespace {
 
+// functions
 inline void update_history_tables(Board& b, Move move, MoveScore bonus) {
     MoveScore clamped_bonus = std::clamp(bonus, MIN_MOVE_SCORE, MAX_MOVE_SCORE);
     Piece moving_piece = b.piece_map[move.from()];
@@ -67,6 +74,8 @@ inline void update_history_tables(Board& b, Move move, MoveScore bonus) {
     MoveScore& from_to_history_score = g_search_state.from_to_history[move.from()][move.to()];
     from_to_history_score += clamped_bonus - from_to_history_score * std::abs(clamped_bonus) / MAX_MOVE_SCORE;
 }
+
+} // namespace
 
 // On a beta cutoff by a quiet move, reward the cutoff move and penalize
 // all previously searched quiet moves that failed to cause a cutoff.

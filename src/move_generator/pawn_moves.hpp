@@ -8,6 +8,9 @@
 #include "move_generator/check_info.hpp"
 #include "move_generator/piece_moves.hpp"
 
+namespace {
+
+// functions
 template <Side S, Direction D, MoveType MT, bool IS_PROMOTION = false, bool IS_EN_PASSANT = false>
 inline void encode_pawn_moves(
     Board& b,
@@ -70,6 +73,9 @@ inline void encode_pawn_moves(
         }
     }
 }
+
+} // namespace
+
 
 template<Side S, MoveGenMode M>
 inline void generate_pawn_moves(Board& b, MoveList& moves, CheckInfo& check_info) {

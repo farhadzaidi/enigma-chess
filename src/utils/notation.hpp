@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <cctype>
 #include <cstdlib>
 
@@ -24,7 +25,7 @@ inline bool is_pos_int(const std::string& s) {
     return true;
 }
 
-inline Square uci_to_index(const std::string& square) {
+inline Square uci_to_index(std::string_view square) {
     // Subtracting by '1' gives us the 0-indexed rank
     // (e.g. '1' - '1' = 0 or '8' - '1' = 7)
     int rank = square[1] - '1';
@@ -43,90 +44,9 @@ inline std::string index_to_uci(Square square) {
     return std::string{file, rank};
 }
 
-inline Move encode_move_from_uci(const Board& b, const std::string& uci_move) {
-    // UCI notation can either be 4 or 5 characters
-    // e.g. e2e4 or f7f8q
+namespace {
 
-    // First 2 characters make up the "from" square
-    Square from = uci_to_index(uci_move.substr(0, 2));
-
-    // Next 2 characters make up the "to" square
-    Square to = uci_to_index(uci_move.substr(2, 2));
-
-    // The move was a capture if the "to" square is occupied (EP will be handled separately)
-    MoveType move_type = MoveType::Quiet;
-    if (b.piece_map[to] != NO_PIECE) {
-        move_type = MoveType::Capture;
-    }
-
-    // Determine move flag
-    MoveFlag move_flag = MoveFlag::Normal;
-
-    // Optional 5th character indicates the kind of promotion
-    if (uci_move.length() == 5) {
-        switch(uci_move[4]) {
-            case 'b':
-                move_flag = MoveFlag::PromoBishop;
-                break;
-            case 'n':
-                move_flag = MoveFlag::PromoKnight;
-                break;
-            case 'r':
-                move_flag = MoveFlag::PromoRook;
-                break;
-            case 'q':
-                move_flag = MoveFlag::PromoQueen;
-                break;
-        }
-    }
-
-    // We can determine if the move was a castle if the king moved 2 squares horizontally
-    else if (
-        b.piece_map[from] == KING &&
-        std::abs(static_cast<int>(from) - static_cast<int>(to)) == 2 // Type casting to prevent underflow
-    ) {
-        move_flag = MoveFlag::Castle;
-    }
-
-    // If the moving piece was a pawn and it moved to the en passant target square,
-    // then we know this move was an en passant
-    else if (b.piece_map[from] == PAWN && to == b.en_passant_target) {
-        move_flag = MoveFlag::EnPassant;
-        move_type = MoveType::Capture;
-    }
-
-    // Encode the move and return
-    return Move(from, to, move_type, move_flag);
-}
-
-inline std::string decode_move_to_uci(Move move) {
-    // Standard no move/null move convention
-    if (move == NULL_MOVE) return "0000";
-
-    std::string from = index_to_uci(move.from());
-    std::string to = index_to_uci(move.to());
-
-    std::string promotion = "";
-    switch(move.flag()) {
-        case MoveFlag::PromoBishop:
-            promotion = "b";
-            break;
-        case MoveFlag::PromoKnight:
-            promotion = "n";
-            break;
-        case MoveFlag::PromoRook:
-            promotion = "r";
-            break;
-        case MoveFlag::PromoQueen:
-            promotion = "q";
-            break;
-        default:
-            break;
-    }
-
-    return from + to + promotion;
-}
-
+// functions
 
 // Helper struct to hold parsed SAN components
 struct ParsedSan {
@@ -141,7 +61,7 @@ struct ParsedSan {
 };
 
 // Normalize SAN by stripping check/mate/annotation symbols
-inline std::string normalize_san(std::string san) {
+inline std::string normalize_san(std::string_view san) {
     std::string result;
 
     // Trim whitespace and build result
@@ -279,8 +199,95 @@ inline ParsedSan parse_san_components(const std::string& san) {
     return parsed;
 }
 
+} // namespace
+
+
+inline Move encode_move_from_uci(const Board& b, std::string_view uci_move) {
+    // UCI notation can either be 4 or 5 characters
+    // e.g. e2e4 or f7f8q
+
+    // First 2 characters make up the "from" square
+    Square from = uci_to_index(uci_move.substr(0, 2));
+
+    // Next 2 characters make up the "to" square
+    Square to = uci_to_index(uci_move.substr(2, 2));
+
+    // The move was a capture if the "to" square is occupied (EP will be handled separately)
+    MoveType move_type = MoveType::Quiet;
+    if (b.piece_map[to] != NO_PIECE) {
+        move_type = MoveType::Capture;
+    }
+
+    // Determine move flag
+    MoveFlag move_flag = MoveFlag::Normal;
+
+    // Optional 5th character indicates the kind of promotion
+    if (uci_move.length() == 5) {
+        switch(uci_move[4]) {
+            case 'b':
+                move_flag = MoveFlag::PromoBishop;
+                break;
+            case 'n':
+                move_flag = MoveFlag::PromoKnight;
+                break;
+            case 'r':
+                move_flag = MoveFlag::PromoRook;
+                break;
+            case 'q':
+                move_flag = MoveFlag::PromoQueen;
+                break;
+        }
+    }
+
+    // We can determine if the move was a castle if the king moved 2 squares horizontally
+    else if (
+        b.piece_map[from] == KING &&
+        std::abs(static_cast<int>(from) - static_cast<int>(to)) == 2 // Type casting to prevent underflow
+    ) {
+        move_flag = MoveFlag::Castle;
+    }
+
+    // If the moving piece was a pawn and it moved to the en passant target square,
+    // then we know this move was an en passant
+    else if (b.piece_map[from] == PAWN && to == b.en_passant_target) {
+        move_flag = MoveFlag::EnPassant;
+        move_type = MoveType::Capture;
+    }
+
+    // Encode the move and return
+    return Move(from, to, move_type, move_flag);
+}
+
+inline std::string decode_move_to_uci(Move move) {
+    // Standard no move/null move convention
+    if (move == NULL_MOVE) return "0000";
+
+    std::string from = index_to_uci(move.from());
+    std::string to = index_to_uci(move.to());
+
+    std::string promotion = "";
+    switch(move.flag()) {
+        case MoveFlag::PromoBishop:
+            promotion = "b";
+            break;
+        case MoveFlag::PromoKnight:
+            promotion = "n";
+            break;
+        case MoveFlag::PromoRook:
+            promotion = "r";
+            break;
+        case MoveFlag::PromoQueen:
+            promotion = "q";
+            break;
+        default:
+            break;
+    }
+
+    return from + to + promotion;
+}
+
 // Main function to parse SAN and return the corresponding Move
-inline Move parse_move_from_san(Board& b, const std::string& san) {
+inline Move parse_move_from_san(Board& b, std::string_view san) {
     // Normalize the input
     std::string normalized = normalize_san(san);
 

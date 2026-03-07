@@ -71,7 +71,7 @@ struct Board {
 
     // ### PUBLIC API
 
-    inline void load_from_fen(const std::string& fen = START_POS_FEN);
+    inline void load_from_fen(std::string_view fen = START_POS_FEN);
     inline void make_move(Move move);
     inline void unmake_move(Move move);
     inline void make_null_move();

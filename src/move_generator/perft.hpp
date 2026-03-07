@@ -10,39 +10,12 @@
 #include "move_generator/check_info.hpp"
 #include "utils/notation.hpp"
 
-template<bool Root>
-inline uint64_t perft(Board& b, SearchDepth depth) {
-    uint64_t nodes = 0;
-    uint64_t total_nodes = 0;
-    MoveList moves = generate_moves<MoveGenMode::All>(b);
-
-    // No need to make moves, just return the count
-    if (depth == 1) {
-        return moves.size;
-    }
-
-    for (Move move: moves) {
-        b.make_move(move);
-        nodes = perft<false>(b, depth - 1);
-        total_nodes += nodes;
-        b.unmake_move(move);
-
-        if (Root) {
-            std::clog << decode_move_to_uci(move) << ": " << nodes << "\n";
-        }
-
-    }
-
-    if (Root) {
-        std::clog << "\nNodes searched: " << total_nodes << "\n";
-    }
-
-    return total_nodes;
-}
-
 // Forward declaration
 inline uint64_t perft_phased(Board& b, SearchDepth depth);
 
+namespace {
+
+// functions
 template <Side S>
 inline uint64_t _perft_phased(Board& b, SearchDepth depth) {
     uint64_t nodes = 0;
@@ -74,6 +47,39 @@ inline uint64_t _perft_phased(Board& b, SearchDepth depth) {
     }
 
     return nodes;
+}
+
+} // namespace
+
+
+template<bool Root>
+inline uint64_t perft(Board& b, SearchDepth depth) {
+    uint64_t nodes = 0;
+    uint64_t total_nodes = 0;
+    MoveList moves = generate_moves<MoveGenMode::All>(b);
+
+    // No need to make moves, just return the count
+    if (depth == 1) {
+        return moves.size;
+    }
+
+    for (Move move: moves) {
+        b.make_move(move);
+        nodes = perft<false>(b, depth - 1);
+        total_nodes += nodes;
+        b.unmake_move(move);
+
+        if (Root) {
+            std::clog << decode_move_to_uci(move) << ": " << nodes << "\n";
+        }
+
+    }
+
+    if (Root) {
+        std::clog << "\nNodes searched: " << total_nodes << "\n";
+    }
+
+    return total_nodes;
 }
 
 inline uint64_t perft_phased(Board& b, SearchDepth depth) {

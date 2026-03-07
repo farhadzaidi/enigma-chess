@@ -6,12 +6,18 @@
 #include "core/constants.hpp"
 #include "core/random.hpp"
 
+namespace {
+
+// constants
 constexpr int CASTLING_RIGHTS_COMBINATIONS = 16;
 constexpr int EN_PASSANT_TARGET_FILES = 8;
 
 using ZobristPieces = std::array<std::array<std::array<ZobristHash, NUM_SQUARES>, NUM_PIECES>, NUM_SIDES>;
 using ZobristCastlingRights = std::array<ZobristHash, CASTLING_RIGHTS_COMBINATIONS>;
 using ZobristEnPassantTargets = std::array<ZobristHash, EN_PASSANT_TARGET_FILES>;
+
+} // namespace
+
 
 inline const ZobristPieces ZOBRIST_PIECES = []() {
     ZobristPieces ZOBRIST_PIECES;

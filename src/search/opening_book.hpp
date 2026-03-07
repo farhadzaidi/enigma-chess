@@ -11,14 +11,14 @@
 #include "utils/notation.hpp"
 #include "data/book.hpp"
 
+namespace {
+
+// constants
 constexpr double OPENING_MIN_MOVE_FREQUENCY = 0.05;
 constexpr double OPENING_MOVE_TEMPERATURE = 1.0;
 
-struct BookMove {
-    Move move;
-    int frequency;
-    BookMove(Move m, int f): move(m), frequency(f) {}
-};
+} // namespace
+
 
 struct OpeningBook {
     inline OpeningBook() {
@@ -44,6 +44,12 @@ struct OpeningBook {
     }
 
 private:
+    struct BookMove {
+        Move move;
+        int frequency;
+        BookMove(Move m, int f): move(m), frequency(f) {}
+    };
+
     std::unordered_map<ZobristHash, std::vector<BookMove>> book;
 
     inline void add_book_move(ZobristHash position, Move move) {

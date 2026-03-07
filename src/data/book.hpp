@@ -2,7 +2,7 @@
 
 #pragma once
 
-inline const size_t BOOK_SIZE = 28318;
+constexpr size_t BOOK_SIZE = 28318;
 
 inline const char* const BOOK_DATA[] = {
     "Na3 c5 e4 Nc6 Bb5 g6 f4 Nd4 Bc4 Bg7 c3 Nc6 Nf3 e6 Nb5 d6 e5 dxe5 fxe5 Nxe5 Nxe5 Bxe5 d4 Qh4+ g3 Bxg3+ hxg3 Qxh1+ Bf1 Qc6",

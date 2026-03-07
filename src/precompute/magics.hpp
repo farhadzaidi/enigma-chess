@@ -2,18 +2,15 @@
 
 #include <bit>
 #include <vector>
+#include <array>
 #include <cstdint>
 #include <iostream>
-#include <array>
 
 #include "core/types.hpp"
 #include "core/constants.hpp"
 #include "core/random.hpp"
 
-using BlockerMap = std::array<Bitboard, NUM_SQUARES>;
-
 // These are magic numbers which are useful for looking up attack masks for sliding pieces.
-// They are generated (via brute-force) using compute_magic_numbers()
 
 constexpr std::array<uint64_t, NUM_SQUARES> BISHOP_MAGIC = {
     290491063393657344ULL,
@@ -153,20 +150,12 @@ constexpr std::array<uint64_t, NUM_SQUARES> ROOK_MAGIC = {
 // indices for rook and bishop attack tables.
 // Note that the source code contains hardcoded values generated using this function,
 // but this function is available incase these values ever need to be regenerated.
-inline void compute_magic_numbers(const BlockerMap& blocker_map) {
+inline void compute_magic_numbers(const std::array<Bitboard, NUM_SQUARES>& blocker_map) {
     for (Square sq = 0; sq < NUM_SQUARES; sq++) {
         Bitboard blocker_mask = blocker_map[sq];
         int num_blockers = std::popcount(blocker_mask);
         std::size_t num_subsets = uint64_t{1} << num_blockers;
 
-        // General algorithm for computing magic for each square goes like this:
-        // 1. Generate a random number to try and assume it's valid
-        // 2. Keep an array of used indices
-        // 3. Generate the index for a given subset using the candidate magic number
-        // 4. Check if the index has already been marked used
-            // If so, we have a collision --> restart with an empty used array and new candidate
-            // Else, mark this index as used and keep going
-        // 5. If a number generates all unique indices, then this is a valid magic number
         while (true) {
             uint64_t candidate = prandom_magic();
             std::vector<bool> used(num_subsets, false);

@@ -1,28 +1,42 @@
 #include <iostream>
+#include <array>
 
 #include "core/types.hpp"
+#include "core/constants.hpp"
+#include "core/globals.hpp"
+#include "core/move.hpp"
+#include "core/transposition_table.hpp"
 #include "board/board.hpp"
 #include "eval/eval.hpp"
 #include "eval/pawn_eval.hpp"
 #include "eval/pawn_table.hpp"
+#include "move_generator/move_generator.hpp"
+#include "search/quiescence.hpp"
+#include "search/see.hpp"
+#include "search/helpers.hpp"
+#include "utils/notation.hpp"
+#include "tests/helpers.hpp"
 
-// FEN fixtures generated and validated with python-chess 1.11.2.
-static constexpr const char* MIDGAME_WHITE_TO_MOVE =
+namespace {
+
+// --- Eval tests ---
+
+const std::string MIDGAME_WHITE_TO_MOVE =
     "r1bqk2r/1pppbppp/p1n2n2/4p3/B3P3/5N2/PPPP1PPP/RNBQ1RK1 w kq - 4 6";
-static constexpr const char* MIDGAME_BLACK_TO_MOVE =
+const std::string MIDGAME_BLACK_TO_MOVE =
     "r1bqk2r/1pppbppp/p1n2n2/4p3/B3P3/5N2/PPPP1PPP/RNBQ1RK1 b kq - 4 6";
 
-static constexpr const char* PASSED_WHITE_PAWN_FEN =
+const std::string PASSED_WHITE_PAWN_FEN =
     "4k3/8/8/4P3/8/8/8/4K3 w - - 0 1";
-static constexpr const char* BLOCKED_WHITE_PAWN_FEN =
+const std::string BLOCKED_WHITE_PAWN_FEN =
     "4k3/8/4p3/4P3/8/8/8/4K3 w - - 0 1";
 
-static constexpr const char* BARE_KINGS_WHITE_TO_MOVE =
+const std::string BARE_KINGS_WHITE_TO_MOVE =
     "4k3/8/8/8/8/8/8/4K3 w - - 0 1";
-static constexpr const char* BARE_KINGS_BLACK_TO_MOVE =
+const std::string BARE_KINGS_BLACK_TO_MOVE =
     "4k3/8/8/8/8/8/8/4K3 b - - 0 1";
 
-static bool test_evaluate_side_to_move_negation(Board& b) {
+bool test_evaluate_side_to_move_negation(Board& b) {
     g_pawn_table.clear();
 
     b.load_from_fen(MIDGAME_WHITE_TO_MOVE);
@@ -40,7 +54,7 @@ static bool test_evaluate_side_to_move_negation(Board& b) {
     return true;
 }
 
-static bool test_evaluate_bare_kings_drawish(Board& b) {
+bool test_evaluate_bare_kings_drawish(Board& b) {
     g_pawn_table.clear();
 
     b.load_from_fen(BARE_KINGS_WHITE_TO_MOVE);
@@ -58,7 +72,7 @@ static bool test_evaluate_bare_kings_drawish(Board& b) {
     return true;
 }
 
-static bool test_pawn_eval_passed_vs_blocked(Board& b) {
+bool test_pawn_eval_passed_vs_blocked(Board& b) {
     g_pawn_table.clear();
 
     b.load_from_fen(PASSED_WHITE_PAWN_FEN);
@@ -84,26 +98,9 @@ static bool test_pawn_eval_passed_vs_blocked(Board& b) {
     return true;
 }
 
-bool test_eval(Board& b) {
-    if (!test_evaluate_side_to_move_negation(b)) return false;
-    if (!test_evaluate_bare_kings_drawish(b)) return false;
-    if (!test_pawn_eval_passed_vs_blocked(b)) return false;
-    g_pawn_table.clear();
-    return true;
-}
-#include <iostream>
+// --- Quiescence tests ---
 
-#include "core/types.hpp"
-#include "core/constants.hpp"
-#include "board/board.hpp"
-#include "move_generator/move_generator.hpp"
-#include "search/quiescence.hpp"
-#include "search/see.hpp"
-#include "eval/eval.hpp"
-#include "utils/notation.hpp"
-#include "tests/helpers.hpp"
-
-static bool test_quiescence_stand_pat_cutoff(Board& b) {
+bool test_quiescence_stand_pat_cutoff(Board& b) {
     b.load_from_fen("4k3/8/8/8/8/8/8/4K3 w - - 0 1");
     reset_search_state_for_test(b);
 
@@ -119,7 +116,7 @@ static bool test_quiescence_stand_pat_cutoff(Board& b) {
     return true;
 }
 
-static bool test_quiescence_in_check_mate_score(Board& b) {
+bool test_quiescence_in_check_mate_score(Board& b) {
     b.load_from_fen("rnb1kbnr/pppp1ppp/4p3/8/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3");
     reset_search_state_for_test(b);
 
@@ -131,7 +128,7 @@ static bool test_quiescence_in_check_mate_score(Board& b) {
     return true;
 }
 
-static bool test_quiescence_see_bad_capture_pruning(Board& b) {
+bool test_quiescence_see_bad_capture_pruning(Board& b) {
     b.load_from_fen("4k3/8/2p5/3p4/3Q4/8/8/4K3 w - - 0 1");
     reset_search_state_for_test(b);
 
@@ -161,7 +158,7 @@ static bool test_quiescence_see_bad_capture_pruning(Board& b) {
     return true;
 }
 
-static bool test_quiescence_draw_detection(Board& b) {
+bool test_quiescence_draw_detection(Board& b) {
     b.load_from_fen("4k3/8/8/8/8/8/8/4K3 w - - 100 50");
     reset_search_state_for_test(b);
 
@@ -183,26 +180,9 @@ static bool test_quiescence_draw_detection(Board& b) {
     return true;
 }
 
-bool test_quiescence(Board& b) {
-    if (!test_quiescence_stand_pat_cutoff(b)) return false;
-    if (!test_quiescence_in_check_mate_score(b)) return false;
-    if (!test_quiescence_see_bad_capture_pruning(b)) return false;
-    if (!test_quiescence_draw_detection(b)) return false;
-    return true;
-}
-#include <iostream>
-#include <array>
+// --- Search helper tests ---
 
-#include "core/types.hpp"
-#include "core/constants.hpp"
-#include "board/board.hpp"
-#include "core/move.hpp"
-#include "core/transposition_table.hpp"
-#include "search/helpers.hpp"
-#include "utils/notation.hpp"
-#include "tests/helpers.hpp"
-
-static bool test_tt_score_normalization_round_trip() {
+bool test_tt_score_normalization_round_trip() {
     const int ply = 7;
     const std::array<PositionScore, 5> samples = {
         static_cast<PositionScore>(0),
@@ -226,7 +206,7 @@ static bool test_tt_score_normalization_round_trip() {
     return true;
 }
 
-static bool test_store_tt_result_node_classification(Board& b) {
+bool test_store_tt_result_node_classification(Board& b) {
     b.load_from_fen(START_POS_FEN);
     reset_search_state_for_test(b);
     g_transposition_table.clear();
@@ -252,7 +232,7 @@ static bool test_store_tt_result_node_classification(Board& b) {
     return true;
 }
 
-static bool test_update_killer_table_rotation(Board& b) {
+bool test_update_killer_table_rotation(Board& b) {
     b.load_from_fen(START_POS_FEN);
     reset_search_state_for_test(b);
 
@@ -275,7 +255,7 @@ static bool test_update_killer_table_rotation(Board& b) {
     return true;
 }
 
-static bool test_handle_beta_cutoff_updates(Board& b) {
+bool test_handle_beta_cutoff_updates(Board& b) {
     b.load_from_fen(START_POS_FEN);
     reset_search_state_for_test(b);
 
@@ -314,6 +294,24 @@ static bool test_handle_beta_cutoff_updates(Board& b) {
     ASSERT(g_search_state.killer_1[ply] == NULL_MOVE && g_search_state.killer_2[ply] == NULL_MOVE,
         "search_helpers_beta_cutoff", "Tactical cutoff should not update killers")
 
+    return true;
+}
+
+} // namespace
+
+bool test_eval(Board& b) {
+    if (!test_evaluate_side_to_move_negation(b)) return false;
+    if (!test_evaluate_bare_kings_drawish(b)) return false;
+    if (!test_pawn_eval_passed_vs_blocked(b)) return false;
+    g_pawn_table.clear();
+    return true;
+}
+
+bool test_quiescence(Board& b) {
+    if (!test_quiescence_stand_pat_cutoff(b)) return false;
+    if (!test_quiescence_in_check_mate_score(b)) return false;
+    if (!test_quiescence_see_bad_capture_pruning(b)) return false;
+    if (!test_quiescence_draw_detection(b)) return false;
     return true;
 }
 

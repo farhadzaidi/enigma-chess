@@ -1,17 +1,20 @@
 #include <iostream>
 #include <set>
+#include <string_view>
 
 #include "core/types.hpp"
 #include "board/board.hpp"
 #include "utils/notation.hpp"
 #include "move_generator/move_generator.hpp"
 
+namespace {
+
 // Make/unmake should restore exact hash for all move types
-static bool test_zobrist_make_unmake(Board& b) {
+bool test_zobrist_make_unmake(Board& b) {
     struct TestCase {
-        std::string fen;
-        std::string uci;
-        std::string description;
+        std::string_view fen;
+        std::string_view uci;
+        std::string_view description;
     };
 
     TestCase test_cases[] = {
@@ -60,7 +63,7 @@ static bool test_zobrist_make_unmake(Board& b) {
 }
 
 // Same position reached by different move orders should have the same hash
-static bool test_zobrist_transposition(Board& b) {
+bool test_zobrist_transposition(Board& b) {
     // Path A: 1.e4 d5 2.Nf3
     b.load_from_fen();
     b.make_move(encode_move_from_uci(b, "e2e4"));
@@ -115,13 +118,13 @@ static bool test_zobrist_transposition(Board& b) {
 }
 
 // Hash should encode state components correctly (side, castling rights, en passant)
-static bool test_zobrist_state_components(Board& b) {
+bool test_zobrist_state_components(Board& b) {
     struct TestCase {
-        std::string fen_a;
-        std::string fen_b;
+        std::string_view fen_a;
+        std::string_view fen_b;
         bool expect_zobrist_equal;
         bool expect_pawn_hash_equal;
-        std::string description;
+        std::string_view description;
     };
 
     TestCase test_cases[] = {
@@ -200,12 +203,12 @@ static bool test_zobrist_state_components(Board& b) {
 }
 
 // Incremental hash updates should match a fresh hash from loading the resulting FEN
-static bool test_zobrist_incremental_matches_reloaded(Board& b) {
+bool test_zobrist_incremental_matches_reloaded(Board& b) {
     struct TestCase {
-        std::string pre_fen;
-        std::string uci;
-        std::string post_fen;
-        std::string description;
+        std::string_view pre_fen;
+        std::string_view uci;
+        std::string_view post_fen;
+        std::string_view description;
     };
 
     TestCase test_cases[] = {
@@ -304,8 +307,8 @@ static bool test_zobrist_incremental_matches_reloaded(Board& b) {
 }
 
 // Distinct positions should produce distinct hashes (smoke test)
-static bool test_zobrist_uniqueness(Board& b) {
-    const char* fens[] = {
+bool test_zobrist_uniqueness(Board& b) {
+    std::string_view fens[] = {
         START_POS_FEN,
         KIWIPETE_FEN,
         POSITION_3_FEN,
@@ -317,7 +320,7 @@ static bool test_zobrist_uniqueness(Board& b) {
     };
 
     std::set<ZobristHash> hashes;
-    for (const char* fen : fens) {
+    for (std::string_view fen : fens) {
         b.load_from_fen(fen);
 
         if (hashes.count(b.position_hash)) {
@@ -330,7 +333,7 @@ static bool test_zobrist_uniqueness(Board& b) {
         hashes.insert(b.position_hash);
     }
 
-    const char* pawn_fens[] = {
+    std::string_view pawn_fens[] = {
         "8/8/8/8/8/8/8/4K2k w - - 0 1",
         "8/8/8/8/8/8/4P3/4K2k w - - 0 1",
         "8/8/8/8/8/4P3/8/4K2k w - - 0 1",
@@ -341,7 +344,7 @@ static bool test_zobrist_uniqueness(Board& b) {
     };
 
     std::set<ZobristHash> pawn_hashes;
-    for (const char* fen : pawn_fens) {
+    for (std::string_view fen : pawn_fens) {
         b.load_from_fen(fen);
 
         if (pawn_hashes.count(b.pawn_hash)) {
@@ -356,6 +359,8 @@ static bool test_zobrist_uniqueness(Board& b) {
 
     return true;
 }
+
+} // namespace
 
 bool test_zobrist(Board& b) {
     if (!test_zobrist_make_unmake(b)) return false;

@@ -10,7 +10,9 @@
 #include "eval/pawn_table.hpp"
 #include "core/globals.hpp"
 
-// --- Pawn Bonuses ---
+namespace {
+
+// constants
 
 constexpr auto EARLY_PASSED_PAWN_BONUS = []() {
     std::array<PositionScore, BOARD_SIZE> bonus = { 0, 0, 3, 8, 15, 25, 40, 0 };
@@ -39,6 +41,8 @@ constexpr PositionScore LATE_ISOLATED_PAWN_PENALTY  = -12;
 
 constexpr PositionScore EARLY_STACKED_PAWN_PENALTY  =  -8;
 constexpr PositionScore LATE_STACKED_PAWN_PENALTY   = -10;
+
+} // namespace
 
 
 inline PawnTableEntry get_pawn_score(const Board& b) {

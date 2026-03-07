@@ -6,17 +6,17 @@
 #include "core/types.hpp"
 #include "board/board.hpp"
 
+namespace {
+
 struct Attacker {
     Piece piece;
     Square square;
 };
 
-// Simple piece values for SEE
-constexpr std::array<int, NUM_PIECES> SEE_PIECE_VALUES = {100, 300, 325, 500, 900, 0};
-
-// Upper bound for the maximum number of captures
+// constants
 constexpr int MAX_CAPTURES = 32;
 
+// functions
 inline Attacker get_least_valuable_attacker(Board& b, Side side, Bitboard attackers) {
     for (Piece piece = PAWN; piece < NUM_PIECES; piece++) {
         Bitboard from_mask = attackers & b.pieces[side][piece];
@@ -25,6 +25,11 @@ inline Attacker get_least_valuable_attacker(Board& b, Side side, Bitboard attack
 
     return {NO_PIECE, NO_SQUARE};
 }
+
+} // namespace
+
+
+constexpr std::array<int, NUM_PIECES> SEE_PIECE_VALUES = {100, 300, 325, 500, 900, 0};
 
 inline int see(Board& b, Move move) {
     // Note: Promotions are intentionally not handled. The material investment for a

@@ -7,7 +7,9 @@
 #include "move_generator/move_generator.hpp"
 #include "tests/helpers.hpp"
 
-static bool test_search_nodes_zero_fallback(Board& b) {
+namespace {
+
+bool test_search_nodes_zero_fallback(Board& b) {
     const bool old_book = g_use_own_book;
     g_use_own_book = false;
 
@@ -31,7 +33,7 @@ static bool test_search_nodes_zero_fallback(Board& b) {
     return true;
 }
 
-static bool test_search_g_stop_requested_fallback(Board& b) {
+bool test_search_g_stop_requested_fallback(Board& b) {
     const bool old_book = g_use_own_book;
     g_use_own_book = false;
 
@@ -51,7 +53,7 @@ static bool test_search_g_stop_requested_fallback(Board& b) {
     return true;
 }
 
-static bool test_search_nodes_small_limit_returns_legal(Board& b) {
+bool test_search_nodes_small_limit_returns_legal(Board& b) {
     const bool old_book = g_use_own_book;
     g_use_own_book = false;
 
@@ -68,6 +70,8 @@ static bool test_search_nodes_small_limit_returns_legal(Board& b) {
 
     return true;
 }
+
+} // namespace
 
 bool test_search_limits(Board& b) {
     if (!test_search_nodes_zero_fallback(b)) return false;

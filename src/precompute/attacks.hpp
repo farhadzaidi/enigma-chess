@@ -5,7 +5,6 @@
 #include "core/bitboard.hpp"
 #include "precompute/magics.hpp"
 
-using AttackMap = std::array<Bitboard, NUM_SQUARES>;
 
 // NON-SLIDING PIECES
 
@@ -15,8 +14,8 @@ using AttackMap = std::array<Bitboard, NUM_SQUARES>;
 // Shift functions ensure that there is no wrap-around from a file to h file and
 // vice versa. Furthemore, bitshift behavior naturally handles going off the board.
 
-constexpr AttackMap KNIGHT_ATTACK_MAP = []() {
-    AttackMap map{};
+constexpr std::array<Bitboard, NUM_SQUARES> KNIGHT_ATTACK_MAP = []() {
+    std::array<Bitboard, NUM_SQUARES> map{};
     for (Square sq = 0; sq < NUM_SQUARES; sq++) {
         Bitboard mask = get_mask(sq);
         map[sq] =
@@ -32,8 +31,8 @@ constexpr AttackMap KNIGHT_ATTACK_MAP = []() {
     return map;
 }();
 
-constexpr AttackMap KING_ATTACK_MAP = []() {
-    AttackMap map{};
+constexpr std::array<Bitboard, NUM_SQUARES> KING_ATTACK_MAP = []() {
+    std::array<Bitboard, NUM_SQUARES> map{};
     for (Square sq = 0; sq < NUM_SQUARES; sq++) {
         Bitboard mask = get_mask(sq);
         map[sq] = shift<NORTH>    (mask) |
@@ -53,15 +52,15 @@ constexpr AttackMap KING_ATTACK_MAP = []() {
 // Indexed by attacking side (e.g. PAWN_ATTACK_MAP[BLACK] checks if
 // that square is attacked by black pawns)
 constexpr auto PAWN_ATTACK_MAPS = []() {
-    AttackMap white_map{}; // White attacking pawns
-    AttackMap black_map{}; // Black attacking pawns
+    std::array<Bitboard, NUM_SQUARES> white_map{}; // White attacking pawns
+    std::array<Bitboard, NUM_SQUARES> black_map{}; // Black attacking pawns
     for (Square sq = 0; sq < NUM_SQUARES; sq++) {
         Bitboard mask = get_mask(sq);
         white_map[sq] = shift<SOUTHEAST>(mask) | shift<SOUTHWEST>(mask);
         black_map[sq] = shift<NORTHEAST>(mask) | shift<NORTHWEST>(mask);
     }
 
-    return std::array<AttackMap, NUM_SIDES>{white_map, black_map};
+    return std::array<std::array<Bitboard, NUM_SQUARES>, NUM_SIDES>{white_map, black_map};
 }();
 
 // SLIDING PIECES
@@ -83,8 +82,8 @@ constexpr Bitboard walk(Square sq, Bitboard blockers = 0) {
 // Map of all blocker squares for each square that the bishop is on
 // So each entry contains a mask of all blocker squares for the bishop on that square
 // Doesn't include edges since a piece on the edge isn't blocking another square
-constexpr BlockerMap BISHOP_BLOCKER_MAP = []() {
-    BlockerMap map{};
+constexpr std::array<Bitboard, NUM_SQUARES> BISHOP_BLOCKER_MAP = []() {
+    std::array<Bitboard, NUM_SQUARES> map{};
     for (Square sq = 0; sq < NUM_SQUARES; sq++) {
         map[sq] =
             walk<NORTHEAST>(sq, RANK_MASKS[RANK_8] | FILE_MASKS[H_FILE]) |
@@ -96,8 +95,8 @@ constexpr BlockerMap BISHOP_BLOCKER_MAP = []() {
 }();
 
 // Same thing as above but for rook
-constexpr BlockerMap ROOK_BLOCKER_MAP = []() {
-    BlockerMap map{};
+constexpr std::array<Bitboard, NUM_SQUARES> ROOK_BLOCKER_MAP = []() {
+    std::array<Bitboard, NUM_SQUARES> map{};
     for (Square sq = 0; sq < NUM_SQUARES; sq++) {
         map[sq] =
             walk<NORTH>(sq, RANK_MASKS[RANK_8]) |
@@ -108,8 +107,12 @@ constexpr BlockerMap ROOK_BLOCKER_MAP = []() {
     return map;
 }();
 
+namespace {
+
+// functions
+
 // Helper function used to compute sizes for rook and bishop attack tables
-constexpr size_t compute_attack_table_size(const BlockerMap& blocker_map) {
+constexpr size_t compute_attack_table_size(const std::array<Bitboard, NUM_SQUARES>& blocker_map) {
     size_t size = 0;
 
     for (Square sq = 0; sq < NUM_SQUARES; sq++) {
@@ -121,13 +124,11 @@ constexpr size_t compute_attack_table_size(const BlockerMap& blocker_map) {
 
     return size;
 }
-constexpr size_t BISHOP_ATTACK_TABLE_SIZE = compute_attack_table_size(BISHOP_BLOCKER_MAP);
-constexpr size_t ROOK_ATTACK_TABLE_SIZE = compute_attack_table_size(ROOK_BLOCKER_MAP);
 
 // Helper function to compute offset for indexing into attack tables for each square
 // Very similar logic to compute_attack_table_sizes but here we're saving cumulative
 // sizes as we loop through all the squares
-constexpr std::array<size_t, NUM_SQUARES> compute_offset(const BlockerMap& blocker_map) {
+constexpr std::array<size_t, NUM_SQUARES> compute_offset(const std::array<Bitboard, NUM_SQUARES>& blocker_map) {
     size_t size = 0;
     std::array<size_t, NUM_SQUARES> offset;
 
@@ -139,11 +140,14 @@ constexpr std::array<size_t, NUM_SQUARES> compute_offset(const BlockerMap& block
 
     return offset;
 };
-constexpr auto BISHOP_OFFSET = compute_offset(BISHOP_BLOCKER_MAP);
-constexpr auto ROOK_OFFSET = compute_offset(ROOK_BLOCKER_MAP);
+
+// constants
+constexpr size_t BISHOP_ATTACK_TABLE_SIZE = compute_attack_table_size(BISHOP_BLOCKER_MAP);
+constexpr size_t ROOK_ATTACK_TABLE_SIZE = compute_attack_table_size(ROOK_BLOCKER_MAP);
 
 inline const auto _BISHOP_ATTACK_TABLE = []() {
     std::array<Bitboard, BISHOP_ATTACK_TABLE_SIZE> table{};
+    auto bishop_offset = compute_offset(BISHOP_BLOCKER_MAP);
     for (Square sq = 0; sq < NUM_SQUARES; sq++) {
         Bitboard blocker_mask = BISHOP_BLOCKER_MAP[sq];
 
@@ -163,7 +167,7 @@ inline const auto _BISHOP_ATTACK_TABLE = []() {
             size_t index = get_attack_table_index(subset, blocker_mask, BISHOP_MAGIC[sq]);
 
             // Index into the attack table using the offset and cache the attack mask
-            table[BISHOP_OFFSET[sq] + index] = attack_mask;
+            table[bishop_offset[sq] + index] = attack_mask;
 
             // Terminating condition
             if (subset == 0) {
@@ -178,6 +182,7 @@ inline const auto _BISHOP_ATTACK_TABLE = []() {
 inline const auto _ROOK_ATTACK_TABLE = []() {
     // Same logic as bishop attack table but using rook constants
     std::array<Bitboard, ROOK_ATTACK_TABLE_SIZE> table{};
+    auto rook_offset = compute_offset(ROOK_BLOCKER_MAP);
     for (Square sq = 0; sq < NUM_SQUARES; sq++) {
         Bitboard blocker_mask = ROOK_BLOCKER_MAP[sq];
 
@@ -189,7 +194,7 @@ inline const auto _ROOK_ATTACK_TABLE = []() {
                 walk<WEST> (sq, shift<WEST> (subset));
 
             size_t index = get_attack_table_index(subset, blocker_mask, ROOK_MAGIC[sq]);
-            table[ROOK_OFFSET[sq] + index] = attack_mask;
+            table[rook_offset[sq] + index] = attack_mask;
 
             if (subset == 0) {
                 break;
@@ -200,7 +205,12 @@ inline const auto _ROOK_ATTACK_TABLE = []() {
     return table;
 }();
 
+} // namespace
+
+
+constexpr auto BISHOP_OFFSET = compute_offset(BISHOP_BLOCKER_MAP);
+constexpr auto ROOK_OFFSET = compute_offset(ROOK_BLOCKER_MAP);
+
 // Expose attack tables as std::span since they have different types due to different sizes
 inline const std::span<const Bitboard> BISHOP_ATTACK_TABLE{_BISHOP_ATTACK_TABLE};
 inline const std::span<const Bitboard> ROOK_ATTACK_TABLE{_ROOK_ATTACK_TABLE};
-

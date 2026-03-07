@@ -1,15 +1,19 @@
 #include <iostream>
+#include <set>
 
 #include "core/types.hpp"
 #include "board/board.hpp"
 #include "search/search.hpp"
+#include "search/opening_book.hpp"
 #include "utils/notation.hpp"
 #include "move_generator/move_generator.hpp"
 #include "tests/helpers.hpp"
 
-// Positions that are already checkmate or stalemate (no legal moves)
-// Engine should return NULL_MOVE without crashing
-static bool test_no_legal_moves(Board& b) {
+namespace {
+
+// --- Game end tests ---
+
+bool test_no_legal_moves(Board& b) {
     struct TestCase {
         std::string fen;
         std::string description;
@@ -50,8 +54,7 @@ static bool test_no_legal_moves(Board& b) {
     return true;
 }
 
-// Engine should find checkmate in 1 move
-static bool test_mate_in_1(Board& b) {
+bool test_mate_in_1(Board& b) {
     struct TestCase {
         std::string fen;
         std::string expected_uci;
@@ -85,8 +88,7 @@ static bool test_mate_in_1(Board& b) {
     return true;
 }
 
-// Engine should find checkmate in 2 moves
-static bool test_mate_in_2(Board& b) {
+bool test_mate_in_2(Board& b) {
     struct TestCase {
         std::string fen;
         std::string expected_uci;
@@ -118,10 +120,7 @@ static bool test_mate_in_2(Board& b) {
     return true;
 }
 
-// Engine should find stalemate when it's the only option
-static bool test_engine_finds_stalemate(Board& b) {
-    // Black king on a2 is in check from white queen on a1.
-    // The only legal move is Kxa1, which stalemates white.
+bool test_engine_finds_stalemate(Board& b) {
     b.load_from_fen("5r2/8/8/8/K7/3q4/k7/Q3b3 b - - 0 1");
 
     Move best = search_depth(b, 2);
@@ -141,15 +140,12 @@ static bool test_engine_finds_stalemate(Board& b) {
     return true;
 }
 
-// Engine should avoid stalemating the opponent when it has a winning position
-static bool test_engine_avoids_stalemate(Board& b) {
-    // White has a mate-in-1 with Qa2#, but Qc7 is stalemate.
+bool test_engine_avoids_stalemate(Board& b) {
     b.load_from_fen("8/8/k1K5/8/8/8/7Q/8 w - - 0 1");
 
     Move best = search_depth(b, 2);
     std::string uci = decode_move_to_uci(best);
 
-    // Qa2# wins immediately; Qc7 is stalemate and should be avoided.
     if (uci != "h2a2") {
         std::clog << "[FAILURE] 'engine_avoids_stalemate' - Engine should play Qa2# not stalemate\n";
         std::clog << "FEN: 8/8/k1K5/8/8/8/7Q/8 w - - 0 1\n";
@@ -160,8 +156,7 @@ static bool test_engine_avoids_stalemate(Board& b) {
     return true;
 }
 
-// Repetition should be detected
-static bool test_repetition(Board& b) {
+bool test_repetition(Board& b) {
     b.load_from_fen();
 
     // Play Nf3 Nf6 Ng1 Ng8 - back to start
@@ -184,8 +179,7 @@ static bool test_repetition(Board& b) {
     return true;
 }
 
-// 50-move rule draw detection
-static bool test_fifty_move_rule(Board& b) {
+bool test_fifty_move_rule(Board& b) {
     b.load_from_fen("4k3/8/8/8/8/8/8/4K2R w - - 99 50");
 
     // After a quiet move (Rh2), halfmoves should hit 100 and trigger draw
@@ -196,30 +190,12 @@ static bool test_fifty_move_rule(Board& b) {
     return true;
 }
 
-bool test_game_end(Board& b) {
-    if (!test_no_legal_moves(b)) return false;
-    if (!test_mate_in_1(b)) return false;
-    if (!test_mate_in_2(b)) return false;
-    if (!test_engine_finds_stalemate(b)) return false;
-    if (!test_engine_avoids_stalemate(b)) return false;
-    if (!test_repetition(b)) return false;
-    if (!test_fifty_move_rule(b)) return false;
-    return true;
-}
-#include <iostream>
-#include <set>
+// --- Opening book tests ---
 
-#include "core/types.hpp"
-#include "board/board.hpp"
-#include "search/opening_book.hpp"
-#include "utils/notation.hpp"
-#include "tests/helpers.hpp"
-
-// Known opening positions should return a move
-static bool test_book_hits(Board& b, OpeningBook& book) {
+bool test_book_hits(Board& b, OpeningBook& book) {
     struct TestCase {
         std::string description;
-        std::vector<std::string> moves; // moves from startpos to reach position
+        std::vector<std::string> moves;
     };
 
     TestCase test_cases[] = {
@@ -244,8 +220,7 @@ static bool test_book_hits(Board& b, OpeningBook& book) {
     return true;
 }
 
-// Random middlegame position should not be in the book
-static bool test_book_miss(Board& b, OpeningBook& book) {
+bool test_book_miss(Board& b, OpeningBook& book) {
     b.load_from_fen("r1bq1rk1/pp3ppp/2n1pn2/2pp4/1bPP4/2NBPN2/PP3PPP/R1BQK2R w KQ - 4 7");
 
     Move book_move = book.pick_move(b);
@@ -254,9 +229,7 @@ static bool test_book_miss(Board& b, OpeningBook& book) {
     return true;
 }
 
-// Popular positions should yield multiple distinct moves across repeated picks
-static bool test_book_move_variety(Board& b, OpeningBook& book) {
-    // After 1.e4, black has many common responses (e5, c5, e6, c6, d5, etc.)
+bool test_book_move_variety(Board& b, OpeningBook& book) {
     b.load_from_fen();
     b.make_move(encode_move_from_uci(b, "e2e4"));
 
@@ -270,6 +243,19 @@ static bool test_book_move_variety(Board& b, OpeningBook& book) {
 
     ASSERT(seen_moves.size() >= 2, "book_move_variety", "Expected at least 2 distinct moves after 1.e4, got " << seen_moves.size());
 
+    return true;
+}
+
+} // namespace
+
+bool test_game_end(Board& b) {
+    if (!test_no_legal_moves(b)) return false;
+    if (!test_mate_in_1(b)) return false;
+    if (!test_mate_in_2(b)) return false;
+    if (!test_engine_finds_stalemate(b)) return false;
+    if (!test_engine_avoids_stalemate(b)) return false;
+    if (!test_repetition(b)) return false;
+    if (!test_fifty_move_rule(b)) return false;
     return true;
 }
 

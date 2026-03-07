@@ -20,6 +20,8 @@
 #include "utils/notation.hpp"
 #include "eval/pawn_table.hpp"
 
+namespace {
+
 // --- Time Management ---
 
 struct SearchTime {
@@ -43,7 +45,7 @@ inline SearchTime calc_time_limit(Board& b, int remaining, int increment, int mo
     return {soft_limit, hard_limit};
 }
 
-// --- Helpers ---
+// functions
 
 // Stops the search and joins the thread to prevent any dangling threads/race conditions
 inline void clean_up_thread() {
@@ -72,63 +74,8 @@ inline void cmd_uci() {
     print("uciok");
 }
 
-inline void cmd_setoption(const std::string& cmd) {
-    std::istringstream iss(cmd);
-    std::string token, name, value;
-
-    // Parse: setoption name <name> value <value>
-    iss >> token; // "setoption"
-    iss >> token; // "name"
-    iss >> name;
-    iss >> token; // "value"
-    iss >> value;
-
-    if (name == "OwnBook") {
-        g_use_own_book = (value == "true");
-    } else if (name == "Ponder") {
-        g_enable_ponder = (value == "true");
-    }
-}
-
 inline void cmd_isready() {
     print("readyok");
-}
-
-inline void cmd_ucinewgame(Board& b) {
-    clean_up_thread();
-    b.reset();
-    g_transposition_table.clear();
-    g_pawn_table.clear();
-}
-
-inline void cmd_position(const std::string& cmd, Board& b) {
-    clean_up_thread();
-
-    std::istringstream iss(cmd);
-    std::string token;
-    iss >> token >> token; // Discard "position" token and read next
-
-    // Load from standard start position
-    if (token == "startpos") {
-        b.load_from_fen();
-        iss >> token;
-    } else if (token == "fen") {
-        // Load from provided FEN
-        // Read FEN until the token is "moves" or we reach the end of the command
-        std::string fen;
-        while (iss >> token && token != "moves") {
-            fen += token + " ";
-        }
-        b.load_from_fen(fen);
-    }
-
-    // Make moves on the board if they are provided
-    if (token == "moves") {
-        while (iss >> token) {
-            Move move = encode_move_from_uci(b, token);
-            b.make_move(move);
-        }
-    }
 }
 
 inline void cmd_go(std::string& cmd, Board& b) {
@@ -258,6 +205,63 @@ inline void cmd_stop() {
 inline void cmd_quit() {
     clean_up_thread();
 }
+
+inline void cmd_setoption(const std::string& cmd) {
+    std::istringstream iss(cmd);
+    std::string token, name, value;
+
+    // Parse: setoption name <name> value <value>
+    iss >> token; // "setoption"
+    iss >> token; // "name"
+    iss >> name;
+    iss >> token; // "value"
+    iss >> value;
+
+    if (name == "OwnBook") {
+        g_use_own_book = (value == "true");
+    } else if (name == "Ponder") {
+        g_enable_ponder = (value == "true");
+    }
+}
+
+inline void cmd_ucinewgame(Board& b) {
+    clean_up_thread();
+    b.reset();
+    g_transposition_table.clear();
+    g_pawn_table.clear();
+}
+
+inline void cmd_position(const std::string& cmd, Board& b) {
+    clean_up_thread();
+
+    std::istringstream iss(cmd);
+    std::string token;
+    iss >> token >> token; // Discard "position" token and read next
+
+    // Load from standard start position
+    if (token == "startpos") {
+        b.load_from_fen();
+        iss >> token;
+    } else if (token == "fen") {
+        // Load from provided FEN
+        // Read FEN until the token is "moves" or we reach the end of the command
+        std::string fen;
+        while (iss >> token && token != "moves") {
+            fen += token + " ";
+        }
+        b.load_from_fen(fen);
+    }
+
+    // Make moves on the board if they are provided
+    if (token == "moves") {
+        while (iss >> token) {
+            Move move = encode_move_from_uci(b, token);
+            b.make_move(move);
+        }
+    }
+}
+
+} // namespace
 
 inline void uci_loop() {
     // Remove sync with stdio to improve performance

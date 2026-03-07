@@ -8,10 +8,16 @@
 #include "core/bitboard.hpp"
 #include "move_generator/check_info.hpp"
 
+namespace {
+
+// constants
 constexpr Bitboard WHITE_LONG_CASTLE_PATH   = 0x000000000000000EULL;
 constexpr Bitboard WHITE_SHORT_CASTLE_PATH  = 0x0000000000000060ULL;
 constexpr Bitboard BLACK_LONG_CASTLE_PATH   = 0x0E00000000000000ULL;
 constexpr Bitboard BLACK_SHORT_CASTLE_PATH  = 0x6000000000000000ULL;
+
+} // namespace
+
 
 template <Side S>
 inline void generate_castling_moves(Board& b, MoveList& moves, CheckInfo& check_info) {
