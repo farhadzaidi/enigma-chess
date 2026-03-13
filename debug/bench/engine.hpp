@@ -6,15 +6,16 @@
 #include <vector>
 #include <iostream>
 
-#include "core/types.hpp"
+#include "types.hpp"
 #include "board/board.hpp"
 #include "parse.hpp"
-#include "utils/notation.hpp"
 #include "search/search.hpp"
+#include "utils/notation.hpp"
 
 struct EngineBenchFlags {
     bool verbose;
     bool fast;
+    int threads;
 };
 
 struct EngineFailure {
@@ -65,7 +66,9 @@ inline EngineBenchResult run_engine_bench(const EngineBenchFlags& flags) {
             continue;
         }
 
-        Move best_move = search_time(b, -1, ENGINE_SEARCH_TIME_MS);
+        SearchLimits limits;
+        limits.hard_time = ENGINE_SEARCH_TIME_MS;
+        Move best_move = search(b, limits, flags.threads);
         positions_tested++;
 
         if (best_move != expected_move) {

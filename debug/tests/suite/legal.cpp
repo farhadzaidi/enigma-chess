@@ -3,8 +3,8 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "core/types.hpp"
-#include "core/move.hpp"
+#include "types.hpp"
+#include "move.hpp"
 #include "board/board.hpp"
 #include "move_generator/move_generator.hpp"
 #include "utils/notation.hpp"

@@ -6,9 +6,9 @@
 #include <cstdint>
 #include <iostream>
 
-#include "core/types.hpp"
-#include "core/constants.hpp"
-#include "core/random.hpp"
+#include "types.hpp"
+#include "constants.hpp"
+#include "random.hpp"
 
 // These are magic numbers which are useful for looking up attack masks for sliding pieces.
 

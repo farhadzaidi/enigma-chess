@@ -3,9 +3,9 @@
 #include <cstdint>
 #include <iostream>
 
-#include "core/types.hpp"
+#include "types.hpp"
 #include "board/board.hpp"
-#include "core/move.hpp"
+#include "move.hpp"
 #include "move_generator/move_generator.hpp"
 #include "move_generator/check_info.hpp"
 #include "utils/notation.hpp"

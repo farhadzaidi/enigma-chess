@@ -3,10 +3,10 @@
 #include <array>
 #include <bit>
 
-#include "core/types.hpp"
+#include "types.hpp"
 #include "board/board.hpp"
 #include "move_generator/attacks.hpp"
-#include "core/bitboard.hpp"
+#include "bitboard.hpp"
 
 struct MobilityScore {
     PositionScore early = 0;

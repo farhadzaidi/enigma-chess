@@ -1,7 +1,7 @@
 #include <iostream>
 
-#include "core/types.hpp"
-#include "core/constants.hpp"
+#include "types.hpp"
+#include "constants.hpp"
 #include "board/board.hpp"
 #include "utils/notation.hpp"
 #include "tests/helpers.hpp"

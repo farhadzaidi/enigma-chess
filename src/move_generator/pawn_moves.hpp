@@ -1,10 +1,10 @@
 #pragma once
 
-#include "core/types.hpp"
-#include "core/constants.hpp"
-#include "core/move.hpp"
+#include "types.hpp"
+#include "constants.hpp"
+#include "move.hpp"
 #include "board/board.hpp"
-#include "core/bitboard.hpp"
+#include "bitboard.hpp"
 #include "move_generator/check_info.hpp"
 #include "move_generator/piece_moves.hpp"
 

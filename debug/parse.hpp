@@ -9,7 +9,7 @@
 #include <sstream>
 #include <unordered_map>
 
-#include "core/types.hpp"
+#include "types.hpp"
 
 #ifndef PROJECT_ROOT
 #define PROJECT_ROOT "./"

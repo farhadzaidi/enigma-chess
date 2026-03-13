@@ -2,7 +2,7 @@
 
 #include <array>
 
-#include "core/types.hpp"
+#include "types.hpp"
 
 namespace {
 

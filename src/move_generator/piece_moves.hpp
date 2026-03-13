@@ -1,11 +1,11 @@
 #pragma once
 
-#include "core/types.hpp"
-#include "core/move.hpp"
+#include "types.hpp"
+#include "move.hpp"
 #include "board/board.hpp"
 #include "precompute/rays.hpp"
 #include "move_generator/attacks.hpp"
-#include "core/bitboard.hpp"
+#include "bitboard.hpp"
 #include "move_generator/check_info.hpp"
 
 template <Side S, Direction D>

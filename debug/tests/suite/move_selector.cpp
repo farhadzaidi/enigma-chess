@@ -3,12 +3,11 @@
 #include <unordered_set>
 #include <vector>
 
-#include "core/types.hpp"
+#include "types.hpp"
 #include "board/board.hpp"
-#include "core/move.hpp"
+#include "move.hpp"
 #include "move_generator/move_generator.hpp"
 #include "search/move_selector.hpp"
-#include "search/search_state.hpp"
 #include "search/see.hpp"
 #include "utils/notation.hpp"
 #include "tests/helpers.hpp"
@@ -17,19 +16,9 @@ namespace {
 
 // --- Move selector helpers ---
 
-SearchState make_search_state(const Board& b) {
-    SearchState ss{};
-    ss.ply_offset = b.ply;
-    ss.killer_1.fill(NULL_MOVE);
-    ss.killer_2.fill(NULL_MOVE);
-    ss.side_piece_to_history = {};
-    ss.from_to_history = {};
-    return ss;
-}
-
 bool collect_selector_moves(
     Board& b,
-    SearchState& ss,
+    ThreadContext& ctx,
     MoveList& out,
     const std::string& test_name,
     const std::string& context,
@@ -41,7 +30,7 @@ bool collect_selector_moves(
 
     int guard = 0;
     while (true) {
-        Move move = selector.next_move(b, ss);
+        Move move = selector.next_move(b, ctx);
         if (move == NULL_MOVE) break;
 
         if (out.size >= MAX_MOVES) {
@@ -190,13 +179,13 @@ bool test_move_selector_completeness_and_uniqueness(Board& b) {
     for (const std::string_view& fen : positions) {
         b.reset();
         b.load_from_fen(fen);
-        SearchState ss = make_search_state(b);
+        ThreadContext ctx = make_thread_context_for_test(b);
 
         MoveList expected = generate_moves<MoveGenMode::All>(b);
         MoveList selected;
         std::string context = std::string{"set-equivalence on FEN: "} += fen;
 
-        if (!collect_selector_moves(b, ss, selected, "move_selector_completeness", context)) return false;
+        if (!collect_selector_moves(b, ctx, selected, "move_selector_completeness", context)) return false;
         if (!assert_no_duplicates(selected, "move_selector_completeness", context)) return false;
         if (!assert_same_move_set(expected, selected, "move_selector_completeness", context)) return false;
         if (!assert_all_moves_legal(b, selected, "move_selector_completeness", context)) return false;
@@ -208,8 +197,8 @@ bool test_move_selector_completeness_and_uniqueness(Board& b) {
 bool test_move_selector_ordering_priority(Board& b) {
     b.reset();
     b.load_from_fen("4k3/8/8/3p4/4P3/8/8/4K3 b - - 0 1");
-    SearchState ss = make_search_state(b);
-    int ply = ss.search_ply(b.ply);
+    ThreadContext ctx = make_thread_context_for_test(b);
+    int ply = ctx.search_ply(b.ply);
 
     Move prev_best = encode_move_from_uci(b, "d5d4");
     Move tt_move = encode_move_from_uci(b, "d5e4");
@@ -218,12 +207,12 @@ bool test_move_selector_ordering_priority(Board& b) {
     ASSERT(b.is_legal_move(prev_best) && b.is_legal_move(tt_move) && b.is_legal_move(killer),
            "move_selector_ordering", "Setup moves must be legal");
 
-    ss.killer_1[ply] = killer;
+    ctx.killer_1[ply] = killer;
 
     MoveList selected;
     if (!collect_selector_moves(
         b,
-        ss,
+        ctx,
         selected,
         "move_selector_ordering",
         "previous best -> tt -> tactical -> killer -> quiet",
@@ -276,20 +265,20 @@ bool test_move_selector_ordering_priority(Board& b) {
 bool test_move_selector_hint_deduplication(Board& b) {
     b.reset();
     b.load_from_fen(START_POS_FEN);
-    SearchState ss = make_search_state(b);
-    int ply = ss.search_ply(b.ply);
+    ThreadContext ctx = make_thread_context_for_test(b);
+    int ply = ctx.search_ply(b.ply);
 
     Move repeated_hint = encode_move_from_uci(b, "e2e4");
     ASSERT(b.is_legal_move(repeated_hint),
            "move_selector_hint_dedup", "Setup move e2e4 should be legal");
 
-    ss.killer_1[ply] = repeated_hint;
-    ss.killer_2[ply] = repeated_hint;
+    ctx.killer_1[ply] = repeated_hint;
+    ctx.killer_2[ply] = repeated_hint;
 
     MoveList selected;
     if (!collect_selector_moves(
         b,
-        ss,
+        ctx,
         selected,
         "move_selector_hint_dedup",
         "same move used as prev/tt/killer",
@@ -315,20 +304,20 @@ bool test_move_selector_hint_deduplication(Board& b) {
 bool test_move_selector_stale_hint_rejection(Board& b) {
     b.reset();
     b.load_from_fen("4k3/8/8/3p4/4P3/8/8/4K3 b - - 0 1");
-    SearchState ss = make_search_state(b);
-    int ply = ss.search_ply(b.ply);
+    ThreadContext ctx = make_thread_context_for_test(b);
+    int ply = ctx.search_ply(b.ply);
 
     Move stale_tt(E2, E4, MT_QUIET, MF_NORMAL);
     Move stale_killer_1(A1, A8, MT_QUIET, MF_NORMAL);
     Move stale_killer_2(H2, H4, MT_QUIET, MF_NORMAL);
 
-    ss.killer_1[ply] = stale_killer_1;
-    ss.killer_2[ply] = stale_killer_2;
+    ctx.killer_1[ply] = stale_killer_1;
+    ctx.killer_2[ply] = stale_killer_2;
 
     MoveList selected;
     if (!collect_selector_moves(
         b,
-        ss,
+        ctx,
         selected,
         "move_selector_stale_hint",
         "illegal tt/killer hints should be ignored",
@@ -352,7 +341,7 @@ bool test_move_selector_stale_hint_rejection(Board& b) {
 bool test_move_selector_quiet_history_order(Board& b) {
     b.reset();
     b.load_from_fen(START_POS_FEN);
-    SearchState ss = make_search_state(b);
+    ThreadContext ctx = make_thread_context_for_test(b);
 
     Move higher = encode_move_from_uci(b, "e2e4");
     Move lower = encode_move_from_uci(b, "d2d4");
@@ -362,15 +351,15 @@ bool test_move_selector_quiet_history_order(Board& b) {
 
     Piece higher_piece = b.piece_map[higher.from()];
     Piece lower_piece = b.piece_map[lower.from()];
-    ss.side_piece_to_history[b.to_move][higher_piece][higher.to()] = 8000;
-    ss.from_to_history[higher.from()][higher.to()] = 8000;
-    ss.side_piece_to_history[b.to_move][lower_piece][lower.to()] = 1000;
-    ss.from_to_history[lower.from()][lower.to()] = 1000;
+    ctx.side_piece_to_history[b.to_move][higher_piece][higher.to()] = 8000;
+    ctx.from_to_history[higher.from()][higher.to()] = 8000;
+    ctx.side_piece_to_history[b.to_move][lower_piece][lower.to()] = 1000;
+    ctx.from_to_history[lower.from()][lower.to()] = 1000;
 
     MoveList selected;
     if (!collect_selector_moves(
         b,
-        ss,
+        ctx,
         selected,
         "move_selector_quiet_history",
         "higher history quiet should be returned before lower history quiet"
@@ -396,7 +385,7 @@ bool test_move_selector_quiet_history_order(Board& b) {
 bool test_move_selector_see_phase_split(Board& b) {
     b.reset();
     b.load_from_fen("4k3/8/2p5/3p4/4P3/8/8/3QK3 w - - 0 1");
-    SearchState ss = make_search_state(b);
+    ThreadContext ctx = make_thread_context_for_test(b);
 
     Move good_capture = encode_move_from_uci(b, "e4d5");
     Move bad_capture = encode_move_from_uci(b, "d1d5");
@@ -414,7 +403,7 @@ bool test_move_selector_see_phase_split(Board& b) {
     MoveList selected;
     if (!collect_selector_moves(
         b,
-        ss,
+        ctx,
         selected,
         "move_selector_see_phase_split",
         "good captures should come before quiets, bad captures after quiets"
@@ -467,7 +456,7 @@ bool test_move_selector_see_phase_split(Board& b) {
 bool test_move_selector_bad_capture_ordering(Board& b) {
     b.reset();
     b.load_from_fen("4k3/8/1pp5/p2p4/8/8/8/R2QK3 w - - 0 1");
-    SearchState ss = make_search_state(b);
+    ThreadContext ctx = make_thread_context_for_test(b);
 
     Move rook_bad = encode_move_from_uci(b, "a1a5");
     Move queen_bad = encode_move_from_uci(b, "d1d5");
@@ -485,7 +474,7 @@ bool test_move_selector_bad_capture_ordering(Board& b) {
     MoveList selected;
     if (!collect_selector_moves(
         b,
-        ss,
+        ctx,
         selected,
         "move_selector_bad_capture_ordering",
         "bad captures should still be tactical-score ordered in BAD_CAPTURE phase"
@@ -511,8 +500,8 @@ bool test_move_selector_bad_capture_ordering(Board& b) {
 bool test_move_selector_in_check(Board& b) {
     b.reset();
     b.load_from_fen("4k3/8/8/4Q3/8/8/8/4K3 b - - 0 1");
-    SearchState ss = make_search_state(b);
-    int ply = ss.search_ply(b.ply);
+    ThreadContext ctx = make_thread_context_for_test(b);
+    int ply = ctx.search_ply(b.ply);
 
     MoveList expected = generate_moves<MoveGenMode::All>(b);
     Move stale_tt(E2, E4, MT_QUIET, MF_NORMAL);
@@ -526,13 +515,13 @@ bool test_move_selector_in_check(Board& b) {
     }
 
     if (legal_killer != NULL_MOVE) {
-        ss.killer_1[ply] = legal_killer;
+        ctx.killer_1[ply] = legal_killer;
     }
 
     MoveList selected;
     if (!collect_selector_moves(
         b,
-        ss,
+        ctx,
         selected,
         "move_selector_in_check",
         "in-check evasions with stale tt hint and optional killer",

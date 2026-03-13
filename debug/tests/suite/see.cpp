@@ -1,8 +1,8 @@
 #include <iostream>
 
-#include "core/types.hpp"
+#include "types.hpp"
 #include "board/board.hpp"
-#include "core/move.hpp"
+#include "move.hpp"
 #include "search/see.hpp"
 #include "utils/notation.hpp"
 #include "tests/helpers.hpp"

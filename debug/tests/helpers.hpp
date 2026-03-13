@@ -1,10 +1,9 @@
 #pragma once
 
-#include "core/types.hpp"
-#include "core/move.hpp"
-#include "core/globals.hpp"
+#include "types.hpp"
+#include "move.hpp"
 #include "board/board.hpp"
-#include "search/search_state.hpp"
+#include "search/context.hpp"
 
 // Test assertion macros.
 // msg is streamed, so it can contain << operators: ASSERT(x, "test", "got " << x)
@@ -62,17 +61,15 @@ inline bool move_list_contains(const MoveList& moves, Move target) {
     return false;
 }
 
-inline void reset_search_state_for_test(const Board& b, bool clear_stop_requested = true) {
-    g_search_state = {};
-    g_search_state.ply_offset = b.ply;
-    g_search_state.killer_1.fill(NULL_MOVE);
-    g_search_state.killer_2.fill(NULL_MOVE);
-    g_search_state.side_piece_to_history = {};
-    g_search_state.from_to_history = {};
-    g_search_state.search_interrupted = false;
-    g_search_state.nodes = 0;
-
-    if (clear_stop_requested) {
-        g_stop_requested = false;
-    }
+inline ThreadContext make_thread_context_for_test(const Board& b) {
+    ThreadContext ctx;
+    ctx.is_main_thread = true;
+    ctx.ply_offset = b.ply;
+    ctx.killer_1.fill(NULL_MOVE);
+    ctx.killer_2.fill(NULL_MOVE);
+    ctx.side_piece_to_history = {};
+    ctx.from_to_history = {};
+    ctx.search_interrupted = false;
+    ctx.nodes = 0;
+    return ctx;
 }

@@ -2,13 +2,12 @@
 
 #include <array>
 
-#include "core/types.hpp"
-#include "core/constants.hpp"
+#include "types.hpp"
+#include "constants.hpp"
 #include "board/board.hpp"
-#include "core/bitboard.hpp"
+#include "bitboard.hpp"
 #include "precompute/eval.hpp"
 #include "eval/pawn_table.hpp"
-#include "core/globals.hpp"
 
 namespace {
 
@@ -45,10 +44,10 @@ constexpr PositionScore LATE_STACKED_PAWN_PENALTY   = -10;
 } // namespace
 
 
-inline PawnTableEntry get_pawn_score(const Board& b) {
+inline PawnTableEntry get_pawn_score(const Board& b, PawnTable& pawn_table) {
     // Check pawn table before computing
-    PawnTableEntry pt_entry = g_pawn_table.get_entry(b.pawn_hash);
-    if (g_pawn_table.is_valid_entry(b.pawn_hash, pt_entry)) {
+    PawnTableEntry pt_entry = pawn_table.get_entry(b.pawn_hash);
+    if (pawn_table.is_valid_entry(b.pawn_hash, pt_entry)) {
         return pt_entry;
     }
 
@@ -101,6 +100,6 @@ inline PawnTableEntry get_pawn_score(const Board& b) {
     }
 
     // Store results in pawn table and return
-    g_pawn_table.add_entry(new_pt_entry);
+    pawn_table.add_entry(new_pt_entry);
     return new_pt_entry;
 }

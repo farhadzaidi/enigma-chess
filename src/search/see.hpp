@@ -3,7 +3,7 @@
 #include <array>
 #include <algorithm>
 
-#include "core/types.hpp"
+#include "types.hpp"
 #include "board/board.hpp"
 
 namespace {

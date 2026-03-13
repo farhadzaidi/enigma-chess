@@ -3,8 +3,8 @@
 #include <array>
 #include <bit>
 
-#include "core/types.hpp"
-#include "core/bitboard.hpp"
+#include "types.hpp"
+#include "bitboard.hpp"
 #include "board/board.hpp"
 #include "precompute/rays.hpp"
 #include "move_generator/attacks.hpp"

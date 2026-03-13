@@ -7,7 +7,7 @@
 #include <chrono>
 #include <iomanip>
 
-#include "core/types.hpp"
+#include "types.hpp"
 #include "board/board.hpp"
 #include "move_generator/perft.hpp"
 #include "parse.hpp"

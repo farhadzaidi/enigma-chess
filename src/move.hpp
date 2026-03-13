@@ -2,8 +2,8 @@
 
 #include <array>
 
-#include "core/types.hpp"
-#include "core/constants.hpp"
+#include "types.hpp"
+#include "constants.hpp"
 
 // Each move is represented by a 16 bit unsigned integer
 // Bits 1-6 indicate the origin square (0-63)

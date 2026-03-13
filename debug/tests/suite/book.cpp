@@ -1,7 +1,7 @@
 #include <iostream>
 #include <set>
 
-#include "core/types.hpp"
+#include "types.hpp"
 #include "board/board.hpp"
 #include "search/opening_book.hpp"
 #include "utils/notation.hpp"

@@ -2,9 +2,9 @@
 
 #include <array>
 
-#include "core/types.hpp"
-#include "core/constants.hpp"
-#include "core/random.hpp"
+#include "types.hpp"
+#include "constants.hpp"
+#include "random.hpp"
 
 namespace {
 

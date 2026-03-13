@@ -25,13 +25,6 @@ enum class MoveGenMode : uint8_t {
     TacticalOnly
 };
 
-enum class SearchMode : uint8_t {
-    Time,
-    Nodes,
-    Depth,
-    Infinite
-};
-
 enum class TTNode : uint8_t {
     Exact,
     FailHigh,
@@ -138,4 +131,3 @@ enum CastlingRightsEnum : CastlingRights {
     BLACK_SHORT        = 0b100,
     BLACK_LONG         = 0b1000
 };
-

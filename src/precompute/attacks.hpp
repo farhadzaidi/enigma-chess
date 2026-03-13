@@ -2,7 +2,7 @@
 
 #include <span>
 
-#include "core/bitboard.hpp"
+#include "bitboard.hpp"
 #include "precompute/magics.hpp"
 
 

@@ -1,7 +1,7 @@
 #include <iostream>
 
-#include "core/types.hpp"
-#include "core/constants.hpp"
+#include "types.hpp"
+#include "constants.hpp"
 #include "board/board.hpp"
 #include "eval/eval.hpp"
 #include "eval/pawn_eval.hpp"
@@ -28,7 +28,7 @@ const std::string BARE_KINGS_BLACK_TO_MOVE =
     "4k3/8/8/8/8/8/8/4K3 b - - 0 1";
 
 bool test_evaluate_side_to_move_negation(Board& b) {
-    g_pawn_table.clear();
+    g_shared.pawn_table.clear();
 
     b.load_from_fen(MIDGAME_WHITE_TO_MOVE);
     PositionScore white_score = evaluate(b);
@@ -46,7 +46,7 @@ bool test_evaluate_side_to_move_negation(Board& b) {
 }
 
 bool test_evaluate_bare_kings_drawish(Board& b) {
-    g_pawn_table.clear();
+    g_shared.pawn_table.clear();
 
     b.load_from_fen(BARE_KINGS_WHITE_TO_MOVE);
     PositionScore white_score = evaluate(b);
@@ -64,7 +64,7 @@ bool test_evaluate_bare_kings_drawish(Board& b) {
 }
 
 bool test_pawn_eval_passed_vs_blocked(Board& b) {
-    g_pawn_table.clear();
+    g_shared.pawn_table.clear();
 
     b.load_from_fen(PASSED_WHITE_PAWN_FEN);
     PawnTableEntry passed = get_pawn_score(b);
@@ -95,6 +95,6 @@ bool test_eval(Board& b) {
     if (!test_evaluate_side_to_move_negation(b)) return false;
     if (!test_evaluate_bare_kings_drawish(b)) return false;
     if (!test_pawn_eval_passed_vs_blocked(b)) return false;
-    g_pawn_table.clear();
+    g_shared.pawn_table.clear();
     return true;
 }

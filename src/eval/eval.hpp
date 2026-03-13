@@ -7,6 +7,15 @@
 #include "eval/pawn_eval.hpp"
 #include "eval/mobility.hpp"
 #include "precompute/eval.hpp"
+#include "search/context.hpp"
+
+inline void clear_eval_cache() {
+    g_shared.pawn_table.clear();
+}
+
+inline PawnTableEntry get_pawn_score(const Board& b) {
+    return get_pawn_score(b, g_shared.pawn_table);
+}
 
 inline PositionScore evaluate(const Board& b) {
     Side friendly_side = b.to_move;

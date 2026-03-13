@@ -5,9 +5,9 @@
 #include <sstream>
 #include <cmath>
 
-#include "core/move.hpp"
+#include "move.hpp"
 #include "board/board.hpp"
-#include "core/random.hpp"
+#include "random.hpp"
 #include "utils/notation.hpp"
 #include "data/book.hpp"
 

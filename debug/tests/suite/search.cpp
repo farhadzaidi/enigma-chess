@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "core/types.hpp"
+#include "types.hpp"
 #include "board/board.hpp"
 #include "search/search.hpp"
 #include "utils/notation.hpp"

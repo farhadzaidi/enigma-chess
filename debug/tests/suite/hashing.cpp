@@ -2,7 +2,7 @@
 #include <set>
 #include <string_view>
 
-#include "core/types.hpp"
+#include "types.hpp"
 #include "board/board.hpp"
 #include "utils/notation.hpp"
 #include "move_generator/move_generator.hpp"

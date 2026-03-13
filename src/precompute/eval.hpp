@@ -2,9 +2,9 @@
 
 #include <array>
 
-#include "core/types.hpp"
-#include "core/constants.hpp"
-#include "core/bitboard.hpp"
+#include "types.hpp"
+#include "constants.hpp"
+#include "bitboard.hpp"
 
 constexpr auto ADJACENT_FILE_MASKS = []() {
     std::array<Bitboard, NUM_SQUARES> adjacent_file_masks = {};

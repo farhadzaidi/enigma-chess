@@ -2,8 +2,8 @@
 
 #include <algorithm>
 
-#include "core/types.hpp"
-#include "core/constants.hpp"
+#include "types.hpp"
+#include "constants.hpp"
 #include "board/board.hpp"
 #include "search/helpers.hpp"
 #include "move_generator/move_generator.hpp"
@@ -18,12 +18,11 @@ constexpr int SEE_CUTOFF = -200;
 } // namespace
 
 
-template <SearchMode SM>
-inline PositionScore quiescence_search(Board& b, PositionScore alpha, PositionScore beta) {
-    g_search_state.nodes++;
+inline PositionScore quiescence_search(Board& b, ThreadContext& ctx, PositionScore alpha, PositionScore beta) {
+    ctx.nodes++;
 
-    if (should_stop_search<SM>()) {
-        g_search_state.search_interrupted = true;
+    if (should_stop_search(ctx)) {
+        ctx.search_interrupted = true;
         return SEARCH_INTERRUPTED;
     }
 
@@ -52,7 +51,7 @@ inline PositionScore quiescence_search(Board& b, PositionScore alpha, PositionSc
     if (moves.is_empty()) {
         if (in_check) {
             // In check + no legal moves = checkmate
-            return -CHECKMATE_SCORE + g_search_state.search_ply(b.ply);
+            return -CHECKMATE_SCORE + ctx.search_ply(b.ply);
         }
 
         // No captures or promotions available, return early
@@ -65,10 +64,10 @@ inline PositionScore quiescence_search(Board& b, PositionScore alpha, PositionSc
         if (!in_check && move.type() == MT_CAPTURE && see(b, move) < SEE_CUTOFF) continue;
 
         b.make_move(move);
-        PositionScore score = -quiescence_search<SM>(b, -beta, -alpha);
+        PositionScore score = -quiescence_search(b, ctx, -beta, -alpha);
         b.unmake_move(move);
 
-        if (g_search_state.search_interrupted) {
+        if (should_stop_search(ctx)) {
             return SEARCH_INTERRUPTED;
         }
 

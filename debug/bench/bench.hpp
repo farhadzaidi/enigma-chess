@@ -9,7 +9,8 @@ inline void run_bench(
     const std::string& type = "",
     bool verbose = false,
     bool fast = false,
-    bool phased = false
+    bool phased = false,
+    int threads = 1
 ) {
     bool run_movegen = type.empty() || type == "movegen";
     bool run_engine = type.empty() || type == "engine";
@@ -19,6 +20,6 @@ inline void run_bench(
     }
     
     if (run_engine) {
-        run_engine_bench({verbose, fast});
+        run_engine_bench({verbose, fast, threads});
     }
 }

@@ -2,8 +2,8 @@
 
 #include <array>
 
-#include "core/types.hpp"
-#include "core/constants.hpp"
+#include "types.hpp"
+#include "constants.hpp"
 
 namespace {
 

@@ -3,12 +3,12 @@
 #include <algorithm>
 #include <array>
 
-#include "core/types.hpp"
-#include "core/constants.hpp"
-#include "core/move.hpp"
+#include "types.hpp"
+#include "constants.hpp"
+#include "move.hpp"
 #include "move_generator/check_info.hpp"
 #include "move_generator/move_generator.hpp"
-#include "search/search_state.hpp"
+#include "search/context.hpp"
 #include "search/see.hpp"
 
 namespace {
@@ -55,11 +55,7 @@ struct MoveSelector {
         else                    check_info.compute_check_info<BLACK>(b);
     }
 
-    inline bool in_tactical_phase() const {
-        return phase <= MoveSelPhase::Killer;
-    }
-
-    Move next_move(Board& b, SearchState& ss) {
+    Move next_move(Board& b, ThreadContext& ctx) {
         switch (phase) {
             case MoveSelPhase::PrevBest: {
                 if (prev_best_move != NULL_MOVE) {
@@ -98,9 +94,9 @@ struct MoveSelector {
                 [[fallthrough]];
             }
             case MoveSelPhase::Killer: {
-                int ply = ss.search_ply(b.ply);
-                Move killer_move_1 = ss.killer_1[ply];
-                Move killer_move_2 = ss.killer_2[ply];
+                int ply = ctx.search_ply(b.ply);
+                Move killer_move_1 = ctx.killer_1[ply];
+                Move killer_move_2 = ctx.killer_2[ply];
 
                 if (
                     killer_move_1 != NULL_MOVE &&
@@ -127,7 +123,7 @@ struct MoveSelector {
                 [[fallthrough]];
             }
             case MoveSelPhase::Quiet: {
-                if (!quiets_generated) generate_quiet_moves(b, ss);
+                if (!quiets_generated) generate_quiet_moves(b, ctx);
 
                 Move next_quiet = pop_next(quiet_moves);
                 if (next_quiet != NULL_MOVE) return next_quiet;
@@ -151,6 +147,10 @@ struct MoveSelector {
         }
     }
 
+    inline bool before_quiet_phase() const {
+        return phase <= MoveSelPhase::Killer;
+    }
+
 private:
 
     inline void generate_tactical_moves(Board& b) {
@@ -172,11 +172,11 @@ private:
         tacticals_generated = true;
     }
 
-    inline void generate_quiet_moves(Board& b, SearchState& ss) {
+    inline void generate_quiet_moves(Board& b, ThreadContext& ctx) {
         if (b.to_move == WHITE) generate_moves_impl<WHITE, MoveGenMode::QuietOnly>(b, quiet_moves, check_info);
         else                    generate_moves_impl<BLACK, MoveGenMode::QuietOnly>(b, quiet_moves, check_info);
 
-        sort_quiet_moves(b, ss);
+        sort_quiet_moves(b, ctx);
         quiets_generated = true;
     }
 
@@ -202,17 +202,17 @@ private:
         });
     }
 
-    inline void sort_quiet_moves(Board& b, SearchState& ss) {
-        std::sort(quiet_moves.begin(), quiet_moves.end(), [&b, &ss](Move m1, Move m2) {
+    inline void sort_quiet_moves(Board& b, ThreadContext& ctx) {
+        std::sort(quiet_moves.begin(), quiet_moves.end(), [&b, &ctx](Move m1, Move m2) {
             Square m1_from = m1.from();
             Square m1_to = m1.to();
             Piece m1_piece = b.piece_map[m1_from];
-            MoveScore m1_score = ss.side_piece_to_history[b.to_move][m1_piece][m1_to] + ss.from_to_history[m1_from][m1_to];
+            MoveScore m1_score = ctx.side_piece_to_history[b.to_move][m1_piece][m1_to] + ctx.from_to_history[m1_from][m1_to];
 
             Square m2_from = m2.from();
             Square m2_to = m2.to();
             Piece m2_piece = b.piece_map[m2_from];
-            MoveScore m2_score = ss.side_piece_to_history[b.to_move][m2_piece][m2_to] + ss.from_to_history[m2_from][m2_to];
+            MoveScore m2_score = ctx.side_piece_to_history[b.to_move][m2_piece][m2_to] + ctx.from_to_history[m2_from][m2_to];
 
             return m1_score < m2_score;
         });

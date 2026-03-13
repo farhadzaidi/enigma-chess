@@ -5,10 +5,10 @@
 #include <cctype>
 #include <cstdlib>
 
-#include "core/types.hpp"
-#include "core/move.hpp"
+#include "types.hpp"
+#include "move.hpp"
 #include "board/board.hpp"
-#include "core/bitboard.hpp"
+#include "bitboard.hpp"
 #include "move_generator/move_generator.hpp"
 
 // --- Parsing Helpers ---

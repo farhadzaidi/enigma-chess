@@ -8,7 +8,7 @@
 #include <iostream>
 #include <algorithm>
 
-#include "core/move.hpp"
+#include "move.hpp"
 #include "move_generator/attacks.hpp"
 #include "eval/constants.hpp"
 #include "precompute/tables.hpp"

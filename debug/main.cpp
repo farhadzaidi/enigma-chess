@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
     if (args.empty()) {
         std::clog << "Usage:\n";
         std::clog << "  enigma-debug test [name ...]\n";
-        std::clog << "  enigma-debug bench [movegen|engine] [--fast] [--verbose] [--phased]\n";
+        std::clog << "  enigma-debug bench [movegen|engine] [--fast] [--verbose] [--phased] [--threads <n>]\n";
         return EXIT_FAILURE;
     }
 
@@ -44,6 +44,7 @@ int main(int argc, char* argv[]) {
         bool verbose = false;
         bool fast = false;
         bool phased = false;
+        int threads = 1;
         size_t flags_start = 1;
 
         if (args.size() > 1 && args[1][0] != '-') {
@@ -64,6 +65,8 @@ int main(int argc, char* argv[]) {
                 fast = true;
             } else if (args[i] == "--phased") {
                 phased = true;
+            } else if (args[i] == "--threads" && i + 1 < args.size()) {
+                threads = std::stoi(args[++i]);
             } else {
                 std::clog << "Error: Unknown option '" << args[i] << "'\n";
                 return EXIT_FAILURE;
@@ -75,7 +78,7 @@ int main(int argc, char* argv[]) {
             return EXIT_FAILURE;
         }
 
-        run_bench(type, verbose, fast, phased);
+        run_bench(type, verbose, fast, phased, threads);
     }
 
     else {

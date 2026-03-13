@@ -1,7 +1,7 @@
 #include <iostream>
 #include <string_view>
 
-#include "core/types.hpp"
+#include "types.hpp"
 #include "board/board.hpp"
 #include "utils/notation.hpp"
 #include "tests/helpers.hpp"
