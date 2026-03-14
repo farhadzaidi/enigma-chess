@@ -4,7 +4,7 @@
 #include "types.hpp"
 #include "board.hpp"
 #include "opening_book.hpp"
-#include "utils/notation.hpp"
+#include "notation.hpp"
 #include "tests/helpers.hpp"
 
 namespace {

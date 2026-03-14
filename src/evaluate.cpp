@@ -315,7 +315,7 @@ PositionScore evaluate(const Board& b) {
     Side friendly_side = b.to_move();
     Side enemy_side = opposite_side(friendly_side);
 
-    // --- Pawn structure (cached in the pawn hash table) ---
+    // --- Pawn structure ---
     PawnTableEntry pt_entry = g_pawn_table.get_pawn_score(b);
     PositionScore early_pawn_score = pt_entry.early_pawn_score[friendly_side] - pt_entry.early_pawn_score[enemy_side];
     PositionScore late_pawn_score = pt_entry.late_pawn_score[friendly_side] - pt_entry.late_pawn_score[enemy_side];
@@ -342,7 +342,7 @@ PositionScore evaluate(const Board& b) {
     int enemy_shield = std::popcount(KING_SHIELD_MASKS[enemy_side][b.king_squares()[enemy_side]] & b.pieces()[enemy_side][PAWN]);
     PositionScore king_safety_score = KING_SHIELD_PENALTY[friendly_shield] - KING_SHIELD_PENALTY[enemy_shield];
 
-    // --- Aggregate early-game (middlegame) score ---
+    // --- Aggregate early-middle game score ---
     // Material + PSQT scores are incrementally updated in the Board.
     PositionScore net_early_score = (
         b.early_scores()[friendly_side] - b.early_scores()[enemy_side] +
@@ -352,7 +352,7 @@ PositionScore evaluate(const Board& b) {
         mobility.early
     );
 
-    // --- Aggregate late-game (endgame) score ---
+    // --- Aggregate late-game score ---
     PositionScore net_late_score = (
         b.late_scores()[friendly_side] - b.late_scores()[enemy_side] +
         late_pawn_score +

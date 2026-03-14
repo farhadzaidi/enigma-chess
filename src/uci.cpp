@@ -8,11 +8,11 @@
 #include "board.hpp"
 #include "evaluate.hpp"
 #include "move.hpp"
-#include "utils/print.hpp"
+#include "print.hpp"
 #include "engine.hpp"
 #include "transposition_table.hpp"
 #include "types.hpp"
-#include "utils/notation.hpp"
+#include "notation.hpp"
 
 namespace {
 

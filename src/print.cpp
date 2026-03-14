@@ -1,4 +1,4 @@
-#include "utils/print.hpp"
+#include "print.hpp"
 
 #include <iostream>
 #include <syncstream>

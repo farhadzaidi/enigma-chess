@@ -54,7 +54,7 @@ Direction get_direction(Square a, Square b) {
 
     Direction vertical = a_rank != b_rank ? (a_rank < b_rank ? NORTH : SOUTH) : NO_DIRECTION;
     Direction horizontal = a_file != b_file ? (a_file < b_file ? EAST : WEST) : NO_DIRECTION;
-    return static_cast<Direction>(vertical + horizontal);
+    return vertical + horizontal;
 }
 
 const RayMap NORTH_RAY_MAP = build_rays<NORTH>();

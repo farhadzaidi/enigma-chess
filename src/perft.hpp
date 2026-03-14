@@ -7,16 +7,10 @@
 #include "board.hpp"
 #include "move.hpp"
 #include "move_generator.hpp"
-#include "utils/notation.hpp"
+#include "notation.hpp"
 
 /** Phased perft: count leaf nodes using separate quiet/tactical generation */
-inline uint64_t perft_phased(Board& b, SearchDepth depth);
-
-namespace {
-
-/** Side-templated implementation of phased perft */
-template <Side S>
-inline uint64_t _perft_phased(Board& b, SearchDepth depth) {
+inline uint64_t perft_phased(Board& b, SearchDepth depth) {
     uint64_t nodes = 0;
 
     MoveGenerator move_generator(b);
@@ -42,10 +36,7 @@ inline uint64_t _perft_phased(Board& b, SearchDepth depth) {
     return nodes;
 }
 
-} // namespace
-
-
-/** Standard perft node counter; when Root is true, prints per-move breakdowns */
+/** Standard perft node counter; prints per-move breakdowns from the root node */
 template<bool Root>
 inline uint64_t perft(Board& b, SearchDepth depth) {
     uint64_t nodes = 0;
@@ -75,11 +66,4 @@ inline uint64_t perft(Board& b, SearchDepth depth) {
     }
 
     return total_nodes;
-}
-
-/** Dispatch phased perft to the correct side-templated implementation */
-inline uint64_t perft_phased(Board& b, SearchDepth depth) {
-    return b.to_move() == WHITE
-        ? _perft_phased<WHITE>(b, depth)
-        : _perft_phased<BLACK>(b, depth);
 }

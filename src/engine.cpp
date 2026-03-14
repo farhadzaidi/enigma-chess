@@ -11,8 +11,8 @@
 #include "evaluate.hpp"
 #include "pawn_table.hpp"
 #include "move_generator.hpp"
-#include "utils/print.hpp"
-#include "utils/notation.hpp"
+#include "print.hpp"
+#include "notation.hpp"
 
 namespace {
 

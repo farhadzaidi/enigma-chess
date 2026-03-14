@@ -5,7 +5,7 @@
 #include <sstream>
 
 #include "data/book.hpp"
-#include "utils/notation.hpp"
+#include "notation.hpp"
 
 namespace {
 

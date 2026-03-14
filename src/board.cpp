@@ -8,7 +8,7 @@
 #include "bitboard.hpp"
 #include "evaluate.hpp"
 #include "move_generator.hpp"
-#include "utils/notation.hpp"
+#include "notation.hpp"
 #include "zobrist.hpp"
 
 namespace {

@@ -4,7 +4,7 @@
 #include "evaluate.hpp"
 #include "pawn_table.hpp"
 #include "types.hpp"
-#include "utils/notation.hpp"
+#include "notation.hpp"
 #include "tests/helpers.hpp"
 
 namespace {

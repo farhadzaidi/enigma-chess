@@ -3,7 +3,7 @@
 #include "types.hpp"
 #include "board.hpp"
 #include "engine.hpp"
-#include "utils/notation.hpp"
+#include "notation.hpp"
 #include "move_generator.hpp"
 #include "tests/helpers.hpp"
 

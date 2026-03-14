@@ -1,4 +1,4 @@
-#include "utils/notation.hpp"
+#include "notation.hpp"
 
 #include <cctype>
 #include <cstdlib>
@@ -163,7 +163,7 @@ std::string index_to_uci(Square square) {
 
 // --- UCI Move Conversion ---
 
-/** Build a Move from a UCI string, inferring castling/en-passant from board state */
+/** Build a Move from a UCI string; infer castling/en-passant from board state */
 Move encode_move_from_uci(const Board& b, std::string_view uci_move) {
     Square from = uci_to_index(uci_move.substr(0, 2));
     Square to = uci_to_index(uci_move.substr(2, 2));
@@ -213,7 +213,7 @@ std::string decode_move_to_uci(Move move) {
 
 // --- SAN Move Parsing ---
 
-/** Parse a SAN string into a Move by generating all legal moves and matching */
+/** Parse a SAN string into a Move using disambiguation against legal moves */
 Move parse_move_from_san(Board& b, std::string_view san) {
     std::string normalized = normalize_san(san);
     ParsedSan parsed = parse_san_components(normalized);

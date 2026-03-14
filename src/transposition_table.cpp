@@ -17,12 +17,12 @@ TTEntry::TTEntry(ZobristHash hash, Move best_move, SearchDepth depth, PositionSc
 
 Move TTEntry::move() const {
     Move best_move;
-    best_move.move = static_cast<uint16_t>(data_ & 0xFFFF);
+    best_move.move = data_ & 0xFFFF;
     return best_move;
 }
 
 SearchDepth TTEntry::depth() const {
-    return static_cast<SearchDepth>((data_ >> 16) & 0xFF);
+    return (data_ >> 16) & 0xFF;
 }
 
 PositionScore TTEntry::score() const {
@@ -34,7 +34,7 @@ TTNode TTEntry::node() const {
 }
 
 uint16_t TTEntry::age() const {
-    return static_cast<uint16_t>((data_ >> 48) & 0xFFFF);
+    return (data_ >> 48) & 0xFFFF;
 }
 
 ZobristHash TTEntry::hash() const {

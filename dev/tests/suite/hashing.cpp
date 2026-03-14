@@ -4,7 +4,7 @@
 
 #include "types.hpp"
 #include "board.hpp"
-#include "utils/notation.hpp"
+#include "notation.hpp"
 #include "move_generator.hpp"
 
 namespace {

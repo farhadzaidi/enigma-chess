@@ -10,7 +10,7 @@
 #include "board.hpp"
 #include "parse.hpp"
 #include "engine.hpp"
-#include "utils/notation.hpp"
+#include "notation.hpp"
 
 struct SearchBenchFlags {
     bool verbose;
