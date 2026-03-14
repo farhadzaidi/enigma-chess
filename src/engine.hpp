@@ -146,6 +146,8 @@ private:
     Move finish();
     /** Reset shared state for the next search. */
     void reset();
+    /** Return a legal root book move, or NULL_MOVE if the position is out of book. */
+    Move find_book_move(const Board& board);
 
     // --- Stop check ---
 

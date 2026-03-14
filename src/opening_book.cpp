@@ -22,22 +22,20 @@ std::mt19937_64& opening_book_rng() {
 OpeningBook::BookMove::BookMove(Move move, int frequency)
     : move(move), frequency(frequency) {}
 
-OpeningBook::OpeningBook() = default;
+OpeningBook::OpeningBook() {
+    initialize_book();
+    remove_low_frequency_moves();
+}
 
 Move OpeningBook::pick_move(const Board& b) {
-    // Lazy init: parse games on first lookup
-    if (!initialized_) {
-        initialize_book();
-        remove_low_frequency_moves();
-        initialized_ = true;
-    }
-
-    if (!book_.contains(b.position_hash())) {
+    auto it = book_.find(b.position_hash());
+    if (it == book_.end()) {
         return NULL_MOVE;
     }
 
-    std::vector<BookMove>& book_moves = book_[b.position_hash()];
+    const std::vector<BookMove>& book_moves = it->second;
     std::vector<double> weights;
+    weights.reserve(book_moves.size());
     for (const BookMove& book_move : book_moves) {
         double weight = std::pow(book_move.frequency, 1 / OPENING_MOVE_TEMPERATURE);
         weights.push_back(weight);
