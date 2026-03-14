@@ -1,4 +1,4 @@
-#include "driver/uci.hpp"
+#include "uci.hpp"
 
 int main() {
     uci_loop();

@@ -17,8 +17,8 @@ require_env('cutechess_cli_binary')
 # Fixed settings
 TC = '8+0.08'
 TIMEMARGIN = 150
-STANDARD_MAX_GAMES = 1000
-SPRT_MAX_GAMES = 5000
+STANDARD_MAX_GAMES = 2000
+SPRT_MAX_GAMES = 10000
 DRAW_MOVENUMBER = 60
 DRAW_MOVECOUNT = 8
 DRAW_SCORE = 5
@@ -27,12 +27,14 @@ RESIGN_SCORE = 600
 SPRT_ALPHA = 0.05
 SPRT_BETA = 0.05
 
-PHYSICAL_CORES = psutil.cpu_count(logical=False)
+PHYSICAL_CORES = psutil.cpu_count(logical=False) or 1
+RESERVED_CORES = 2
 
 
 def calc_concurrency(threads, ponder):
     engines_per_game = 2 if ponder else 1
-    return max(1, PHYSICAL_CORES // (threads * engines_per_game))
+    usable_cores = max(1, PHYSICAL_CORES - RESERVED_CORES)
+    return max(1, usable_cores // (threads * engines_per_game))
 
 
 def build_cmd(
@@ -80,7 +82,6 @@ def print_config(test_type, engine_a_name, engine_b_name, threads, ponder, concu
     print(f'  Threads:     {threads}')
     print(f'  Ponder:      {"on" if ponder else "off"}')
     print(f'  Concurrency: {concurrency}')
-    print(f'  Cores:       {PHYSICAL_CORES}')
     print(f'  Games:       {games}')
     print()
 

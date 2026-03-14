@@ -36,27 +36,41 @@ set(COMMON_LINK_OPTIONS
   >
 )
 
+# --- Engine library ---
+
+file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS src/*.cpp)
+list(REMOVE_ITEM ENGINE_SOURCES "${CMAKE_SOURCE_DIR}/src/main.cpp")
+
+add_library(enigma-lib STATIC ${ENGINE_SOURCES})
+target_include_directories(enigma-lib PRIVATE src)
+target_compile_options(enigma-lib PRIVATE ${COMMON_COMPILE_OPTIONS})
+target_link_options(enigma-lib PRIVATE ${COMMON_LINK_OPTIONS})
+
 # --- Engine binary ---
 
 add_executable(enigma src/main.cpp)
 target_include_directories(enigma PRIVATE src)
+target_link_libraries(enigma PRIVATE enigma-lib)
 target_compile_options(enigma PRIVATE ${COMMON_COMPILE_OPTIONS})
 target_link_options(enigma PRIVATE ${COMMON_LINK_OPTIONS})
 
-# --- Debug binary (tests + bench) ---
+# --- Dev binary (tests + bench) ---
 
-file(GLOB_RECURSE DEBUG_SOURCES CONFIGURE_DEPENDS debug/tests/*.cpp)
-add_executable(enigma-debug debug/main.cpp ${DEBUG_SOURCES})
-target_include_directories(enigma-debug PRIVATE src debug)
-target_compile_definitions(enigma-debug PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_DIR}")
-target_compile_options(enigma-debug PRIVATE ${COMMON_COMPILE_OPTIONS})
-target_link_options(enigma-debug PRIVATE ${COMMON_LINK_OPTIONS})
+file(GLOB_RECURSE DEV_SOURCES CONFIGURE_DEPENDS dev/*.cpp)
+list(REMOVE_ITEM DEV_SOURCES "${CMAKE_SOURCE_DIR}/dev/main.cpp")
+add_executable(enigma-dev dev/main.cpp ${DEV_SOURCES})
+target_include_directories(enigma-dev PRIVATE src dev)
+target_compile_definitions(enigma-dev PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_DIR}")
+target_link_libraries(enigma-dev PRIVATE enigma-lib)
+target_compile_options(enigma-dev PRIVATE ${COMMON_COMPILE_OPTIONS})
+target_link_options(enigma-dev PRIVATE ${COMMON_LINK_OPTIONS})
 
 # --- Interprocedural optimization ---
 
 include(CheckIPOSupported)
 check_ipo_supported(RESULT ipo_supported OUTPUT ipo_msg)
 if(ipo_supported)
+  set_property(TARGET enigma-lib PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
   set_property(TARGET enigma PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-  set_property(TARGET enigma-debug PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+  set_property(TARGET enigma-dev PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()

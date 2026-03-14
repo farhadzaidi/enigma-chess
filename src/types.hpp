@@ -4,58 +4,54 @@
 
 // --- Type Definitions ---
 
-using Bitboard      = uint64_t;
-using ZobristHash   = uint64_t;
-using MoveScore     = int32_t;
+using Bitboard = uint64_t;
+using ZobristHash = uint64_t;
+using MoveScore = int32_t;
 using PositionScore = int16_t;
-using Square        = uint8_t;
-using Side          = uint8_t;
-using Piece         = uint8_t;
+using Square = uint8_t;
+using Side = uint8_t;
+using Piece = uint8_t;
 using CastlingRights = uint8_t;
-using SearchDepth   = uint8_t;
-using Direction     = int;
-using MoveType      = uint16_t;
-using MoveFlag      = uint16_t;
+using SearchDepth = uint8_t;
+using Direction = int;
+using MoveType = uint16_t;
+using MoveFlag = uint16_t;
 
-// --- Scoped Enums ---
-
-enum class MoveGenMode : uint8_t {
-    All,
-    QuietOnly,
-    TacticalOnly
+enum MoveGenMode : uint8_t {
+    MGM_ALL,
+    MGM_QUIET_ONLY,
+    MGM_TACTICAL_ONLY
 };
 
-enum class TTNode : uint8_t {
-    Exact,
-    FailHigh,
-    FailLow,
-    None
+enum TTNode : uint8_t {
+    TT_EXACT,
+    TT_FAIL_HIGH,
+    TT_FAIL_LOW,
+    TT_NONE
 };
 
-enum class MoveSelPhase : uint8_t {
-    PrevBest,
-    TT,
-    Tactical,
-    Killer,
-    Quiet,
-    BadCapture
+enum MoveSelectorPhase : uint8_t {
+    MSP_PREV_BEST,
+    MSP_TT,
+    MSP_TACTICAL,
+    MSP_KILLER,
+    MSP_QUIET,
+    MSP_BAD_CAPTURE
 };
-
-// --- Unscoped Enums ---
 
 enum MoveTypeEnum : MoveType {
-    MT_QUIET   = 0,
+    MT_QUIET = 0,
     MT_CAPTURE = 1
 };
 
 enum MoveFlagEnum : MoveFlag {
-    MF_NORMAL       = 0,
-    MF_EN_PASSANT   = 1,
-    MF_CASTLE       = 2,
+    MF_NORMAL = 0,
+    MF_EN_PASSANT = 1,
+    MF_CASTLE = 2,
     MF_PROMO_BISHOP = 3,
     MF_PROMO_KNIGHT = 4,
-    MF_PROMO_ROOK   = 5,
-    MF_PROMO_QUEEN  = 6
+    MF_PROMO_ROOK = 5,
+    MF_PROMO_QUEEN = 6
 };
 
 enum SquareEnum : Square {
@@ -126,8 +122,8 @@ enum PieceEnum : Piece {
 
 enum CastlingRightsEnum : CastlingRights {
     NO_CASTLING_RIGHTS = 0b0,
-    WHITE_SHORT        = 0b1,
-    WHITE_LONG         = 0b10,
-    BLACK_SHORT        = 0b100,
-    BLACK_LONG         = 0b1000
+    WHITE_SHORT = 0b1,
+    WHITE_LONG = 0b10,
+    BLACK_SHORT = 0b100,
+    BLACK_LONG = 0b1000
 };

@@ -1,0 +1,223 @@
+#pragma once
+
+#include <array>
+#include <atomic>
+#include <chrono>
+#include <cstdint>
+#include <thread>
+#include <vector>
+
+#include "board.hpp"
+#include "move.hpp"
+#include "opening_book.hpp"
+#include "transposition_table.hpp"
+#include "types.hpp"
+
+// ============================================================
+// Search constants
+// ============================================================
+
+constexpr int MAX_SEARCH_PLY = 256;
+
+constexpr PositionScore CHECKMATE_SCORE = 32'000;
+constexpr PositionScore STALEMATE_SCORE = 0;
+
+constexpr MoveScore MAX_MOVE_SCORE = 32'000;
+constexpr MoveScore MIN_MOVE_SCORE = -MAX_MOVE_SCORE;
+
+constexpr int MIN_THREADS = 1;
+constexpr int MAX_THREADS = 64;
+
+// ============================================================
+// Engine
+// ============================================================
+
+class Engine {
+public:
+
+    // --- Lifecycle ---
+
+    Engine() = default;
+    /** Joins all search threads and cleans up. */
+    ~Engine();
+
+    // --- Async search ---
+
+    /** Launch an async search to a fixed depth. */
+    void search_depth(const Board& board, SearchDepth depth);
+    /** Launch an async search with soft/hard time limits (ms). */
+    void search_time(const Board& board, int soft_time, int hard_time);
+    /** Launch an async search bounded by a node count. */
+    void search_nodes(const Board& board, uint64_t max_nodes);
+    /** Launch an unbounded async search (stopped only by stop()). */
+    void search_infinite(const Board& board);
+
+    // --- Ponder support ---
+
+    /** Apply time limits to an already-running search (e.g. after ponderhit). */
+    void apply_time(int soft_time, int hard_time);
+
+    // --- Control ---
+
+    /** Signal all threads to stop and wait for them to finish. */
+    void stop();
+    /** Stop any running search and wipe the TT and pawn table. */
+    void clear();
+
+    // --- Config ---
+
+    /** Set the number of search threads (clamped to [1, 64]). */
+    void set_threads(int n);
+    void set_use_opening_book(bool enabled);
+
+    // --- Info ---
+
+    /** Sum of nodes searched across all threads. */
+    uint64_t total_nodes() const;
+
+    // --- Synchronous search ---
+
+    /** Blocking search to a fixed depth; returns the best move. */
+    Move sync_search_depth(Board& board, SearchDepth depth);
+    /** Blocking search with time limits; returns the best move. */
+    Move sync_search_time(Board& board, int soft_time, int hard_time);
+    /** Blocking search bounded by node count; returns the best move. */
+    Move sync_search_nodes(Board& board, uint64_t max_nodes);
+
+private:
+
+    // --- Types ---
+
+    /** Per-thread search state: limits, counters, and move-ordering tables. */
+    struct Context {
+        bool is_main_thread = false;
+        SearchDepth max_depth = MAX_SEARCH_PLY - 1;
+        uint64_t max_nodes = 0;
+        int soft_time = -1;
+        int hard_time = -1;
+        bool search_interrupted = false;
+
+        uint64_t nodes = 0;
+        int ply_offset = 0;  // board ply at root, so search_ply = board_ply - ply_offset
+
+        using KillerMoves = std::array<Move, MAX_SEARCH_PLY>;
+        using SidePieceToHistory = std::array<std::array<std::array<MoveScore, NUM_SQUARES>, NUM_PIECES>, NUM_SIDES>;
+        using FromToHistory = std::array<std::array<MoveScore, NUM_SQUARES>, NUM_SQUARES>;
+
+        KillerMoves killer_1;
+        KillerMoves killer_2;
+
+        SidePieceToHistory side_piece_to_history;
+        FromToHistory from_to_history;
+
+        std::chrono::steady_clock::time_point search_start;
+        std::chrono::steady_clock::time_point soft_deadline;
+        std::chrono::steady_clock::time_point hard_deadline;
+
+        int search_ply(int board_ply) const;
+        bool has_runtime_limits() const;
+        void set_deadlines_from(std::chrono::steady_clock::time_point now);
+        uint64_t elapsed_ms() const;
+        void reset(int board_ply);
+    };
+
+    class MoveSelector;
+    struct SearchResult;
+    struct TTProbeResult;
+
+    // --- State ---
+
+    OpeningBook opening_book_;
+    std::atomic<bool> external_stop_{false};
+    std::atomic<bool> main_finished_{false};
+    bool use_opening_book_ = true;
+    int num_threads_ = 1;
+
+    std::thread main_thread_;
+    std::vector<std::thread> helper_threads_;
+    std::vector<Context> contexts_;
+    Move best_move_ = NULL_MOVE;
+
+    // --- Thread management ---
+
+    /** Spawn main + helper threads and begin lazy SMP search. */
+    void start_internal(const Board& board, SearchDepth max_depth, int soft_time, int hard_time, uint64_t max_nodes);
+    /** Join all threads and return the best move found. */
+    Move finish();
+    /** Reset shared state for the next search. */
+    void reset();
+
+    // --- Stop check ---
+
+    /** Check time/node limits; may set search_interrupted. Amortised via node-count mask. */
+    bool should_stop_search(Context& ctx);
+    /** Notify other threads that this thread is done (main tells helpers to quit). */
+    void signal_stop(const Context& ctx);
+
+    // --- UCI output ---
+
+    void emit_search_info(const Context& ctx, SearchDepth depth, PositionScore score);
+    void emit_best_move(Board& board);
+
+    // --- TT helpers ---
+
+    /** Write a search result into the transposition table with the correct bound type. */
+    void store_tt_result(
+        const Board& b,
+        Context& ctx,
+        Move best_move,
+        SearchDepth depth,
+        PositionScore best_score,
+        PositionScore original_alpha,
+        PositionScore beta
+    );
+
+    // --- Search algorithms ---
+
+    /** Alpha-beta search with null move pruning, futility pruning, and LMR. */
+    PositionScore negamax(
+        Board& board,
+        Context& ctx,
+        SearchDepth depth,
+        PositionScore alpha,
+        PositionScore beta,
+        bool allow_null_move = true
+    );
+
+    /** Probe the TT for a cutoff or best-move hint; falls back to IID on PV misses. */
+    TTProbeResult probe_tt(
+        Board& board,
+        Context& ctx,
+        SearchDepth depth,
+        PositionScore alpha,
+        PositionScore beta,
+        bool is_pv_node
+    );
+
+    /** Capture-only search to stabilise the evaluation at horizon nodes. */
+    PositionScore quiescence_search(
+        Board& board,
+        Context& ctx,
+        PositionScore alpha,
+        PositionScore beta
+    );
+
+    /** Root-level PVS search at a given depth (called from iterative deepening). */
+    SearchResult search_at_depth(
+        Board& board,
+        Context& ctx,
+        SearchDepth depth,
+        Move prev_best_move,
+        PositionScore alpha,
+        PositionScore beta
+    );
+
+    /** Iterative deepening loop with aspiration windows and soft time management. */
+    Move iterative_deepening(Board& board, Context& ctx, SearchDepth depth);
+
+    // --- Internal helpers ---
+
+    static void update_killer_table(Context& ctx, Move move, int ply);
+    /** Update killer, history, and butterfly tables on a beta cutoff. */
+    static void handle_beta_cutoff(Board& b, Context& ctx, Move cutoff_move, SearchDepth depth, MoveList& searched_quiet_moves);
+};

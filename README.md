@@ -23,7 +23,7 @@ Binaries:
 
 ```bash
 ./build/enigma        # Engine (UCI)
-./build/enigma-debug  # Tests and benchmarks
+./build/enigma-dev  # Tests and benchmarks
 ```
 
 ## Usage
@@ -74,7 +74,7 @@ Examples:
 
 ## Debug
 
-Tests and benchmarks are built as a separate binary. See [`debug/README.md`](debug/README.md) for details.
+Tests and benchmarks are built as a separate binary. See [`dev/README.md`](dev/README.md) for details.
 
 ## Scripts
 
