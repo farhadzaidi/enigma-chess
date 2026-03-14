@@ -8,6 +8,7 @@
 #include "board.hpp"
 #include "evaluate.hpp"
 #include "move.hpp"
+#include "perft.hpp"
 #include "print.hpp"
 #include "engine.hpp"
 #include "transposition_table.hpp"
@@ -235,6 +236,52 @@ void cmd_position(const std::string& cmd, Board& b) {
     }
 }
 
+/** Parse "perft <depth> [fen]" and run perft on the current or given position */
+void cmd_perft(const std::string& cmd, Board& b) {
+    std::istringstream iss(cmd);
+    std::string token;
+    iss >> token; // consume "perft"
+
+    int depth;
+    if (!(iss >> depth) || depth < 1) {
+        uci_print("Usage: perft <depth> [fen]");
+        return;
+    }
+    depth = std::min(depth, MAX_SEARCH_PLY - 1);
+
+    std::string fen;
+    std::getline(iss >> std::ws, fen);
+    if (!fen.empty()) {
+        b.load_from_fen(fen);
+    }
+
+    set_uci_silent(true);
+    perft<true>(b, depth);
+    set_uci_silent(false);
+}
+
+/** Parse "search <depth> [fen]" and run a fixed-depth search */
+void cmd_search(const std::string& cmd, Board& b) {
+    std::istringstream iss(cmd);
+    std::string token;
+    iss >> token; // consume "search"
+
+    int depth;
+    if (!(iss >> depth) || depth < 1) {
+        uci_print("Usage: search <depth> [fen]");
+        return;
+    }
+    depth = std::min(depth, MAX_SEARCH_PLY - 1);
+
+    std::string fen;
+    std::getline(iss >> std::ws, fen);
+    if (!fen.empty()) {
+        b.load_from_fen(fen);
+    }
+
+    g_engine.sync_search_depth(b, depth);
+}
+
 } // namespace
 
 void uci_loop() {
@@ -260,6 +307,10 @@ void uci_loop() {
             cmd_ponderhit();
         } else if (cmd == "stop") {
             cmd_stop();
+        } else if (cmd.starts_with("perft")) {
+            cmd_perft(cmd, b);
+        } else if (cmd.starts_with("search")) {
+            cmd_search(cmd, b);
         } else if (cmd == "quit") {
             cmd_quit();
             break;

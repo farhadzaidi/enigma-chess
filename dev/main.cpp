@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <iostream>
 
+#include "print.hpp"
 #include "tests/test.hpp"
 #include "bench/bench.hpp"
 
@@ -20,6 +21,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::string cmd = args[0];
+    set_uci_silent(true);
 
     if (cmd == "test") {
         std::vector<std::string> tests(args.begin() + 1, args.end());

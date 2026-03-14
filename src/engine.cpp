@@ -246,25 +246,25 @@ void Engine::Context::reset(int board_ply) {
 class Engine::MoveSelector {
 public:
     MoveSelector(Board& board, Move tt_move, Move prev_best_move = NULL_MOVE)
-        : phase(MSP_PREV_BEST), move_generator(board), prev_best_move(prev_best_move), tt_move(tt_move) {}
+        : phase_(MSP_PREV_BEST), move_generator_(board), prev_best_move_(prev_best_move), tt_move_(tt_move) {}
 
     Move next_move(Board& board, Context& ctx);
-    bool before_quiet_phase() const { return phase <= MSP_KILLER; }
-    MoveSelectorPhase phase_value() const { return phase; }
+    bool before_quiet_phase() const { return phase_ <= MSP_KILLER; }
+    MoveSelectorPhase phase_value() const { return phase_; }
 
 private:
-    MoveSelectorPhase phase;
-    MoveGenerator move_generator;
-    MoveList tactical_moves;
-    MoveList bad_captures;
-    MoveList quiet_moves;
-    Move prev_best_move;
-    Move tt_move;
-    Move returned_killer_1;
-    Move returned_killer_2;
-    bool tacticals_generated = false;
-    bool quiets_generated = false;
-    bool bad_captures_sorted = false;
+    MoveSelectorPhase phase_;
+    MoveGenerator move_generator_;
+    MoveList tactical_moves_;
+    MoveList bad_captures_;
+    MoveList quiet_moves_;
+    Move prev_best_move_;
+    Move tt_move_;
+    Move returned_killer_1_;
+    Move returned_killer_2_;
+    bool tacticals_generated_ = false;
+    bool quiets_generated_ = false;
+    bool bad_captures_sorted_ = false;
 
     void generate_tactical_moves(Board& board);
     void generate_quiet_moves(Board& board, Context& ctx);
@@ -277,31 +277,31 @@ private:
 
 /** Return the next move in priority order, or NULL_MOVE when exhausted. */
 Move Engine::MoveSelector::next_move(Board& board, Context& ctx) {
-    switch (phase) {
+    switch (phase_) {
         // Phase 1: previous iteration's best move (root only)
         case MSP_PREV_BEST: {
-            if (prev_best_move != NULL_MOVE) {
-                phase = MSP_TT;
-                return prev_best_move;
+            if (prev_best_move_ != NULL_MOVE) {
+                phase_ = MSP_TT;
+                return prev_best_move_;
             }
-            phase = MSP_TT;
+            phase_ = MSP_TT;
             [[fallthrough]];
         }
         // Phase 2: transposition table move
         case MSP_TT: {
-            if (tt_move != NULL_MOVE && tt_move != prev_best_move && board.is_legal_move(tt_move)) {
-                phase = MSP_TACTICAL;
-                return tt_move;
+            if (tt_move_ != NULL_MOVE && tt_move_ != prev_best_move_ && board.is_legal_move(tt_move_)) {
+                phase_ = MSP_TACTICAL;
+                return tt_move_;
             }
-            phase = MSP_TACTICAL;
+            phase_ = MSP_TACTICAL;
             [[fallthrough]];
         }
         // Phase 3: winning/equal captures and promotions (SEE >= 0)
         case MSP_TACTICAL: {
-            if (!tacticals_generated) generate_tactical_moves(board);
-            Move next_tactical = pop_next(tactical_moves);
+            if (!tacticals_generated_) generate_tactical_moves(board);
+            Move next_tactical = pop_next(tactical_moves_);
             if (next_tactical != NULL_MOVE) return next_tactical;
-            phase = MSP_KILLER;
+            phase_ = MSP_KILLER;
             [[fallthrough]];
         }
         // Phase 4: killer moves — quiet moves that caused a beta cutoff at this ply
@@ -312,42 +312,42 @@ Move Engine::MoveSelector::next_move(Board& board, Context& ctx) {
 
             if (
                 killer_move_1 != NULL_MOVE &&
-                returned_killer_1 == NULL_MOVE &&
+                returned_killer_1_ == NULL_MOVE &&
                 !is_already_returned(killer_move_1) &&
                 board.is_legal_move(killer_move_1)
             ) {
-                returned_killer_1 = killer_move_1;
+                returned_killer_1_ = killer_move_1;
                 return killer_move_1;
             }
 
             if (
                 killer_move_2 != NULL_MOVE &&
-                returned_killer_2 == NULL_MOVE &&
+                returned_killer_2_ == NULL_MOVE &&
                 !is_already_returned(killer_move_2) &&
                 board.is_legal_move(killer_move_2)
             ) {
-                returned_killer_2 = killer_move_2;
+                returned_killer_2_ = killer_move_2;
                 return killer_move_2;
             }
 
-            phase = MSP_QUIET;
+            phase_ = MSP_QUIET;
             [[fallthrough]];
         }
         // Phase 5: remaining quiet moves, ordered by history heuristic
         case MSP_QUIET: {
-            if (!quiets_generated) generate_quiet_moves(board, ctx);
-            Move next_quiet = pop_next(quiet_moves);
+            if (!quiets_generated_) generate_quiet_moves(board, ctx);
+            Move next_quiet = pop_next(quiet_moves_);
             if (next_quiet != NULL_MOVE) return next_quiet;
-            phase = MSP_BAD_CAPTURE;
+            phase_ = MSP_BAD_CAPTURE;
             [[fallthrough]];
         }
         // Phase 6: losing captures (SEE < 0), tried last
         case MSP_BAD_CAPTURE: {
-            if (!bad_captures_sorted) {
-                sort_tactical_moves(board, bad_captures);
-                bad_captures_sorted = true;
+            if (!bad_captures_sorted_) {
+                sort_tactical_moves(board, bad_captures_);
+                bad_captures_sorted_ = true;
             }
-            Move next_bad = pop_next(bad_captures);
+            Move next_bad = pop_next(bad_captures_);
             if (next_bad != NULL_MOVE) return next_bad;
             return NULL_MOVE;
         }
@@ -358,24 +358,24 @@ Move Engine::MoveSelector::next_move(Board& board, Context& ctx) {
 
 /** Split tacticals into winning/equal (SEE >= 0) and losing (SEE < 0) captures. */
 void Engine::MoveSelector::generate_tactical_moves(Board& board) {
-    MoveList all_tacticals = move_generator.generate_tacticals();
+    MoveList all_tacticals = move_generator_.generate_tacticals();
 
     for (const Move move : all_tacticals) {
         if (move.type() == MT_CAPTURE && see(board, move) < 0) {
-            bad_captures.add(move);
+            bad_captures_.add(move);
         } else {
-            tactical_moves.add(move);
+            tactical_moves_.add(move);
         }
     }
 
-    sort_tactical_moves(board, tactical_moves);
-    tacticals_generated = true;
+    sort_tactical_moves(board, tactical_moves_);
+    tacticals_generated_ = true;
 }
 
 void Engine::MoveSelector::generate_quiet_moves(Board& board, Context& ctx) {
-    quiet_moves = move_generator.generate_quiets();
+    quiet_moves_ = move_generator_.generate_quiets();
     sort_quiet_moves(board, ctx);
-    quiets_generated = true;
+    quiets_generated_ = true;
 }
 
 MoveScore Engine::MoveSelector::get_tactical_score(const Board& board, Move move) {
@@ -399,7 +399,7 @@ void Engine::MoveSelector::sort_tactical_moves(Board& board, MoveList& moves) {
 
 /** Order quiets by combined side-piece-to and from-to history scores. */
 void Engine::MoveSelector::sort_quiet_moves(Board& board, Context& ctx) {
-    std::sort(quiet_moves.begin(), quiet_moves.end(), [&board, &ctx](Move move_1, Move move_2) {
+    std::sort(quiet_moves_.begin(), quiet_moves_.end(), [&board, &ctx](Move move_1, Move move_2) {
         Square move_1_from = move_1.from();
         Square move_1_to = move_1.to();
         Piece move_1_piece = board.piece_map()[move_1_from];
@@ -425,7 +425,7 @@ Move Engine::MoveSelector::pop_next(MoveList& moves) {
 }
 
 bool Engine::MoveSelector::is_already_returned(Move move) {
-    return move == prev_best_move || move == tt_move || move == returned_killer_1 || move == returned_killer_2;
+    return move == prev_best_move_ || move == tt_move_ || move == returned_killer_1_ || move == returned_killer_2_;
 }
 
 // --- Engine API ---

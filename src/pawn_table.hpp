@@ -38,7 +38,7 @@ public:
 private:
     static constexpr uint64_t PAWN_TABLE_SIZE = uint64_t{1} << 16;
 
-    std::array<PawnTableEntry, PAWN_TABLE_SIZE> table;
+    std::array<PawnTableEntry, PAWN_TABLE_SIZE> table_;
 
     /** Map a Zobrist hash to a table index via bitmask. */
     uint64_t get_index(ZobristHash hash) const;

@@ -22,8 +22,8 @@ private:
         BookMove(Move move, int frequency);
     };
 
-    std::unordered_map<ZobristHash, std::vector<BookMove>> book;
-    bool initialized = false;
+    std::unordered_map<ZobristHash, std::vector<BookMove>> book_;
+    bool initialized_ = false;
 
     /** Increment the frequency count for a move in a position, or add it */
     void add_book_move(ZobristHash position, Move move);

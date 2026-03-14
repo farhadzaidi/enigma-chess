@@ -111,7 +111,7 @@ PawnTable::PawnTable() {
 }
 
 void PawnTable::clear() {
-    table.fill(PawnTableEntry{});
+    table_.fill(PawnTableEntry{});
 }
 
 PawnTableEntry PawnTable::get_pawn_score(const Board& b) {
@@ -171,11 +171,11 @@ PawnTableEntry PawnTable::get_pawn_score(const Board& b) {
 }
 
 PawnTableEntry& PawnTable::get_entry(ZobristHash hash) {
-    return table[get_index(hash)];
+    return table_[get_index(hash)];
 }
 
 void PawnTable::add_entry(const PawnTableEntry& entry) {
-    table[get_index(entry.hash)] = entry;
+    table_[get_index(entry.hash)] = entry;
 }
 
 bool PawnTable::is_valid_entry(ZobristHash hash, const PawnTableEntry& entry) const {

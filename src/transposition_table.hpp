@@ -64,9 +64,9 @@ private:
 
     using TTBucket = std::array<TTEntry, TRANSPOSITION_TABLE_BUCKET_SIZE>;
 
-    std::vector<TTBucket> table;
-    uint64_t num_buckets = 0;
-    int generation = 0;
+    std::vector<TTBucket> table_;
+    uint64_t num_buckets_ = 0;
+    int generation_ = 0;
 
     /** Map a hash to a bucket index using power-of-two masking */
     uint64_t get_index(ZobristHash hash) const;

@@ -26,17 +26,17 @@ OpeningBook::OpeningBook() = default;
 
 Move OpeningBook::pick_move(const Board& b) {
     // Lazy init: parse games on first lookup
-    if (!initialized) {
+    if (!initialized_) {
         initialize_book();
         remove_low_frequency_moves();
-        initialized = true;
+        initialized_ = true;
     }
 
-    if (!book.contains(b.position_hash())) {
+    if (!book_.contains(b.position_hash())) {
         return NULL_MOVE;
     }
 
-    std::vector<BookMove>& book_moves = book[b.position_hash()];
+    std::vector<BookMove>& book_moves = book_[b.position_hash()];
     std::vector<double> weights;
     for (const BookMove& book_move : book_moves) {
         double weight = std::pow(book_move.frequency, 1 / OPENING_MOVE_TEMPERATURE);
@@ -49,14 +49,14 @@ Move OpeningBook::pick_move(const Board& b) {
 }
 
 void OpeningBook::add_book_move(ZobristHash position, Move move) {
-    for (BookMove& book_move : book[position]) {
+    for (BookMove& book_move : book_[position]) {
         if (book_move.move == move) {
             book_move.frequency++;
             return;
         }
     }
 
-    book[position].push_back(BookMove(move, 1));
+    book_[position].push_back(BookMove(move, 1));
 }
 
 void OpeningBook::initialize_book() {
@@ -77,7 +77,7 @@ void OpeningBook::initialize_book() {
 }
 
 void OpeningBook::remove_low_frequency_moves() {
-    for (auto& [_, book_moves] : book) {
+    for (auto& [_, book_moves] : book_) {
         int frequency_sum = 0;
         for (BookMove& book_move : book_moves) {
             frequency_sum += book_move.frequency;

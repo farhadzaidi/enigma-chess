@@ -63,22 +63,22 @@ void TranspositionTable::resize(size_t mb) {
     uint64_t target_buckets = (mb * 1024ULL * 1024ULL) / sizeof(TTBucket);
 
     // Round down to power of two so index masking works
-    num_buckets = 1;
-    while (num_buckets * 2 <= target_buckets) {
-        num_buckets *= 2;
+    num_buckets_ = 1;
+    while (num_buckets_ * 2 <= target_buckets) {
+        num_buckets_ *= 2;
     }
 
-    table.assign(num_buckets, TTBucket{});
-    generation = 0;
+    table_.assign(num_buckets_, TTBucket{});
+    generation_ = 0;
 }
 
 void TranspositionTable::clear() {
-    std::fill(table.begin(), table.end(), TTBucket{});
-    generation = 0;
+    std::fill(table_.begin(), table_.end(), TTBucket{});
+    generation_ = 0;
 }
 
 TTEntry* TranspositionTable::get_entry(ZobristHash hash) {
-    TTBucket& bucket = table[get_index(hash)];
+    TTBucket& bucket = table_[get_index(hash)];
 
     for (auto& entry : bucket) {
         if (!entry.is_empty() && entry.hash() == hash) {
@@ -90,9 +90,9 @@ TTEntry* TranspositionTable::get_entry(ZobristHash hash) {
 }
 
 void TranspositionTable::add_entry(TTEntry entry) {
-    TTBucket& bucket = table[get_index(entry.hash())];
+    TTBucket& bucket = table_[get_index(entry.hash())];
 
-    entry.set_age(generation);
+    entry.set_age(generation_);
 
     // Prefer empty slots or same-position updates; otherwise evict least valuable
     TTEntry* least_valuable = &bucket[0];
@@ -114,13 +114,13 @@ void TranspositionTable::add_entry(TTEntry entry) {
 }
 
 void TranspositionTable::increment_generation() {
-    generation++;
+    generation_++;
 }
 
 uint64_t TranspositionTable::get_index(ZobristHash hash) const {
-    return hash & (num_buckets - 1);
+    return hash & (num_buckets_ - 1);
 }
 
 int TranspositionTable::get_entry_value(const TTEntry& entry) const {
-    return entry.depth() - AGE_PENALTY_WEIGHT * (generation - entry.age());
+    return entry.depth() - AGE_PENALTY_WEIGHT * (generation_ - entry.age());
 }
