@@ -22,7 +22,6 @@ Engine g_engine;
 int pending_soft_time = -1;
 int pending_hard_time = -1;
 bool has_pending_limits = false;
-bool ponder_enabled = false;
 
 struct TimeLimits {
     int soft_time;
@@ -144,9 +143,7 @@ void cmd_go(std::string& cmd, Board& b) {
 
     g_engine.stop();
 
-    bool should_ponder = ponder_enabled && is_ponder_search;
-
-    if (should_ponder) {
+    if (is_ponder_search) {
         pending_soft_time = soft_time;
         pending_hard_time = hard_time;
         has_pending_limits = true;
@@ -199,7 +196,7 @@ void cmd_setoption(const std::string& cmd) {
     } else if (name == "OwnBook") {
         g_engine.set_use_opening_book(value == "true");
     } else if (name == "Ponder") {
-        ponder_enabled = (value == "true");
+        // Accepted but unused; go ponder is always respected.
     }
 }
 
