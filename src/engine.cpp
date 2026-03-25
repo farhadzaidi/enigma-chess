@@ -463,19 +463,19 @@ uint64_t Engine::total_nodes() const {
 }
 
 void Engine::search_depth(const Board& board, SearchDepth depth) {
-    start_internal(board, depth, -1, -1, 0);
+    search(board, depth, -1, -1, 0);
 }
 
 void Engine::search_time(const Board& board, int soft_time, int hard_time) {
-    start_internal(board, MAX_SEARCH_PLY - 1, soft_time, hard_time, 0);
+    search(board, MAX_SEARCH_PLY - 1, soft_time, hard_time, 0);
 }
 
 void Engine::search_nodes(const Board& board, uint64_t max_nodes) {
-    start_internal(board, MAX_SEARCH_PLY - 1, -1, -1, max_nodes);
+    search(board, MAX_SEARCH_PLY - 1, -1, -1, max_nodes);
 }
 
 void Engine::search_infinite(const Board& board) {
-    start_internal(board, MAX_SEARCH_PLY - 1, -1, -1, 0);
+    search(board, MAX_SEARCH_PLY - 1, -1, -1, 0);
 }
 
 void Engine::apply_time(int soft_time, int hard_time) {
@@ -486,24 +486,26 @@ void Engine::apply_time(int soft_time, int hard_time) {
     ctx.set_deadlines_from(std::chrono::steady_clock::now());
 }
 
-Move Engine::sync_search_depth(Board& board, SearchDepth depth) {
-    search_depth(board, depth);
+Move Engine::sync_search(Board& board, SearchDepth max_depth, int soft_time, int hard_time, uint64_t max_nodes) {
+    search(board, max_depth, soft_time, hard_time, max_nodes);
     return finish();
+}
+
+Move Engine::sync_search_depth(Board& board, SearchDepth depth) {
+    return sync_search(board, depth, -1, -1, 0);
 }
 
 Move Engine::sync_search_time(Board& board, int soft_time, int hard_time) {
-    search_time(board, soft_time, hard_time);
-    return finish();
+    return sync_search(board, MAX_SEARCH_PLY - 1, soft_time, hard_time, 0);
 }
 
 Move Engine::sync_search_nodes(Board& board, uint64_t max_nodes) {
-    search_nodes(board, max_nodes);
-    return finish();
+    return sync_search(board, MAX_SEARCH_PLY - 1, -1, -1, max_nodes);
 }
 
 // --- Threading ---
 
-void Engine::start_internal(const Board& board, SearchDepth max_depth, int soft_time, int hard_time, uint64_t max_nodes) {
+void Engine::search(const Board& board, SearchDepth max_depth, int soft_time, int hard_time, uint64_t max_nodes) {
     stop();
     reset();
 
@@ -656,7 +658,7 @@ void Engine::emit_best_move(Board& board) {
         // Make the best move on the board to look up the opponent's expected reply in the TT
         board.make_move(best_move_);
         TTEntry* tt_entry = g_tt.get_entry(board.position_hash());
-        if (tt_entry && tt_entry->move() != NULL_MOVE) {
+        if (tt_entry && tt_entry->move() != NULL_MOVE && board.is_legal_move(tt_entry->move())) {
             ponder_str = " ponder " + decode_move_to_uci(tt_entry->move());
         }
         board.unmake_move(best_move_);
@@ -1116,7 +1118,7 @@ Move Engine::iterative_deepening(Board& board, Context& ctx, SearchDepth depth) 
                 break;
             }
 
-            search_result = search_at_depth(board, ctx, depth, best_move, alpha, beta);
+                search_result = search_at_depth(board, ctx, depth, best_move, alpha, beta);
             if (search_result.score <= alpha) {
                 alpha_delta *= 2;
                 alpha = std::max(score - alpha_delta, -static_cast<int>(CHECKMATE_SCORE));

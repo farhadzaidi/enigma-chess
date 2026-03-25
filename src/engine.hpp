@@ -13,9 +13,7 @@
 #include "transposition_table.hpp"
 #include "types.hpp"
 
-// ============================================================
-// Search constants
-// ============================================================
+// --- Search Constants ---
 
 constexpr int MAX_SEARCH_PLY = 256;
 
@@ -28,9 +26,7 @@ constexpr MoveScore MIN_MOVE_SCORE = -MAX_MOVE_SCORE;
 constexpr int MIN_THREADS = 1;
 constexpr int MAX_THREADS = 64;
 
-// ============================================================
-// Engine
-// ============================================================
+// --- Engine ---
 
 class Engine {
 public:
@@ -43,6 +39,8 @@ public:
 
     // --- Async search ---
 
+    /** Launch an async search with any combination of limits (depth, time, nodes). */
+    void search(const Board& board, SearchDepth max_depth, int soft_time, int hard_time, uint64_t max_nodes);
     /** Launch an async search to a fixed depth. */
     void search_depth(const Board& board, SearchDepth depth);
     /** Launch an async search with soft/hard time limits (ms). */
@@ -77,6 +75,8 @@ public:
 
     // --- Synchronous search ---
 
+    /** Blocking search with any combination of limits; returns the best move. */
+    Move sync_search(Board& board, SearchDepth max_depth, int soft_time, int hard_time, uint64_t max_nodes);
     /** Blocking search to a fixed depth; returns the best move. */
     Move sync_search_depth(Board& board, SearchDepth depth);
     /** Blocking search with time limits; returns the best move. */
@@ -140,8 +140,6 @@ private:
 
     // --- Thread management ---
 
-    /** Spawn main + helper threads and begin lazy SMP search. */
-    void start_internal(const Board& board, SearchDepth max_depth, int soft_time, int hard_time, uint64_t max_nodes);
     /** Join all threads and return the best move found. */
     Move finish();
     /** Reset shared state for the next search. */

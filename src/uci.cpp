@@ -155,14 +155,10 @@ void cmd_go(std::string& cmd, Board& b) {
         pending_hard_time = hard_time;
         has_pending_limits = true;
         g_engine.search_infinite(b);
-    } else if (has_depth) {
-        g_engine.search_depth(b, max_depth);
-    } else if (has_nodes) {
-        g_engine.search_nodes(b, max_nodes);
     } else if (is_infinite) {
         g_engine.search_infinite(b);
     } else {
-        g_engine.search_time(b, soft_time, hard_time);
+        g_engine.search(b, max_depth, soft_time, hard_time, max_nodes);
     }
 }
 

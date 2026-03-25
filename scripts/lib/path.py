@@ -6,8 +6,12 @@ Shared path constants and environment helpers used by other scripts.
 import os
 from pathlib import Path
 
+PROJECT_ROOT = Path('..')
+BINARY_PATH = PROJECT_ROOT / 'build' / 'enigma'
+
 
 def _env_path(name):
+    """Return an environment variable as a Path, or None if unset."""
     value = os.environ.get(name)
     if value is None:
         return None
@@ -15,14 +19,10 @@ def _env_path(name):
 
 
 def require_env(name):
+    """Return an environment variable as a Path, or exit with an error if unset."""
     path = _env_path(name)
     if path is None:
         print(f'Error: Environment variable "{name}" is not set')
         exit(1)
     return path
 
-
-CUTECHESS_CLI_BINARY_PATH = _env_path('cutechess_cli_binary')
-BINARY_PATH = Path('build') / 'enigma'
-VERSIONS_DIR = Path('versions')
-OPENINGS_PATH = Path('positions') / 'openings.pgn'
