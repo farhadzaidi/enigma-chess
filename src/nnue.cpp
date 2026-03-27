@@ -313,7 +313,7 @@ PositionScore NNUE::evaluate(Side us) {
     }
 #endif
 
-    // L3: L2_SIZE -> L3_SIZE (input is exactly 32 bytes — one __m256i, no loop needed)
+    // L3: L2_SIZE -> L3_SIZE
     alignas(32) std::array<int16_t, L3_SIZE> layer3_output;
 #if defined(__AVX2__)
     {

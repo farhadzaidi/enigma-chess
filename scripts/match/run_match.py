@@ -28,10 +28,22 @@ SPRT_ALPHA = 0.05
 SPRT_BETA = 0.05
 
 
+def resolve_tc(no_increment):
+    """Return the configured time control, optionally forcing zero increment."""
+    if not no_increment:
+        return TC
+
+    if '+' in TC:
+        base, _increment = TC.split('+', 1)
+        return f'{base}+0'
+
+    return TC
+
+
 def build_cmd(
     engine_a, engine_b, engine_a_name, engine_b_name,
     threads, ponder, concurrency,
-    sprt=None, max_games=STANDARD_MAX_GAMES, ordered=False,
+    sprt=None, max_games=STANDARD_MAX_GAMES, ordered=False, tc=TC,
 ):
     """Build the cutechess-cli command line for a match."""
     cmd = [
@@ -39,7 +51,7 @@ def build_cmd(
         '-engine', f'cmd={engine_a}', f'name={engine_a_name}',
         '-engine', f'cmd={engine_b}', f'name={engine_b_name}',
         '-each', 'proto=uci', 'option.OwnBook=false', f'option.Threads={threads}',
-        f'tc={TC}', f'timemargin={TIMEMARGIN}',
+        f'tc={tc}', f'timemargin={TIMEMARGIN}',
         '-draw', f'movenumber={DRAW_MOVENUMBER}', f'movecount={DRAW_MOVECOUNT}', f'score={DRAW_SCORE}',
         '-resign', f'movecount={RESIGN_MOVECOUNT}', f'score={RESIGN_SCORE}',
         '-games', str(max_games),
@@ -101,12 +113,14 @@ def main():
     parser.add_argument('--sprt', type=int, metavar='ELO', help='Run SPRT test with expected Elo gain (e.g. --sprt 20)')
     parser.add_argument('--threads', type=int, default=1, help='Number of search threads per engine (default: 1)')
     parser.add_argument('--ponder', action='store_true', help='Enable pondering')
+    parser.add_argument('--no-increment', action='store_true', help='Force zero increment by stripping the +inc from the configured TC')
     parser.add_argument('--games', type=int, help='Override number of games')
     parser.add_argument('--ordered', action='store_true', help='Use opening file order instead of random order')
     args = parser.parse_args()
 
     concurrency = calc_concurrency(args.threads, args.ponder)
     engine_a, engine_b, engine_a_name, engine_b_name = resolve_engines(args)
+    tc = resolve_tc(args.no_increment)
 
     if args.sprt:
         max_games = args.games if args.games is not None else SPRT_MAX_GAMES
@@ -117,6 +131,7 @@ def main():
             sprt={'elo0': 0, 'elo1': args.sprt, 'alpha': SPRT_ALPHA, 'beta': SPRT_BETA},
             max_games=max_games,
             ordered=args.ordered,
+            tc=tc,
         )
     else:
         max_games = args.games if args.games is not None else STANDARD_MAX_GAMES
@@ -126,13 +141,14 @@ def main():
             args.threads, args.ponder, concurrency,
             max_games=max_games,
             ordered=args.ordered,
+            tc=tc,
         )
 
     print()
     print(f'  Test:        {test_type}')
     print(f'  Engine A:    {engine_a_name}')
     print(f'  Engine B:    {engine_b_name}')
-    print(f'  TC:          {TC}')
+    print(f'  TC:          {tc}')
     print(f'  Threads:     {args.threads}')
     print(f'  Ponder:      {"on" if args.ponder else "off"}')
     print(f'  Concurrency: {concurrency}')

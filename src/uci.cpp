@@ -45,9 +45,13 @@ TimeLimits calc_time_limit(Board& b, int remaining, int increment, int movestogo
         moves_left = 10 + static_cast<int>(30 * phase_ratio);
     }
 
+    if (increment == 0) {
+        moves_left = std::max(moves_left, 45);
+    }
+
     int base = remaining / moves_left + increment / 2;
-    int soft = base * 0.6;
-    int hard = std::min(static_cast<int>(base * 1.75), remaining / 3);
+    int soft = base * (increment == 0 ? 0.5 : 0.6);
+    int hard = std::min(static_cast<int>(base * 2.625), remaining / 3);
 
     // Emergency scaling: when time is critically low, play fast to avoid flagging
     if (remaining < base * 4) {
