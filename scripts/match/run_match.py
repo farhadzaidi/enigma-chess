@@ -34,13 +34,11 @@ def build_cmd(
     sprt=None, max_games=STANDARD_MAX_GAMES, ordered=False,
 ):
     """Build the cutechess-cli command line for a match."""
-    ponder_str = 'on' if ponder else 'off'
-
     cmd = [
         str(CUTECHESS_CLI_BINARY_PATH),
         '-engine', f'cmd={engine_a}', f'name={engine_a_name}',
         '-engine', f'cmd={engine_b}', f'name={engine_b_name}',
-        '-each', 'proto=uci', f'ponder={ponder_str}', 'option.OwnBook=false', f'option.Threads={threads}',
+        '-each', 'proto=uci', 'option.OwnBook=false', f'option.Threads={threads}',
         f'tc={TC}', f'timemargin={TIMEMARGIN}',
         '-draw', f'movenumber={DRAW_MOVENUMBER}', f'movecount={DRAW_MOVECOUNT}', f'score={DRAW_SCORE}',
         '-resign', f'movecount={RESIGN_MOVECOUNT}', f'score={RESIGN_SCORE}',
@@ -49,6 +47,9 @@ def build_cmd(
         '-concurrency', str(concurrency),
         '-openings', f'file={OPENINGS_PATH}', 'format=pgn',
     ]
+
+    if ponder:
+        cmd.append('ponder')
 
     if not ordered:
         cmd.append('order=random')

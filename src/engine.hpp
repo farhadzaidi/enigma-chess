@@ -15,8 +15,6 @@
 
 // --- Search Constants ---
 
-constexpr int MAX_SEARCH_PLY = 256;
-
 constexpr PositionScore CHECKMATE_SCORE = 32'000;
 constexpr PositionScore STALEMATE_SCORE = 0;
 
@@ -30,7 +28,6 @@ constexpr int MAX_THREADS = 64;
 
 class Engine {
 public:
-
     // --- Lifecycle ---
 
     Engine() = default;
@@ -52,8 +49,8 @@ public:
 
     // --- Ponder support ---
 
-    /** Apply time limits to an already-running search (e.g. after ponderhit). */
-    void apply_time(int soft_time, int hard_time);
+    /** Apply limits to an already-running search (e.g. after ponderhit). */
+    void apply_limits(SearchDepth max_depth, int soft_time, int hard_time, uint64_t max_nodes);
 
     // --- Control ---
 

@@ -19,8 +19,14 @@ namespace {
 
 Engine g_engine;
 
-int pending_soft_time = -1;
-int pending_hard_time = -1;
+struct PendingLimits {
+    SearchDepth max_depth = MAX_SEARCH_PLY - 1;
+    int soft_time = -1;
+    int hard_time = -1;
+    uint64_t max_nodes = 0;
+};
+
+PendingLimits pending_limits;
 bool has_pending_limits = false;
 
 struct TimeLimits {
@@ -151,8 +157,7 @@ void cmd_go(std::string& cmd, Board& b) {
     g_engine.stop();
 
     if (is_ponder_search) {
-        pending_soft_time = soft_time;
-        pending_hard_time = hard_time;
+        pending_limits = {max_depth, soft_time, hard_time, max_nodes};
         has_pending_limits = true;
         g_engine.search_infinite(b);
     } else if (is_infinite) {
@@ -162,10 +167,15 @@ void cmd_go(std::string& cmd, Board& b) {
     }
 }
 
-/** Convert an infinite ponder search into a timed search */
+/** Convert an infinite ponder search into a bounded search */
 void cmd_ponderhit() {
     if (has_pending_limits) {
-        g_engine.apply_time(pending_soft_time, pending_hard_time);
+        g_engine.apply_limits(
+            pending_limits.max_depth,
+            pending_limits.soft_time,
+            pending_limits.hard_time,
+            pending_limits.max_nodes
+        );
         has_pending_limits = false;
     }
 }

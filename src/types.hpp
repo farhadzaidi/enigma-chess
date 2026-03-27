@@ -2,6 +2,13 @@
 
 #include <cstdint>
 
+// --- Constants ---
+
+constexpr int NUM_SQUARES = 64;
+constexpr int NUM_SIDES = 2;
+constexpr int NUM_PIECES = 6;
+constexpr int MAX_SEARCH_PLY = 256;
+
 // --- Type Definitions ---
 
 using Bitboard = uint64_t;

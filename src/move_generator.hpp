@@ -32,7 +32,6 @@ public:
     MoveList generate_all();
 
 private:
-
     // --- Types ---
 
     struct CheckInfo {

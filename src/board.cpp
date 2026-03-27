@@ -74,6 +74,8 @@ void Board::reset() {
     ply_ = 0;
     position_hash_ = 0;
     pawn_hash_ = 0;
+
+    nnue_.clear_history();
 }
 
 // --- FEN ---
@@ -114,7 +116,7 @@ void Board::load_from_fen(std::string_view fen) {
 
         Square square = get_square(rank, file);
         Side side = std::isupper(c) ? WHITE : BLACK;
-        place_piece(side, char_to_piece(c), square);
+        place_piece(side, char_to_piece(c), square, false);
 
         file++;
     }
@@ -147,8 +149,9 @@ void Board::load_from_fen(std::string_view fen) {
 
     position_hashes_[0] = position_hash_;
     pawn_hashes_[0] = pawn_hash_;
-}
 
+    nnue_.refresh_features(king_squares_, pieces_);
+}
 // --- Move Helpers ---
 
 /** Update the en passant target square after a move; only set on double pawn pushes. */
@@ -166,7 +169,7 @@ void Board::set_en_passant_target(Side side, Piece piece, Square from, Square to
 }
 
 /** Remove the captured piece from the board, handling en passant offset. Returns the captured piece type. */
-Piece Board::handle_capture(Square capture_square, Side moving_side, MoveFlag move_flag) {
+Piece Board::handle_capture(Square capture_square, Side moving_side, MoveFlag move_flag, bool update_nnue) {
     halfmoves_ = 0;
     Side captured_side = opposite_side(moving_side);
 
@@ -175,27 +178,28 @@ Piece Board::handle_capture(Square capture_square, Side moving_side, MoveFlag mo
     }
 
     Piece captured_piece = piece_map_[capture_square];
-    remove_piece(captured_side, captured_piece, capture_square);
+    remove_piece(captured_side, captured_piece, capture_square, update_nnue);
     return captured_piece;
 }
 
 /** Move the rook to its post-castling square based on the king's destination. */
 void Board::handle_castle(Square castle_square) {
+    // NNUE is refreshed from scratch after king moves, so skip incremental updates.
     switch (castle_square) {
-        case C1: remove_piece(WHITE, ROOK, A1); place_piece(WHITE, ROOK, D1); break;
-        case G1: remove_piece(WHITE, ROOK, H1); place_piece(WHITE, ROOK, F1); break;
-        case C8: remove_piece(BLACK, ROOK, A8); place_piece(BLACK, ROOK, D8); break;
-        case G8: remove_piece(BLACK, ROOK, H8); place_piece(BLACK, ROOK, F8); break;
+        case C1: remove_piece(WHITE, ROOK, A1, false); place_piece(WHITE, ROOK, D1, false); break;
+        case G1: remove_piece(WHITE, ROOK, H1, false); place_piece(WHITE, ROOK, F1, false); break;
+        case C8: remove_piece(BLACK, ROOK, A8, false); place_piece(BLACK, ROOK, D8, false); break;
+        case G8: remove_piece(BLACK, ROOK, H8, false); place_piece(BLACK, ROOK, F8, false); break;
     }
 }
 
 /** Reverse the rook movement from handle_castle, restoring the rook to its original square. */
 void Board::undo_castle(Square castle_square) {
     switch (castle_square) {
-        case C1: remove_piece(WHITE, ROOK, D1); place_piece(WHITE, ROOK, A1); break;
-        case G1: remove_piece(WHITE, ROOK, F1); place_piece(WHITE, ROOK, H1); break;
-        case C8: remove_piece(BLACK, ROOK, D8); place_piece(BLACK, ROOK, A8); break;
-        case G8: remove_piece(BLACK, ROOK, F8); place_piece(BLACK, ROOK, H8); break;
+        case C1: remove_piece(WHITE, ROOK, D1, false); place_piece(WHITE, ROOK, A1, false); break;
+        case G1: remove_piece(WHITE, ROOK, F1, false); place_piece(WHITE, ROOK, H1, false); break;
+        case C8: remove_piece(BLACK, ROOK, D8, false); place_piece(BLACK, ROOK, A8, false); break;
+        case G8: remove_piece(BLACK, ROOK, F8, false); place_piece(BLACK, ROOK, H8, false); break;
     }
 }
 
@@ -220,42 +224,51 @@ void Board::make_move(Move move) {
 
     Piece moving_piece = piece_map_[from];
     Side moving_side = to_move_;
+    bool is_king_move = moving_piece == KING;
 
-    // Phase 1: Update clocks and en passant before touching pieces
+    // Update clocks and en passant before touching pieces
     halfmoves_++;
     if (moving_piece == PAWN) halfmoves_ = 0;
     if (moving_side == BLACK) fullmoves_++;
 
     set_en_passant_target(moving_side, moving_piece, from, to);
 
-    // Phase 2: Move the piece — remove from origin, handle captures, promote, place on destination
-    remove_piece(moving_side, moving_piece, from);
+    // Move the piece — remove from origin, handle captures, promote, place on destination
+    // King moves skip incremental NNUE updates since refresh_features recomputes everything.
+    nnue_.push();
+    bool update_nnue = !is_king_move;
+    remove_piece(moving_side, moving_piece, from, update_nnue);
 
     if (move_type == MT_CAPTURE) {
-        state.captured_piece = handle_capture(to, moving_side, move_flag);
+        state.captured_piece = handle_capture(to, moving_side, move_flag, update_nnue);
     }
 
     if (move.is_promotion()) {
         moving_piece = move.promoted_piece();
     }
 
-    place_piece(moving_side, moving_piece, to);
+    place_piece(moving_side, moving_piece, to, update_nnue);
 
-    // Phase 3: Handle castling rook and revoke affected castling rights
+    // Handle castling rook and revoke affected castling rights
     if (move_flag == MF_CASTLE) {
         handle_castle(to);
     }
 
     update_castling_rights(from, to);
 
-    // Phase 4: Switch side and commit to history
+    // Refresh NNUE accumulators from scratch after king moves
+    if (is_king_move) {
+        nnue_.refresh_features(king_squares_, pieces_);
+    }
+
+    // Switch side and commit to history
     toggle_side_to_move();
 
     move_history_[ply_] = move;
     state_history_[ply_] = state;
     ply_ += 1;
     position_hashes_[ply_] = position_hash_;
-    pawn_hashes_[ply_] = pawn_hash_;
+    // pawn_hashes_[ply_] = pawn_hash_;
 }
 
 void Board::unmake_move(Move move) {
@@ -264,7 +277,7 @@ void Board::unmake_move(Move move) {
     MoveType move_type = move.type();
     MoveFlag move_flag = move.flag();
 
-    // Phase 1: Restore saved state (en passant, castling, halfmove clock)
+    // Restore saved state (en passant, castling, halfmove clock)
     Side moving_side = opposite_side(to_move_);
     ply_ -= 1;
 
@@ -277,30 +290,31 @@ void Board::unmake_move(Move move) {
         fullmoves_--;
     }
 
-    // Phase 2: Reverse the piece movement — remove from destination, demote if needed, place on origin
+    // Reverse the piece movement — remove from destination, demote if needed, place on origin
     Piece moving_piece = piece_map_[to];
-    remove_piece(moving_side, moving_piece, to);
+    remove_piece(moving_side, moving_piece, to, false);
 
     if (move.is_promotion()) {
         moving_piece = PAWN;
     }
 
-    place_piece(moving_side, moving_piece, from);
+    place_piece(moving_side, moving_piece, from, false);
 
-    // Phase 3: Restore captured piece and undo castling rook movement
+    // Restore captured piece and undo castling rook movement
     if (move_type == MT_CAPTURE) {
         Square capture_sq = move_flag == MF_EN_PASSANT ? en_passant_capture_square(to, moving_side) : to;
-        place_piece(opposite_side(moving_side), prev_state.captured_piece, capture_sq);
+        place_piece(opposite_side(moving_side), prev_state.captured_piece, capture_sq, false);
     }
 
     if (move_flag == MF_CASTLE) {
         undo_castle(to);
     }
 
-    // Phase 4: Switch side back and restore hashes from history
+    // Switch side back and restore hashes and NNUE state from history
     toggle_side_to_move();
     position_hash_ = position_hashes_[ply_];
-    pawn_hash_ = pawn_hashes_[ply_];
+    // pawn_hash_ = pawn_hashes_[ply_];
+    nnue_.pop();
 }
 
 // --- Null Move ---
@@ -312,7 +326,7 @@ void Board::make_null_move() {
     toggle_side_to_move();
     ply_++;
     position_hashes_[ply_] = position_hash_;
-    pawn_hashes_[ply_] = pawn_hash_;
+    // pawn_hashes_[ply_] = pawn_hash_;
 }
 
 void Board::unmake_null_move() {
@@ -321,50 +335,67 @@ void Board::unmake_null_move() {
     en_passant_target_ = prev_state.en_passant_target;
     toggle_side_to_move();
     position_hash_ = position_hashes_[ply_];
-    pawn_hash_ = pawn_hashes_[ply_];
+    // pawn_hash_ = pawn_hashes_[ply_];
 }
 
 // --- Piece Mutation ---
 
-void Board::place_piece(Side side, Piece piece, Square square) {
+void Board::place_piece(Side side, Piece piece, Square square, bool update_nnue) {
+    // Set the bit for this square in the piece, side, and occupancy bitboards
     Bitboard mask = get_mask(square);
     pieces_[side][piece] |= mask;
     sides_[side] |= mask;
     occupied_ |= mask;
 
+    // Update the square-to-piece lookup and track king position
     piece_map_[square] = piece;
     if (piece == KING) {
         king_squares_[side] = square;
     }
 
+    // Toggle the Zobrist hash for this piece placement (XOR is its own inverse)
     uint64_t zobrist_number = ZOBRIST_PIECES[side][piece][square];
     position_hash_ ^= zobrist_number;
-    if (piece == PAWN) {
-        pawn_hash_ ^= zobrist_number;
-    }
+    // if (piece == PAWN) {
+    //     pawn_hash_ ^= zobrist_number;
+    // }
 
-    early_score_[side] += EARLY_EVAL_TABLE[side][piece][square];
-    late_score_[side] += LATE_EVAL_TABLE[side][piece][square];
+    // Incrementally update evaluation scores and game phase
+    // early_score_[side] += EARLY_EVAL_TABLE[side][piece][square];
+    // late_score_[side] += LATE_EVAL_TABLE[side][piece][square];
     game_phase_ += GAME_PHASE_INCREMENT[piece];
+
+    // Incrementally update NNUE accumulator
+    if (update_nnue) {
+        nnue_.add_feature(king_squares_, side, piece, square);
+    }
 }
 
-void Board::remove_piece(Side side, Piece piece, Square square) {
+void Board::remove_piece(Side side, Piece piece, Square square, bool update_nnue) {
+    // Clear the bit for this square from the piece, side, and occupancy bitboards
     Bitboard mask = ~get_mask(square);
     pieces_[side][piece] &= mask;
     sides_[side] &= mask;
     occupied_ &= mask;
 
+    // Clear the square-to-piece lookup
     piece_map_[square] = NO_PIECE;
 
+    // Toggle the Zobrist hash for this piece removal (XOR is its own inverse)
     uint64_t zobrist_number = ZOBRIST_PIECES[side][piece][square];
     position_hash_ ^= zobrist_number;
-    if (piece == PAWN) {
-        pawn_hash_ ^= zobrist_number;
-    }
+    // if (piece == PAWN) {
+    //     pawn_hash_ ^= zobrist_number;
+    // }
 
-    early_score_[side] -= EARLY_EVAL_TABLE[side][piece][square];
-    late_score_[side] -= LATE_EVAL_TABLE[side][piece][square];
+    // early_score_[side] -= EARLY_EVAL_TABLE[side][piece][square];
+    // late_score_[side] -= LATE_EVAL_TABLE[side][piece][square];
     game_phase_ -= GAME_PHASE_INCREMENT[piece];
+
+    // Incrementally update NNUE accumulator
+    if (update_nnue) {
+        nnue_.remove_feature(king_squares_, side, piece, square);
+    }
 }
 
 // --- Hash ---

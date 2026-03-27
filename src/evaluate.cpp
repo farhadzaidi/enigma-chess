@@ -171,7 +171,7 @@ constexpr EvalTable create_eval_table(
     EvalTable table{};
     for (Piece piece = PAWN; piece < NUM_PIECES; piece++) {
         for (Square sq = 0; sq < NUM_SQUARES; sq++) {
-            table[WHITE][piece][sq] = piece_values[piece] + psqt[piece][sq ^ 56];
+            table[WHITE][piece][sq] = piece_values[piece] + psqt[piece][flip_square(sq)];
             table[BLACK][piece][sq] = piece_values[piece] + psqt[piece][sq];
         }
     }

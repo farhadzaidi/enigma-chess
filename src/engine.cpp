@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "bitboard.hpp"
-#include "evaluate.hpp"
 #include "pawn_table.hpp"
 #include "move_generator.hpp"
 #include "print.hpp"
@@ -478,11 +477,13 @@ void Engine::search_infinite(const Board& board) {
     search(board, MAX_SEARCH_PLY - 1, -1, -1, 0);
 }
 
-void Engine::apply_time(int soft_time, int hard_time) {
+void Engine::apply_limits(SearchDepth max_depth, int soft_time, int hard_time, uint64_t max_nodes) {
     if (contexts_.empty()) return;
     Context& ctx = contexts_[0];
+    ctx.max_depth = max_depth;
     ctx.soft_time = soft_time;
     ctx.hard_time = hard_time;
+    ctx.max_nodes = max_nodes;
     ctx.set_deadlines_from(std::chrono::steady_clock::now());
 }
 
@@ -807,7 +808,7 @@ PositionScore Engine::quiescence_search(Board& board, Context& ctx, PositionScor
 
     // Standing pat: if not in check, use static eval as a lower bound
     if (!in_check) {
-        PositionScore static_eval = evaluate(board);
+        PositionScore static_eval = board.nnue_evaluate();
         alpha = std::max(alpha, static_eval);
         if (alpha >= beta) {
             return alpha;
@@ -873,7 +874,9 @@ PositionScore Engine::negamax(
 
     // TT probe — may produce an immediate cutoff or a best-move hint
     TTProbeResult tt_result = probe_tt(board, ctx, depth, alpha, beta, is_pv_node);
-    if (tt_result.has_cutoff) return tt_result.cutoff_score;
+    if (tt_result.has_cutoff) {
+        return tt_result.cutoff_score;
+    }
 
     PositionScore original_alpha = alpha;
     bool in_check = board.in_check();
@@ -890,7 +893,9 @@ PositionScore Engine::negamax(
             return SEARCH_INTERRUPTED;
         }
 
-        if (score >= beta) return score;
+        if (score >= beta) {
+            return score;
+        }
     }
 
     // Futility pruning setup: at shallow depths, if static eval is far below alpha,
@@ -899,7 +904,7 @@ PositionScore Engine::negamax(
 
     PositionScore static_eval = 0;
     if (can_use_futility_pruning) {
-        static_eval = evaluate(board);
+        static_eval = board.nnue_evaluate();
     }
     PositionScore futility_margin = FUTILITY_MARGIN_PER_DEPTH * depth + FUTILITY_MARGIN_BASE;
 
@@ -919,7 +924,9 @@ PositionScore Engine::negamax(
 
         // Futility pruning: skip quiet moves when static eval + margin can't reach alpha
         if (can_use_futility_pruning && num_moves > 0 && move_selector.in_quiet_phase()) {
-            if (static_eval + futility_margin < alpha) continue;
+            if (static_eval + futility_margin < alpha) {
+                continue;
+            }
         }
 
         board.make_move(move);
@@ -1118,7 +1125,7 @@ Move Engine::iterative_deepening(Board& board, Context& ctx, SearchDepth depth) 
                 break;
             }
 
-                search_result = search_at_depth(board, ctx, depth, best_move, alpha, beta);
+            search_result = search_at_depth(board, ctx, depth, best_move, alpha, beta);
             if (search_result.score <= alpha) {
                 alpha_delta *= 2;
                 alpha = std::max(score - alpha_delta, -static_cast<int>(CHECKMATE_SCORE));

@@ -4,13 +4,11 @@
 #include <string_view>
 
 #include "move.hpp"
+#include "nnue.hpp"
+#include "square.hpp"
 
 // --- Board Constants ---
 
-constexpr int NUM_SQUARES = 64;
-constexpr int NUM_SIDES = 2;
-constexpr int NUM_PIECES = 6;
-constexpr int BOARD_SIZE = 8;
 constexpr int MAX_GAME_PLY = 2048;
 constexpr int FIFTY_MOVE_PLY_LIMIT = 100;
 
@@ -29,34 +27,8 @@ constexpr std::string_view POSITION_5_FEN =
 constexpr std::string_view POSITION_6_FEN =
     "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10 ";
 
-// --- Board Helpers ---
-
-constexpr Side opposite_side(Side side) { return side ^ 1; }
-constexpr Square get_square(int rank, int file) { return rank * BOARD_SIZE + file; }
-constexpr int get_rank(Square square) { return square / BOARD_SIZE; }
-constexpr int get_file(Square square) { return square % BOARD_SIZE; }
-
 class Board {
-private:
-    // This record contains important board state information which is useful for undoing moves.
-    // These attributes are overwritten when making a move and unable to be restored from the move encoding.
-    struct UndoState {
-        Square en_passant_target = NO_SQUARE;
-        CastlingRights castling_rights = NO_CASTLING_RIGHTS;
-        uint8_t halfmoves = 0; // Truncating from int to U8 to save space
-        Piece captured_piece = NO_PIECE;
-
-        UndoState() = default;
-
-        UndoState(Square ep, CastlingRights cr, uint8_t hm, Piece cp) :
-            en_passant_target(ep),
-            castling_rights(cr),
-            halfmoves(hm),
-            captured_piece(cp) {}
-    };
-
 public:
-
     // --- Lifecycle ---
 
     Board();
@@ -120,7 +92,26 @@ public:
     int fullmoves() const { return fullmoves_; }
     int ply() const { return ply_; }
 
+    /** Evaluate the current position using NNUE */
+    PositionScore nnue_evaluate() { return nnue_.evaluate(to_move_); }
+
 private:
+    // This record contains important board state information which is useful for undoing moves.
+    // These attributes are overwritten when making a move and unable to be restored from the move encoding.
+    struct UndoState {
+        Square en_passant_target = NO_SQUARE;
+        CastlingRights castling_rights = NO_CASTLING_RIGHTS;
+        uint8_t halfmoves = 0; // Truncating from int to U8 to save space
+        Piece captured_piece = NO_PIECE;
+
+        UndoState() = default;
+
+        UndoState(Square ep, CastlingRights cr, uint8_t hm, Piece cp) :
+            en_passant_target(ep),
+            castling_rights(cr),
+            halfmoves(hm),
+            captured_piece(cp) {}
+    };
 
     // --- Representation ---
 
@@ -154,17 +145,20 @@ private:
     std::array<ZobristHash, MAX_GAME_PLY + 1> position_hashes_;
     std::array<ZobristHash, MAX_GAME_PLY + 1> pawn_hashes_;
 
+    // --- NNUE ---
+    NNUE nnue_;
+
     // --- Helpers ---
 
     Side get_side(Square square) const;
-    void place_piece(Side side, Piece piece, Square square);
-    void remove_piece(Side side, Piece piece, Square square);
+    void place_piece(Side side, Piece piece, Square square, bool update_nnue);
+    void remove_piece(Side side, Piece piece, Square square, bool update_nnue);
     void xor_en_passant();
     void xor_castling_rights();
     void xor_side_to_move();
     void toggle_side_to_move();
     void set_en_passant_target(Side side, Piece piece, Square from, Square to);
-    Piece handle_capture(Square capture_square, Side moving_side, MoveFlag mflag);
+    Piece handle_capture(Square capture_square, Side moving_side, MoveFlag move_flag, bool update_nnue);
     void handle_castle(Square castle_square);
     void undo_castle(Square castle_square);
     void update_castling_rights(Square from, Square to);
