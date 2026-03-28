@@ -8,6 +8,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path('..')
 BINARY_PATH = PROJECT_ROOT / 'build' / 'enigma'
+OPENINGS_PATH = PROJECT_ROOT / 'positions' / 'openings.pgn'
 
 
 def _env_path(name):

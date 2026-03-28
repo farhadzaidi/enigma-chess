@@ -8,10 +8,26 @@
 #include <utility>
 
 #include "bitboard.hpp"
+#include "params.hpp"
 #include "pawn_table.hpp"
 #include "move_generator.hpp"
 #include "print.hpp"
 #include "notation.hpp"
+
+// --- LMR table ---
+
+constexpr int LMR_MAX_MOVES = 128;
+
+/** Pre-computed late move reduction table; reduction = f(depth, move_index). */
+static std::array<std::array<int, LMR_MAX_MOVES>, MAX_SEARCH_PLY> LMR_TABLE{};
+
+void build_lmr_table() {
+    for (int depth = 0; depth < MAX_SEARCH_PLY; depth++) {
+        for (int move_index = 0; move_index < LMR_MAX_MOVES; move_index++) {
+            LMR_TABLE[depth][move_index] = std::log(depth + 1) * std::log(move_index + 1) / g_params.lmr_tuning_constant;
+        }
+    }
+}
 
 namespace {
 
@@ -22,33 +38,6 @@ constexpr PositionScore SEARCH_INTERRUPTED = DUMMY_SCORE;
 
 // Only check the clock every N nodes (N = mask + 1) to avoid syscall overhead
 constexpr uint64_t TIME_CHECK_PERIOD_MASK = 2047;
-
-constexpr int ASPIRATION_WINDOW = 25;
-constexpr int SCORE_DROP_THRESHOLD = 50;
-
-constexpr int NULL_MOVE_BASE_REDUCTION = 2;
-constexpr SearchDepth NULL_MOVE_DEEPER_THRESHOLD = 6;
-
-constexpr int FUTILITY_MARGIN_PER_DEPTH = 90;
-constexpr int FUTILITY_MARGIN_BASE = 40;
-
-constexpr int SEE_CUTOFF = -200;
-
-// --- LMR table ---
-
-constexpr int LMR_MAX_MOVES = 128;
-
-/** Pre-computed late move reduction table; reduction = f(depth, move_index). */
-const std::array<std::array<int, LMR_MAX_MOVES>, MAX_SEARCH_PLY> LMR_TABLE = []() {
-    constexpr double LMR_TUNING_CONSTANT = 2.0;
-    std::array<std::array<int, LMR_MAX_MOVES>, MAX_SEARCH_PLY> table{};
-    for (int depth = 0; depth < MAX_SEARCH_PLY; depth++) {
-        for (int move_index = 0; move_index < LMR_MAX_MOVES; move_index++) {
-            table[depth][move_index] = std::log(depth + 1) * std::log(move_index + 1) / LMR_TUNING_CONSTANT;
-        }
-    }
-    return table;
-}();
 
 // --- MVV/LVA table ---
 
@@ -177,7 +166,7 @@ bool can_apply_null_move(
     return (
         allow_null_move &&
         !in_check &&
-        depth >= 3 &&
+        depth >= g_params.null_move_min_depth &&
         !is_pv_node &&
         has_non_pawn_material
     );
@@ -197,7 +186,7 @@ bool can_apply_futility(
         std::abs(beta) < MATE_THRESHOLD &&
         !is_pv_node &&
         !in_check &&
-        depth < 4
+        depth < g_params.futility_max_depth
     );
 }
 
@@ -429,6 +418,10 @@ bool Engine::MoveSelector::is_already_returned(Move move) {
 }
 
 // --- Engine API ---
+
+Engine::Engine() {
+    build_lmr_table();
+}
 
 Engine::~Engine() {
     stop();
@@ -732,8 +725,7 @@ Engine::TTProbeResult Engine::probe_tt(
 
     // Internal Iterative Deepening: do a shallow search to find a move for ordering
     // when we have no TT entry on a PV node at sufficient depth
-    constexpr SearchDepth MINIMUM_IID_DEPTH = 4;
-    if (is_pv_node && depth >= MINIMUM_IID_DEPTH) {
+    if (is_pv_node && depth >= g_params.minimum_iid_depth) {
         SearchDepth iid_depth = std::max<SearchDepth>(0, depth / 2);
         negamax(board, ctx, iid_depth, alpha, beta);
 
@@ -828,7 +820,7 @@ PositionScore Engine::quiescence_search(Board& board, Context& ctx, PositionScor
 
     for (Move move : moves) {
         // SEE pruning: skip captures that lose too much material
-        if (!in_check && move.type() == MT_CAPTURE && see(board, move) < SEE_CUTOFF) continue;
+        if (!in_check && move.type() == MT_CAPTURE && see(board, move) < g_params.see_cutoff) continue;
 
         board.make_move(move);
         PositionScore score = -quiescence_search(board, ctx, -beta, -alpha);
@@ -884,9 +876,10 @@ PositionScore Engine::negamax(
     // Null move pruning: skip a turn and search with a reduced window.
     // If the opponent still can't beat beta, the position is likely so good we can prune.
     if (can_apply_null_move(in_check, depth, is_pv_node, allow_null_move, board.has_non_pawn_material(board.to_move()))) {
-        int reduction = NULL_MOVE_BASE_REDUCTION + (depth >= NULL_MOVE_DEEPER_THRESHOLD);
+        int reduction = g_params.null_move_base_reduction + (depth >= g_params.null_move_deeper_threshold);
+        SearchDepth null_depth = std::max(0, static_cast<int>(depth) - reduction);
         board.make_null_move();
-        PositionScore score = -negamax(board, ctx, depth - reduction, -beta, -beta + 1, false);
+        PositionScore score = -negamax(board, ctx, null_depth, -beta, -beta + 1, false);
         board.unmake_null_move();
 
         if (should_stop_search(ctx)) {
@@ -906,7 +899,7 @@ PositionScore Engine::negamax(
     if (can_use_futility_pruning) {
         static_eval = board.nnue_evaluate();
     }
-    PositionScore futility_margin = FUTILITY_MARGIN_PER_DEPTH * depth + FUTILITY_MARGIN_BASE;
+    PositionScore futility_margin = g_params.futility_margin_per_depth * depth + g_params.futility_margin_base;
 
     PositionScore best_score = DUMMY_SCORE;
     Move best_move;
@@ -1097,7 +1090,7 @@ Move Engine::iterative_deepening(Board& board, Context& ctx, SearchDepth depth) 
         if (ctx.is_main_thread && ctx.has_runtime_limits() && ctx.soft_time != -1) {
             bool soft_limit_hit = std::chrono::steady_clock::now() >= ctx.soft_deadline;
             if (soft_limit_hit) {
-                bool score_dropped = (prev_score - score) > SCORE_DROP_THRESHOLD;
+                bool score_dropped = (prev_score - score) > g_params.score_drop_threshold;
                 if (!score_dropped && best_move_stability > 0) {
                     break;
                 }
@@ -1108,8 +1101,8 @@ Move Engine::iterative_deepening(Board& board, Context& ctx, SearchDepth depth) 
         // Use full window at depth 1 since we have no prior score to centre on.
         int alpha;
         int beta;
-        int alpha_delta = ASPIRATION_WINDOW;
-        int beta_delta = ASPIRATION_WINDOW;
+        int alpha_delta = g_params.aspiration_window;
+        int beta_delta = g_params.aspiration_window;
         if (depth == 1) {
             alpha = -CHECKMATE_SCORE;
             beta = CHECKMATE_SCORE;

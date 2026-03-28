@@ -13,6 +13,9 @@
 #include "transposition_table.hpp"
 #include "types.hpp"
 
+/** Rebuild the LMR table from the current g_params.lmr_tuning_constant. */
+void build_lmr_table();
+
 // --- Search Constants ---
 
 constexpr PositionScore CHECKMATE_SCORE = 32'000;
@@ -30,7 +33,7 @@ class Engine {
 public:
     // --- Lifecycle ---
 
-    Engine() = default;
+    Engine();
     /** Joins all search threads and cleans up. */
     ~Engine();
 

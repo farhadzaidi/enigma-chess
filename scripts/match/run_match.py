@@ -7,12 +7,11 @@ Supports standard fixed-game matches and SPRT testing.
 import argparse
 import subprocess
 
-from lib.path import BINARY_PATH, PROJECT_ROOT, require_env, _env_path
+from lib.path import BINARY_PATH, OPENINGS_PATH, PROJECT_ROOT, require_env, _env_path
 from lib.concurrency import calc_concurrency
 from match.version import find_version, find_latest_version
 
 CUTECHESS_CLI_BINARY_PATH = _env_path('cutechess_cli_binary')
-OPENINGS_PATH = PROJECT_ROOT / 'positions' / 'openings.pgn'
 
 # Fixed settings
 TC = '8+0.08'
