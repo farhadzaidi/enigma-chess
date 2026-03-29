@@ -172,8 +172,8 @@ bool can_apply_null_move(
     );
 }
 
-/** Guard conditions for futility pruning */
-bool can_apply_futility(
+/** Guard conditions for shallow-depth pruning (futility, RFP, LMP, etc.) */
+bool can_apply_pruning(
     PositionScore alpha,
     PositionScore beta,
     bool is_pv_node,
@@ -889,7 +889,7 @@ PositionScore Engine::negamax(
 
     // Reverse futility pruning: if static eval is so far above beta that even after
     // subtracting a margin the opponent still can't beat it, cut the node early.
-    if (can_apply_futility(alpha, beta, is_pv_node, in_check, depth, g_search_params.reverse_futility_max_depth)) {
+    if (can_apply_pruning(alpha, beta, is_pv_node, in_check, depth, g_search_params.reverse_futility_max_depth)) {
         PositionScore rfp_eval = board.nnue_evaluate();
         PositionScore rfp_margin = g_search_params.reverse_futility_margin_per_depth * depth + g_search_params.reverse_futility_margin_base;
         if (rfp_eval - rfp_margin >= beta) {
@@ -899,7 +899,11 @@ PositionScore Engine::negamax(
 
     // Futility pruning setup: at shallow depths, if static eval is far below alpha,
     // quiet moves are unlikely to raise it enough — skip them in the move loop below.
-    bool can_use_futility_pruning = can_apply_futility(alpha, beta, is_pv_node, in_check, depth, g_search_params.futility_max_depth);
+    bool can_use_futility_pruning = can_apply_pruning(alpha, beta, is_pv_node, in_check, depth, g_search_params.futility_max_depth);
+
+    // Late move pruning: at shallow depths, skip quiet moves after searching enough of them.
+    bool can_use_lmp = can_apply_pruning(alpha, beta, is_pv_node, in_check, depth, g_search_params.lmp_max_depth);
+    int lmp_threshold = g_search_params.lmp_base + depth * depth;
 
     PositionScore static_eval = 0;
     if (can_use_futility_pruning) {
@@ -926,6 +930,11 @@ PositionScore Engine::negamax(
             if (static_eval + futility_margin < alpha) {
                 continue;
             }
+        }
+
+        // Late move pruning
+        if (can_use_lmp && num_moves >= lmp_threshold && move_selector.in_quiet_phase()) {
+            continue;
         }
 
         board.make_move(move);

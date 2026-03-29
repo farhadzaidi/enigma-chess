@@ -20,6 +20,9 @@ struct SearchParams {
     int futility_margin_base = DEFAULT_FUTILITY_MARGIN_BASE;
     int futility_max_depth = DEFAULT_FUTILITY_MAX_DEPTH;
 
+    int lmp_base = DEFAULT_LMP_BASE;
+    int lmp_max_depth = DEFAULT_LMP_MAX_DEPTH;
+
     int see_cutoff = DEFAULT_SEE_CUTOFF;
 
     double lmr_tuning_constant = DEFAULT_LMR_TUNING_CONSTANT;

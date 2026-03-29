@@ -29,6 +29,8 @@ SEARCH = {
         ("FutilityMarginPerDepth", "FUTILITY_MARGIN_PER_DEPTH", 90),
         ("FutilityMarginBase", "FUTILITY_MARGIN_BASE", 40),
         ("FutilityMaxDepth", "FUTILITY_MAX_DEPTH", 4),
+        ("LMPBase", "LMP_BASE", 3),
+        ("LMPMaxDepth", "LMP_MAX_DEPTH", 4),
         ("SEECutoff", "SEE_CUTOFF", -200),
         ("LMRTuningConstant", "LMR_TUNING_CONSTANT", 2.0),
         ("MinimumIIDDepth", "MINIMUM_IID_DEPTH", 4),

@@ -2,8 +2,6 @@
 
 ## Pruning
 
-- **Reverse futility pruning** — at shallow depths, if static eval is already well above beta, skip the search and return early. The mirror of futility pruning.
-- **Late move pruning** — skip quiet moves entirely at shallow depths after searching the first N moves, since good move ordering means they're almost certainly bad.
 - **SEE pruning in main search** — prune losing captures in the main search (not just qsearch) at low depths based on static exchange evaluation.
 - **Razoring** — at shallow depths, if static eval is far below alpha, drop directly into qsearch instead of doing a full search.
 - **Singular extensions** — if one move is clearly better than all alternatives (by re-searching with a reduced window excluding it), extend it by one ply to resolve it more accurately.

@@ -56,6 +56,8 @@ SEARCH_PARAMS = ParameterSet(
         Parameter("FutilityMarginPerDepth", 10, 300, True),
         Parameter("FutilityMarginBase", 0, 200, True),
         Parameter("FutilityMaxDepth", 1, 8, True),
+        Parameter("LMPBase", 1, 10, True),
+        Parameter("LMPMaxDepth", 1, 8, True),
         Parameter("SEECutoff", -500, 0, True),
         Parameter("LMRTuningConstant", 0.5, 5.0, False),
         Parameter("MinimumIIDDepth", 1, 8, True),
