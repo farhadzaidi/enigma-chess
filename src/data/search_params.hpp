@@ -17,6 +17,7 @@ constexpr int DEFAULT_LMP_BASE = 3;
 constexpr int DEFAULT_LMP_MAX_DEPTH = 4;
 constexpr int DEFAULT_RAZORING_MARGIN = 200;
 constexpr int DEFAULT_RAZORING_MAX_DEPTH = 1;
+constexpr int DEFAULT_SEE_PRUNING_MAX_DEPTH = 4;
 constexpr int DEFAULT_SEE_CUTOFF = -113;
 constexpr double DEFAULT_LMR_TUNING_CONSTANT = 1.317;
 constexpr int DEFAULT_MINIMUM_IID_DEPTH = 6;

@@ -26,6 +26,7 @@ struct SearchParams {
     int razoring_margin = DEFAULT_RAZORING_MARGIN;
     int razoring_max_depth = DEFAULT_RAZORING_MAX_DEPTH;
 
+    int see_pruning_max_depth = DEFAULT_SEE_PRUNING_MAX_DEPTH;
     int see_cutoff = DEFAULT_SEE_CUTOFF;
 
     double lmr_tuning_constant = DEFAULT_LMR_TUNING_CONSTANT;

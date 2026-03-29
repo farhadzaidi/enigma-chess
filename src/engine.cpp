@@ -240,6 +240,7 @@ public:
     Move next_move(Context& ctx);
     bool before_quiet_phase() const { return phase_ <= MSP_KILLER; }
     bool in_quiet_phase() const { return phase_ == MSP_QUIET; }
+    bool in_bad_capture_phase() const { return phase_ == MSP_BAD_CAPTURE; }
 
 private:
     MoveSelectorPhase phase_;
@@ -916,12 +917,14 @@ PositionScore Engine::negamax(
     // Futility pruning setup: at shallow depths, if static eval is far below alpha,
     // quiet moves are unlikely to raise it enough — skip them in the move loop below.
     bool can_use_futility_pruning = can_apply_pruning(alpha, beta, is_pv_node, in_check, depth, g_search_params.futility_max_depth);
+    PositionScore futility_margin = g_search_params.futility_margin_per_depth * depth + g_search_params.futility_margin_base;
 
     // Late move pruning: at shallow depths, skip quiet moves after searching enough of them.
     bool can_use_lmp = can_apply_pruning(alpha, beta, is_pv_node, in_check, depth, g_search_params.lmp_max_depth);
     int lmp_threshold = g_search_params.lmp_base + depth * depth;
 
-    PositionScore futility_margin = g_search_params.futility_margin_per_depth * depth + g_search_params.futility_margin_base;
+    // SEE pruning: at shallow depths, skip losing captures entirely.
+    bool can_use_see_pruning = can_apply_pruning(alpha, beta, is_pv_node, in_check, depth, g_search_params.see_pruning_max_depth);
 
     PositionScore best_score = DUMMY_SCORE;
     Move best_move;
@@ -937,7 +940,7 @@ PositionScore Engine::negamax(
         if (move == NULL_MOVE) break;
         else has_moves = true;
 
-        // Futility pruning: skip quiet moves when static eval + margin can't reach alpha
+        // Futility pruning
         if (can_use_futility_pruning && num_moves > 0 && move_selector.in_quiet_phase()) {
             if (eval() + futility_margin < alpha) {
                 continue;
@@ -946,6 +949,11 @@ PositionScore Engine::negamax(
 
         // Late move pruning
         if (can_use_lmp && num_moves >= lmp_threshold && move_selector.in_quiet_phase()) {
+            continue;
+        }
+
+        // SEE pruning
+        if (can_use_see_pruning && num_moves > 0 && move_selector.in_bad_capture_phase()) {
             continue;
         }
 

@@ -60,6 +60,7 @@ SEARCH_PARAMS = ParameterSet(
         Parameter("LMPMaxDepth", 1, 8, True),
         Parameter("RazoringMargin", 50, 600, True),
         Parameter("RazoringMaxDepth", 1, 4, True),
+        Parameter("SEEPruningMaxDepth", 1, 8, True),
         Parameter("SEECutoff", -500, 0, True),
         Parameter("LMRTuningConstant", 0.5, 5.0, False),
         Parameter("MinimumIIDDepth", 1, 8, True),

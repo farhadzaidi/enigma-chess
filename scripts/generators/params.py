@@ -33,6 +33,7 @@ SEARCH = {
         ("LMPMaxDepth", "LMP_MAX_DEPTH", 4),
         ("RazoringMargin", "RAZORING_MARGIN", 200),
         ("RazoringMaxDepth", "RAZORING_MAX_DEPTH", 1),
+        ("SEEPruningMaxDepth", "SEE_PRUNING_MAX_DEPTH", 4),
         ("SEECutoff", "SEE_CUTOFF", -200),
         ("LMRTuningConstant", "LMR_TUNING_CONSTANT", 2.0),
         ("MinimumIIDDepth", "MINIMUM_IID_DEPTH", 4),
