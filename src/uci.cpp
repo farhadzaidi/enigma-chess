@@ -19,8 +19,8 @@
 namespace {
 
 Engine& engine() {
-    static Engine g_engine;
-    return g_engine;
+    static Engine instance;
+    return instance;
 }
 
 struct PendingLimits {
@@ -46,21 +46,21 @@ TimeLimits calc_time_limit(Board& b, int remaining, int increment, int movestogo
     } else {
         // Estimate remaining moves based on game phase (more material = more moves left)
         float phase_ratio = static_cast<float>(b.game_phase()) / MAX_GAME_PHASE;
-        moves_left = g_params.moves_left_base + static_cast<int>(g_params.moves_left_phase_scale * phase_ratio);
+        moves_left = g_tm_params.moves_left_base + static_cast<int>(g_tm_params.moves_left_phase_scale * phase_ratio);
     }
 
     if (increment == 0) {
-        moves_left = std::max(moves_left, g_params.min_moves_no_increment);
+        moves_left = std::max(moves_left, g_tm_params.min_moves_no_increment);
     }
 
-    int base = remaining / moves_left + static_cast<int>(increment * g_params.increment_fraction);
-    int soft = base * (increment == 0 ? g_params.soft_factor_no_increment : g_params.soft_factor_increment);
-    int hard = std::min(static_cast<int>(base * g_params.hard_factor), remaining / g_params.hard_cap_divisor);
+    int base = remaining / moves_left + static_cast<int>(increment * g_tm_params.increment_fraction);
+    int soft = base * (increment == 0 ? g_tm_params.soft_factor_no_increment : g_tm_params.soft_factor_increment);
+    int hard = std::min(static_cast<int>(base * g_tm_params.hard_factor), remaining / g_tm_params.hard_cap_divisor);
 
     // Emergency scaling: when time is critically low, play fast to avoid flagging
-    if (remaining < base * g_params.emergency_trigger) {
-        soft = remaining / g_params.emergency_soft_divisor;
-        hard = remaining / g_params.emergency_hard_divisor;
+    if (remaining < base * g_tm_params.emergency_trigger) {
+        soft = remaining / g_tm_params.emergency_soft_divisor;
+        hard = remaining / g_tm_params.emergency_hard_divisor;
     }
 
     return {soft, hard};
@@ -86,30 +86,36 @@ void cmd_uci() {
     uci_print("option name Ponder type check default false");
     uci_print("option name OwnBook type check default true");
 
-    // --- Tunable engine parameters ---
-    EngineParams defaults;
-    uci_print("option name AspirationWindow type spin default " + std::to_string(defaults.aspiration_window) + " min 1 max 200");
-    uci_print("option name ScoreDropThreshold type spin default " + std::to_string(defaults.score_drop_threshold) + " min 1 max 500");
-    uci_print("option name NullMoveBaseReduction type spin default " + std::to_string(defaults.null_move_base_reduction) + " min 1 max 4");
-    uci_print("option name NullMoveDeeperThreshold type spin default " + std::to_string(defaults.null_move_deeper_threshold) + " min 2 max 12");
-    uci_print("option name NullMoveMinDepth type spin default " + std::to_string(defaults.null_move_min_depth) + " min 1 max 6");
-    uci_print("option name FutilityMarginPerDepth type spin default " + std::to_string(defaults.futility_margin_per_depth) + " min 10 max 300");
-    uci_print("option name FutilityMarginBase type spin default " + std::to_string(defaults.futility_margin_base) + " min 0 max 200");
-    uci_print("option name FutilityMaxDepth type spin default " + std::to_string(defaults.futility_max_depth) + " min 1 max 8");
-    uci_print("option name SEECutoff type spin default " + std::to_string(defaults.see_cutoff) + " min -500 max 0");
-    uci_print("option name LMRTuningConstant type string default " + std::to_string(defaults.lmr_tuning_constant));
-    uci_print("option name MinimumIIDDepth type spin default " + std::to_string(defaults.minimum_iid_depth) + " min 1 max 8");
-    uci_print("option name MovesLeftBase type spin default " + std::to_string(defaults.moves_left_base) + " min 1 max 50");
-    uci_print("option name MovesLeftPhaseScale type spin default " + std::to_string(defaults.moves_left_phase_scale) + " min 1 max 100");
-    uci_print("option name MinMovesNoIncrement type spin default " + std::to_string(defaults.min_moves_no_increment) + " min 10 max 100");
-    uci_print("option name IncrementFraction type string default " + std::to_string(defaults.increment_fraction));
-    uci_print("option name SoftFactorNoIncrement type string default " + std::to_string(defaults.soft_factor_no_increment));
-    uci_print("option name SoftFactorIncrement type string default " + std::to_string(defaults.soft_factor_increment));
-    uci_print("option name HardFactor type string default " + std::to_string(defaults.hard_factor));
-    uci_print("option name HardCapDivisor type spin default " + std::to_string(defaults.hard_cap_divisor) + " min 1 max 10");
-    uci_print("option name EmergencyTrigger type spin default " + std::to_string(defaults.emergency_trigger) + " min 1 max 20");
-    uci_print("option name EmergencySoftDivisor type spin default " + std::to_string(defaults.emergency_soft_divisor) + " min 2 max 50");
-    uci_print("option name EmergencyHardDivisor type spin default " + std::to_string(defaults.emergency_hard_divisor) + " min 2 max 30");
+    // --- Tunable search parameters ---
+    uci_print("option name AspirationWindow type string");
+    uci_print("option name ScoreDropThreshold type string");
+    uci_print("option name NullMoveBaseReduction type string");
+    uci_print("option name NullMoveDeeperThreshold type string");
+    uci_print("option name NullMoveMinDepth type string");
+    uci_print("option name FutilityMarginPerDepth type string");
+    uci_print("option name FutilityMarginBase type string");
+    uci_print("option name FutilityMaxDepth type string");
+    uci_print("option name SEECutoff type string");
+    uci_print("option name LMRTuningConstant type string");
+    uci_print("option name MinimumIIDDepth type string");
+    uci_print("option name IIDDepthDivisor type string");
+    uci_print("option name LMRPVReduction type string");
+    uci_print("option name BestMoveMinStability type string");
+    uci_print("option name NullMoveDeepReduction type string");
+    uci_print("option name HistoryMalusDivisor type string");
+    
+    // --- Tunable time management parameters ---
+    uci_print("option name MovesLeftBase type string");
+    uci_print("option name MovesLeftPhaseScale type string");
+    uci_print("option name MinMovesNoIncrement type string");
+    uci_print("option name IncrementFraction type string");
+    uci_print("option name SoftFactorNoIncrement type string");
+    uci_print("option name SoftFactorIncrement type string");
+    uci_print("option name HardFactor type string");
+    uci_print("option name HardCapDivisor type string");
+    uci_print("option name EmergencyTrigger type string");
+    uci_print("option name EmergencySoftDivisor type string");
+    uci_print("option name EmergencyHardDivisor type string");
 
     uci_print("uciok");
 }
@@ -177,12 +183,11 @@ void cmd_go(std::string& cmd, Board& b) {
     if (!has_explicit_limit) {
         hard_time = 50;
 
-        if (b.to_move() == WHITE && wtime != -1) {
-            auto limits = calc_time_limit(b, wtime, winc, movestogo);
-            soft_time = limits.soft_time;
-            hard_time = limits.hard_time;
-        } else if (b.to_move() == BLACK && btime != -1) {
-            auto limits = calc_time_limit(b, btime, binc, movestogo);
+        int remaining = (b.to_move() == WHITE) ? wtime : btime;
+        int increment = (b.to_move() == WHITE) ? winc : binc;
+
+        if (remaining != -1) {
+            TimeLimits limits = calc_time_limit(b, remaining, increment, movestogo);
             soft_time = limits.soft_time;
             hard_time = limits.hard_time;
         }
@@ -245,53 +250,65 @@ void cmd_setoption(const std::string& cmd) {
     } else if (name == "Ponder") {
         // Accepted but unused; go ponder is always respected.
 
-    // --- Tunable engine parameters ---
+    // --- Tunable search parameters ---
     } else if (name == "AspirationWindow") {
-        g_params.aspiration_window = std::stoi(value);
+        g_search_params.aspiration_window = std::stoi(value);
     } else if (name == "ScoreDropThreshold") {
-        g_params.score_drop_threshold = std::stoi(value);
+        g_search_params.score_drop_threshold = std::stoi(value);
     } else if (name == "NullMoveBaseReduction") {
-        g_params.null_move_base_reduction = std::stoi(value);
+        g_search_params.null_move_base_reduction = std::stoi(value);
     } else if (name == "NullMoveDeeperThreshold") {
-        g_params.null_move_deeper_threshold = std::stoi(value);
+        g_search_params.null_move_deeper_threshold = std::stoi(value);
     } else if (name == "NullMoveMinDepth") {
-        g_params.null_move_min_depth = std::stoi(value);
+        g_search_params.null_move_min_depth = std::stoi(value);
     } else if (name == "FutilityMarginPerDepth") {
-        g_params.futility_margin_per_depth = std::stoi(value);
+        g_search_params.futility_margin_per_depth = std::stoi(value);
     } else if (name == "FutilityMarginBase") {
-        g_params.futility_margin_base = std::stoi(value);
+        g_search_params.futility_margin_base = std::stoi(value);
     } else if (name == "FutilityMaxDepth") {
-        g_params.futility_max_depth = std::stoi(value);
+        g_search_params.futility_max_depth = std::stoi(value);
     } else if (name == "SEECutoff") {
-        g_params.see_cutoff = std::stoi(value);
+        g_search_params.see_cutoff = std::stoi(value);
     } else if (name == "LMRTuningConstant") {
-        g_params.lmr_tuning_constant = std::stod(value);
+        g_search_params.lmr_tuning_constant = std::stod(value);
         // Rebuild LMR table if the tuning constant changed
         build_lmr_table();
     } else if (name == "MinimumIIDDepth") {
-        g_params.minimum_iid_depth = std::stoi(value);
+        g_search_params.minimum_iid_depth = std::stoi(value);
+    } else if (name == "IIDDepthDivisor") {
+        g_search_params.iid_depth_divisor = std::stoi(value);
+    } else if (name == "LMRPVReduction") {
+        g_search_params.lmr_pv_reduction = std::stoi(value);
+    } else if (name == "BestMoveMinStability") {
+        g_search_params.best_move_min_stability = std::stoi(value);
+    } else if (name == "NullMoveDeepReduction") {
+        g_search_params.null_move_deep_reduction = std::stoi(value);
+    } else if (name == "HistoryMalusDivisor") {
+        g_search_params.history_malus_divisor = std::stoi(value);
+
+    // --- Tunable time management parameters ---
     } else if (name == "MovesLeftBase") {
-        g_params.moves_left_base = std::stoi(value);
+        g_tm_params.moves_left_base = std::stoi(value);
     } else if (name == "MovesLeftPhaseScale") {
-        g_params.moves_left_phase_scale = std::stoi(value);
+        g_tm_params.moves_left_phase_scale = std::stoi(value);
     } else if (name == "MinMovesNoIncrement") {
-        g_params.min_moves_no_increment = std::stoi(value);
+        g_tm_params.min_moves_no_increment = std::stoi(value);
     } else if (name == "IncrementFraction") {
-        g_params.increment_fraction = std::stod(value);
+        g_tm_params.increment_fraction = std::stod(value);
     } else if (name == "SoftFactorNoIncrement") {
-        g_params.soft_factor_no_increment = std::stod(value);
+        g_tm_params.soft_factor_no_increment = std::stod(value);
     } else if (name == "SoftFactorIncrement") {
-        g_params.soft_factor_increment = std::stod(value);
+        g_tm_params.soft_factor_increment = std::stod(value);
     } else if (name == "HardFactor") {
-        g_params.hard_factor = std::stod(value);
+        g_tm_params.hard_factor = std::stod(value);
     } else if (name == "HardCapDivisor") {
-        g_params.hard_cap_divisor = std::stoi(value);
+        g_tm_params.hard_cap_divisor = std::stoi(value);
     } else if (name == "EmergencyTrigger") {
-        g_params.emergency_trigger = std::stoi(value);
+        g_tm_params.emergency_trigger = std::stoi(value);
     } else if (name == "EmergencySoftDivisor") {
-        g_params.emergency_soft_divisor = std::stoi(value);
+        g_tm_params.emergency_soft_divisor = std::stoi(value);
     } else if (name == "EmergencyHardDivisor") {
-        g_params.emergency_hard_divisor = std::stoi(value);
+        g_tm_params.emergency_hard_divisor = std::stoi(value);
     }
 }
 

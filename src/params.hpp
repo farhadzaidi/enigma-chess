@@ -1,65 +1,47 @@
 #pragma once
 
+#include "data/search_params.hpp"
+#include "data/tm_params.hpp"
 #include "types.hpp"
 
-struct EngineParams {
-    // --- Search ---
+struct SearchParams {
+    int aspiration_window = DEFAULT_ASPIRATION_WINDOW;
+    int score_drop_threshold = DEFAULT_SCORE_DROP_THRESHOLD;
 
-    int aspiration_window = 67;
-    int score_drop_threshold = 180;
+    int null_move_base_reduction = DEFAULT_NULL_MOVE_BASE_REDUCTION;
+    int null_move_deeper_threshold = DEFAULT_NULL_MOVE_DEEPER_THRESHOLD;
+    int null_move_min_depth = DEFAULT_NULL_MOVE_MIN_DEPTH;
 
-    int null_move_base_reduction = 4;
-    int null_move_deeper_threshold = 8;
-    int null_move_min_depth = 2;
+    int futility_margin_per_depth = DEFAULT_FUTILITY_MARGIN_PER_DEPTH;
+    int futility_margin_base = DEFAULT_FUTILITY_MARGIN_BASE;
+    int futility_max_depth = DEFAULT_FUTILITY_MAX_DEPTH;
 
-    int futility_margin_per_depth = 10;
-    int futility_margin_base = 77;
-    int futility_max_depth = 4;
+    int see_cutoff = DEFAULT_SEE_CUTOFF;
 
-    int see_cutoff = -113;
+    double lmr_tuning_constant = DEFAULT_LMR_TUNING_CONSTANT;
 
-    double lmr_tuning_constant = 1.317;
+    int minimum_iid_depth = DEFAULT_MINIMUM_IID_DEPTH;
+    int iid_depth_divisor = DEFAULT_IID_DEPTH_DIVISOR;
 
-    int minimum_iid_depth = 6;
-
-    // --- Time Management ---
-
-    int moves_left_base = 11;
-    int moves_left_phase_scale = 78;
-    int min_moves_no_increment = 35;
-    double increment_fraction = 0.918;
-    double soft_factor_no_increment = 0.933;
-    double soft_factor_increment = 0.844;
-    double hard_factor = 4.510;
-    int hard_cap_divisor = 2;
-    int emergency_trigger = 8;
-    int emergency_soft_divisor = 11;
-    int emergency_hard_divisor = 22;
-
-    // --- Previous defaults (pre-tuning) ---
-    // int aspiration_window = 25;
-    // int score_drop_threshold = 50;
-    // int null_move_base_reduction = 2;
-    // int null_move_deeper_threshold = 6;
-    // int null_move_min_depth = 3;
-    // int futility_margin_per_depth = 90;
-    // int futility_margin_base = 40;
-    // int futility_max_depth = 4;
-    // int see_cutoff = -200;
-    // double lmr_tuning_constant = 2.0;
-    // int minimum_iid_depth = 4;
-    // int moves_left_base = 10;
-    // int moves_left_phase_scale = 30;
-    // int min_moves_no_increment = 45;
-    // double increment_fraction = 0.5;
-    // double soft_factor_no_increment = 0.5;
-    // double soft_factor_increment = 0.6;
-    // double hard_factor = 2.625;
-    // int hard_cap_divisor = 3;
-    // int emergency_trigger = 4;
-    // int emergency_soft_divisor = 15;
-    // int emergency_hard_divisor = 8;
-
+    int lmr_pv_reduction = DEFAULT_LMR_PV_REDUCTION;
+    int best_move_min_stability = DEFAULT_BEST_MOVE_MIN_STABILITY;
+    int null_move_deep_reduction = DEFAULT_NULL_MOVE_DEEP_REDUCTION;
+    int history_malus_divisor = DEFAULT_HISTORY_MALUS_DIVISOR;
 };
 
-inline EngineParams g_params;
+struct TMParams {
+    int moves_left_base = DEFAULT_MOVES_LEFT_BASE;
+    int moves_left_phase_scale = DEFAULT_MOVES_LEFT_PHASE_SCALE;
+    int min_moves_no_increment = DEFAULT_MIN_MOVES_NO_INCREMENT;
+    double increment_fraction = DEFAULT_INCREMENT_FRACTION;
+    double soft_factor_no_increment = DEFAULT_SOFT_FACTOR_NO_INCREMENT;
+    double soft_factor_increment = DEFAULT_SOFT_FACTOR_INCREMENT;
+    double hard_factor = DEFAULT_HARD_FACTOR;
+    int hard_cap_divisor = DEFAULT_HARD_CAP_DIVISOR;
+    int emergency_trigger = DEFAULT_EMERGENCY_TRIGGER;
+    int emergency_soft_divisor = DEFAULT_EMERGENCY_SOFT_DIVISOR;
+    int emergency_hard_divisor = DEFAULT_EMERGENCY_HARD_DIVISOR;
+};
+
+inline SearchParams g_search_params;
+inline TMParams g_tm_params;

@@ -41,7 +41,7 @@ bool test_no_legal_moves(Board& b) {
             return false;
         }
 
-        Move best = g_test_engine.sync_search_depth(b,1);
+        Move best = g_test_engine.sync_search_depth(b,1).move;
 
         if (best != NULL_MOVE) {
             std::clog << "[FAILURE] 'no_legal_moves' - Expected NULL_MOVE\n";
@@ -74,7 +74,7 @@ bool test_mate_in_1(Board& b) {
     for (const auto& tc : test_cases) {
         b.load_from_fen(tc.fen);
 
-        Move best = g_test_engine.sync_search_depth(b,2);
+        Move best = g_test_engine.sync_search_depth(b,2).move;
         std::string uci = decode_move_to_uci(best);
 
         if (uci != tc.expected_uci) {
@@ -106,7 +106,7 @@ bool test_mate_in_2(Board& b) {
     for (const auto& tc : test_cases) {
         b.load_from_fen(tc.fen);
 
-        Move best = g_test_engine.sync_search_depth(b,4);
+        Move best = g_test_engine.sync_search_depth(b,4).move;
         std::string uci = decode_move_to_uci(best);
 
         if (uci != tc.expected_uci) {
@@ -124,7 +124,7 @@ bool test_mate_in_2(Board& b) {
 bool test_engine_finds_stalemate(Board& b) {
     b.load_from_fen("5r2/8/8/8/K7/3q4/k7/Q3b3 b - - 0 1");
 
-    Move best = g_test_engine.sync_search_depth(b,2);
+    Move best = g_test_engine.sync_search_depth(b,2).move;
     std::string uci = decode_move_to_uci(best);
 
     if (uci != "a2a1") {
@@ -145,7 +145,7 @@ bool test_engine_finds_stalemate(Board& b) {
 bool test_engine_avoids_stalemate(Board& b) {
     b.load_from_fen("8/8/k1K5/8/8/8/7Q/8 w - - 0 1");
 
-    Move best = g_test_engine.sync_search_depth(b,2);
+    Move best = g_test_engine.sync_search_depth(b,2).move;
     std::string uci = decode_move_to_uci(best);
 
     if (uci != "h2a2") {
@@ -175,7 +175,7 @@ bool test_engine_captures_hanging_piece(Board& b) {
     for (const auto& tc : test_cases) {
         b.load_from_fen(tc.fen);
 
-        Move best = g_test_engine.sync_search_depth(b,2);
+        Move best = g_test_engine.sync_search_depth(b,2).move;
         std::string uci = decode_move_to_uci(best);
 
         if (uci != tc.expected_uci) {
@@ -194,7 +194,7 @@ bool test_engine_promotes(Board& b) {
     // Pawn on e7 vs black rook — promoting to queen is clearly winning
     b.load_from_fen("7k/4P3/8/8/8/8/6r1/K7 w - - 0 1");
 
-    Move best = g_test_engine.sync_search_depth(b,2);
+    Move best = g_test_engine.sync_search_depth(b,2).move;
     std::string uci = decode_move_to_uci(best);
 
     if (uci != "e7e8q") {

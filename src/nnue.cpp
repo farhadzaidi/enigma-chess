@@ -8,7 +8,7 @@
 #include "nnue.hpp"
 #include "square.hpp"
 #include "bitboard.hpp"
-#include "data/weights.hpp"
+#include "data/nnue_weights.hpp"
 
 namespace {
 
@@ -94,7 +94,7 @@ void dot_product_u8s8_x4(
 int32_t dot_product_s16s16_32(const int16_t* input, const int16_t* weights) {
     __m256i sum = _mm256_setzero_si256();
 
-    for (size_t i = 0; i < L3_SIZE; i += 16) {
+    for (size_t i = 0; i < NNUE_L3_SIZE; i += 16) {
         __m256i input_vec = _mm256_load_si256(reinterpret_cast<const __m256i*>(input + i));
         __m256i weight_vec = _mm256_load_si256(reinterpret_cast<const __m256i*>(weights + i));
         __m256i pairwise_sums = _mm256_madd_epi16(input_vec, weight_vec);
@@ -105,7 +105,7 @@ int32_t dot_product_s16s16_32(const int16_t* input, const int16_t* weights) {
 }
 
 void add_accumulator_row(int16_t* accumulator, const int16_t* weights) {
-    for (size_t i = 0; i < L1_SIZE; i += 16) {
+    for (size_t i = 0; i < NNUE_L1_SIZE; i += 16) {
         __m256i acc = _mm256_load_si256(reinterpret_cast<const __m256i*>(accumulator + i));
         __m256i weight = _mm256_load_si256(reinterpret_cast<const __m256i*>(weights + i));
         __m256i updated = _mm256_add_epi16(acc, weight);
@@ -114,7 +114,7 @@ void add_accumulator_row(int16_t* accumulator, const int16_t* weights) {
 }
 
 void sub_accumulator_row(int16_t* accumulator, const int16_t* weights) {
-    for (size_t i = 0; i < L1_SIZE; i += 16) {
+    for (size_t i = 0; i < NNUE_L1_SIZE; i += 16) {
         __m256i acc = _mm256_load_si256(reinterpret_cast<const __m256i*>(accumulator + i));
         __m256i weight = _mm256_load_si256(reinterpret_cast<const __m256i*>(weights + i));
         __m256i updated = _mm256_sub_epi16(acc, weight);
@@ -124,9 +124,9 @@ void sub_accumulator_row(int16_t* accumulator, const int16_t* weights) {
 
 void clipped_relu_to_u8(const int16_t* input, uint8_t* output) {
     const __m256i zero = _mm256_setzero_si256();
-    const __m256i q1 = _mm256_set1_epi16(static_cast<int16_t>(Q1));
+    const __m256i q1 = _mm256_set1_epi16(static_cast<int16_t>(NNUE_Q1));
 
-    for (size_t i = 0; i < L1_SIZE; i += 32) {
+    for (size_t i = 0; i < NNUE_L1_SIZE; i += 32) {
         __m256i lo = _mm256_load_si256(reinterpret_cast<const __m256i*>(input + i));
         __m256i hi = _mm256_load_si256(reinterpret_cast<const __m256i*>(input + i + 16));
 
@@ -145,10 +145,10 @@ void clamp_scale_store_u8(int32_t s0, int32_t s1, int32_t s2, int32_t s3, uint8_
     __m128i v = _mm_set_epi32(s3, s2, s1, s0);
     // Arithmetic right-shift by 6 = divide by Q2 (64), truncating toward negative infinity.
     // For the non-negative values that survive the subsequent clamp this is equivalent to
-    // the original `/ Q2` (which truncates toward zero) because negative values are clamped to 0.
+    // the original `/ NNUE_Q2` (which truncates toward zero) because negative values are clamped to 0.
     v = _mm_srai_epi32(v, 6);
     v = _mm_max_epi32(v, _mm_setzero_si128());
-    v = _mm_min_epi32(v, _mm_set1_epi32(Q1));
+    v = _mm_min_epi32(v, _mm_set1_epi32(NNUE_Q1));
     // Pack 4x int32 -> 8x int16 -> 16x uint8 (only low 4 bytes valid)
     v = _mm_packus_epi32(v, v);
     v = _mm_packus_epi16(v, v);
@@ -161,7 +161,7 @@ void clamp_scale_store_s16(int32_t s0, int32_t s1, int32_t s2, int32_t s3, int16
     __m128i v = _mm_set_epi32(s3, s2, s1, s0);
     v = _mm_srai_epi32(v, 6);
     v = _mm_max_epi32(v, _mm_setzero_si128());
-    v = _mm_min_epi32(v, _mm_set1_epi32(Q1));
+    v = _mm_min_epi32(v, _mm_set1_epi32(NNUE_Q1));
     v = _mm_packs_epi32(v, v);
     // Store low 8 bytes (4x int16)
     _mm_storel_epi64(reinterpret_cast<__m128i*>(out), v);
@@ -179,9 +179,9 @@ NNUE::NNUE() {
 }
 
 void NNUE::reset_accumulators() {
-    for (size_t i = 0; i < L1_SIZE; i++) {
-        accumulators[WHITE][i] = static_cast<int16_t>(L1_BIAS[i]);
-        accumulators[BLACK][i] = static_cast<int16_t>(L1_BIAS[i]);
+    for (size_t i = 0; i < NNUE_L1_SIZE; i++) {
+        accumulators[WHITE][i] = static_cast<int16_t>(NNUE_L1_BIAS[i]);
+        accumulators[BLACK][i] = static_cast<int16_t>(NNUE_L1_BIAS[i]);
     }
 }
 
@@ -191,10 +191,10 @@ void NNUE::add_feature(const std::array<Square, NUM_SIDES>& king_squares, Side s
     for (Side s = WHITE; s < NUM_SIDES; s++) {
         size_t feature_index = get_feature_index(s, king_squares[s], side, piece, square);
 #if defined(__AVX2__)
-        add_accumulator_row(accumulators[s].data(), L1_WEIGHT[feature_index]);
+        add_accumulator_row(accumulators[s].data(), NNUE_L1_WEIGHT[feature_index]);
 #else
-        for (size_t i = 0; i < L1_SIZE; i++) {
-            accumulators[s][i] = static_cast<int16_t>(accumulators[s][i] + L1_WEIGHT[feature_index][i]);
+        for (size_t i = 0; i < NNUE_L1_SIZE; i++) {
+            accumulators[s][i] = static_cast<int16_t>(accumulators[s][i] + NNUE_L1_WEIGHT[feature_index][i]);
         }
 #endif
     }
@@ -204,10 +204,10 @@ void NNUE::remove_feature(const std::array<Square, NUM_SIDES>& king_squares, Sid
     for (Side s = WHITE; s < NUM_SIDES; s++) {
         size_t feature_index = get_feature_index(s, king_squares[s], side, piece, square);
 #if defined(__AVX2__)
-        sub_accumulator_row(accumulators[s].data(), L1_WEIGHT[feature_index]);
+        sub_accumulator_row(accumulators[s].data(), NNUE_L1_WEIGHT[feature_index]);
 #else
-        for (size_t i = 0; i < L1_SIZE; i++) {
-            accumulators[s][i] = static_cast<int16_t>(accumulators[s][i] - L1_WEIGHT[feature_index][i]);
+        for (size_t i = 0; i < NNUE_L1_SIZE; i++) {
+            accumulators[s][i] = static_cast<int16_t>(accumulators[s][i] - NNUE_L1_WEIGHT[feature_index][i]);
         }
 #endif
     }
@@ -255,21 +255,21 @@ PositionScore NNUE::evaluate(Side us) {
     auto& ours = accumulators[us];
     auto& theirs = accumulators[us ^ 1];
 
-    alignas(32) std::array<uint8_t, L1_SIZE * 2> layer1_input;
+    alignas(32) std::array<uint8_t, NNUE_L1_SIZE * 2> layer1_input;
 #if defined(__AVX2__)
     clipped_relu_to_u8(ours.data(), layer1_input.data());
-    clipped_relu_to_u8(theirs.data(), layer1_input.data() + L1_SIZE);
+    clipped_relu_to_u8(theirs.data(), layer1_input.data() + NNUE_L1_SIZE);
 #else
-    for (size_t i = 0; i < L1_SIZE; i++) {
-        layer1_input[i] = static_cast<uint8_t>(std::clamp(ours[i], static_cast<int16_t>(0), static_cast<int16_t>(Q1)));
-        layer1_input[L1_SIZE + i] = static_cast<uint8_t>(std::clamp(theirs[i], static_cast<int16_t>(0), static_cast<int16_t>(Q1)));
+    for (size_t i = 0; i < NNUE_L1_SIZE; i++) {
+        layer1_input[i] = static_cast<uint8_t>(std::clamp(ours[i], static_cast<int16_t>(0), static_cast<int16_t>(NNUE_Q1)));
+        layer1_input[NNUE_L1_SIZE + i] = static_cast<uint8_t>(std::clamp(theirs[i], static_cast<int16_t>(0), static_cast<int16_t>(NNUE_Q1)));
     }
 #endif
 
-    // L2: concatenated L1 output [ours, theirs] (512) -> L2_SIZE
-    alignas(32) std::array<uint8_t, L2_SIZE> layer2_output;
+    // L2: concatenated L1 output [ours, theirs] (512) -> NNUE_L2_SIZE
+    alignas(32) std::array<uint8_t, NNUE_L2_SIZE> layer2_output;
 #if defined(__AVX2__)
-    for (size_t i = 0; i < L2_SIZE; i += 8) {
+    for (size_t i = 0; i < NNUE_L2_SIZE; i += 8) {
         const __m256i ones = _mm256_set1_epi16(1);
         __m256i acc_0 = _mm256_setzero_si256();
         __m256i acc_1 = _mm256_setzero_si256();
@@ -280,78 +280,78 @@ PositionScore NNUE::evaluate(Side us) {
         __m256i acc_6 = _mm256_setzero_si256();
         __m256i acc_7 = _mm256_setzero_si256();
 
-        for (size_t j = 0; j < L1_SIZE * 2; j += 32) {
+        for (size_t j = 0; j < NNUE_L1_SIZE * 2; j += 32) {
             __m256i input_vec = _mm256_load_si256(reinterpret_cast<const __m256i*>(layer1_input.data() + j));
 
-            acc_0 = _mm256_add_epi32(acc_0, _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(L2_WEIGHT[i]     + j))), ones));
-            acc_1 = _mm256_add_epi32(acc_1, _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(L2_WEIGHT[i + 1] + j))), ones));
-            acc_2 = _mm256_add_epi32(acc_2, _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(L2_WEIGHT[i + 2] + j))), ones));
-            acc_3 = _mm256_add_epi32(acc_3, _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(L2_WEIGHT[i + 3] + j))), ones));
-            acc_4 = _mm256_add_epi32(acc_4, _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(L2_WEIGHT[i + 4] + j))), ones));
-            acc_5 = _mm256_add_epi32(acc_5, _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(L2_WEIGHT[i + 5] + j))), ones));
-            acc_6 = _mm256_add_epi32(acc_6, _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(L2_WEIGHT[i + 6] + j))), ones));
-            acc_7 = _mm256_add_epi32(acc_7, _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(L2_WEIGHT[i + 7] + j))), ones));
+            acc_0 = _mm256_add_epi32(acc_0, _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(NNUE_L2_WEIGHT[i]     + j))), ones));
+            acc_1 = _mm256_add_epi32(acc_1, _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(NNUE_L2_WEIGHT[i + 1] + j))), ones));
+            acc_2 = _mm256_add_epi32(acc_2, _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(NNUE_L2_WEIGHT[i + 2] + j))), ones));
+            acc_3 = _mm256_add_epi32(acc_3, _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(NNUE_L2_WEIGHT[i + 3] + j))), ones));
+            acc_4 = _mm256_add_epi32(acc_4, _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(NNUE_L2_WEIGHT[i + 4] + j))), ones));
+            acc_5 = _mm256_add_epi32(acc_5, _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(NNUE_L2_WEIGHT[i + 5] + j))), ones));
+            acc_6 = _mm256_add_epi32(acc_6, _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(NNUE_L2_WEIGHT[i + 6] + j))), ones));
+            acc_7 = _mm256_add_epi32(acc_7, _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(NNUE_L2_WEIGHT[i + 7] + j))), ones));
         }
 
-        int32_t sum_0 = L2_BIAS[i],     sum_1 = L2_BIAS[i + 1], sum_2 = L2_BIAS[i + 2], sum_3 = L2_BIAS[i + 3];
-        int32_t sum_4 = L2_BIAS[i + 4], sum_5 = L2_BIAS[i + 5], sum_6 = L2_BIAS[i + 6], sum_7 = L2_BIAS[i + 7];
+        int32_t sum_0 = NNUE_L2_BIAS[i],     sum_1 = NNUE_L2_BIAS[i + 1], sum_2 = NNUE_L2_BIAS[i + 2], sum_3 = NNUE_L2_BIAS[i + 3];
+        int32_t sum_4 = NNUE_L2_BIAS[i + 4], sum_5 = NNUE_L2_BIAS[i + 5], sum_6 = NNUE_L2_BIAS[i + 6], sum_7 = NNUE_L2_BIAS[i + 7];
         horizontal_sum_x4(acc_0, acc_1, acc_2, acc_3, sum_0, sum_1, sum_2, sum_3);
         horizontal_sum_x4(acc_4, acc_5, acc_6, acc_7, sum_4, sum_5, sum_6, sum_7);
         clamp_scale_store_u8(sum_0, sum_1, sum_2, sum_3, &layer2_output[i]);
         clamp_scale_store_u8(sum_4, sum_5, sum_6, sum_7, &layer2_output[i + 4]);
     }
 #else
-    for (size_t i = 0; i < L2_SIZE; i++) {
-        int32_t sum = L2_BIAS[i];
-        const int8_t* weights = L2_WEIGHT[i];
-        for (size_t j = 0; j < L1_SIZE * 2; j++) {
+    for (size_t i = 0; i < NNUE_L2_SIZE; i++) {
+        int32_t sum = NNUE_L2_BIAS[i];
+        const int8_t* weights = NNUE_L2_WEIGHT[i];
+        for (size_t j = 0; j < NNUE_L1_SIZE * 2; j++) {
             sum += static_cast<int32_t>(weights[j]) * layer1_input[j];
         }
 
         // Rescale from Q1*Q2 back to Q1 and apply ClippedReLU
-        layer2_output[i] = static_cast<uint8_t>(std::clamp(sum / Q2, static_cast<int32_t>(0), Q1));
+        layer2_output[i] = static_cast<uint8_t>(std::clamp(sum / NNUE_Q2, static_cast<int32_t>(0), NNUE_Q1));
     }
 #endif
 
-    // L3: L2_SIZE -> L3_SIZE
-    alignas(32) std::array<int16_t, L3_SIZE> layer3_output;
+    // L3: NNUE_L2_SIZE -> NNUE_L3_SIZE
+    alignas(32) std::array<int16_t, NNUE_L3_SIZE> layer3_output;
 #if defined(__AVX2__)
     {
         const __m256i ones = _mm256_set1_epi16(1);
         const __m256i input_vec = _mm256_load_si256(reinterpret_cast<const __m256i*>(layer2_output.data()));
 
-        for (size_t i = 0; i < L3_SIZE; i += 4) {
-            __m256i a0 = _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(L3_WEIGHT[i]))), ones);
-            __m256i a1 = _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(L3_WEIGHT[i + 1]))), ones);
-            __m256i a2 = _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(L3_WEIGHT[i + 2]))), ones);
-            __m256i a3 = _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(L3_WEIGHT[i + 3]))), ones);
+        for (size_t i = 0; i < NNUE_L3_SIZE; i += 4) {
+            __m256i a0 = _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(NNUE_L3_WEIGHT[i]))), ones);
+            __m256i a1 = _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(NNUE_L3_WEIGHT[i + 1]))), ones);
+            __m256i a2 = _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(NNUE_L3_WEIGHT[i + 2]))), ones);
+            __m256i a3 = _mm256_madd_epi16(_mm256_maddubs_epi16(input_vec, _mm256_load_si256(reinterpret_cast<const __m256i*>(NNUE_L3_WEIGHT[i + 3]))), ones);
 
-            int32_t sum_0 = L3_BIAS[i], sum_1 = L3_BIAS[i + 1], sum_2 = L3_BIAS[i + 2], sum_3 = L3_BIAS[i + 3];
+            int32_t sum_0 = NNUE_L3_BIAS[i], sum_1 = NNUE_L3_BIAS[i + 1], sum_2 = NNUE_L3_BIAS[i + 2], sum_3 = NNUE_L3_BIAS[i + 3];
             horizontal_sum_x4(a0, a1, a2, a3, sum_0, sum_1, sum_2, sum_3);
             clamp_scale_store_s16(sum_0, sum_1, sum_2, sum_3, &layer3_output[i]);
         }
     }
 #else
-    for (size_t i = 0; i < L3_SIZE; i++) {
-        int32_t sum = L3_BIAS[i];
-        const int8_t* weights = L3_WEIGHT[i];
-        for (size_t j = 0; j < L2_SIZE; j++) {
+    for (size_t i = 0; i < NNUE_L3_SIZE; i++) {
+        int32_t sum = NNUE_L3_BIAS[i];
+        const int8_t* weights = NNUE_L3_WEIGHT[i];
+        for (size_t j = 0; j < NNUE_L2_SIZE; j++) {
             sum += static_cast<int32_t>(weights[j]) * layer2_output[j];
         }
 
-        layer3_output[i] = static_cast<int16_t>(std::clamp(sum / Q2, static_cast<int32_t>(0), Q1));
+        layer3_output[i] = static_cast<int16_t>(std::clamp(sum / NNUE_Q2, static_cast<int32_t>(0), NNUE_Q1));
     }
 #endif
 
-    // Output: L3_SIZE -> 1 (centipawn conversion baked into weight quantization)
-    int32_t output = OUTPUT_BIAS;
+    // Output: NNUE_L3_SIZE -> 1 (centipawn conversion baked into weight quantization)
+    int32_t output = NNUE_OUTPUT_BIAS;
 #if defined(__AVX2__)
-    output += dot_product_s16s16_32(layer3_output.data(), OUTPUT_WEIGHT);
+    output += dot_product_s16s16_32(layer3_output.data(), NNUE_OUTPUT_WEIGHT);
 #else
-    for (size_t i = 0; i < L3_SIZE; i++) {
-        output += OUTPUT_WEIGHT[i] * layer3_output[i];
+    for (size_t i = 0; i < NNUE_L3_SIZE; i++) {
+        output += NNUE_OUTPUT_WEIGHT[i] * layer3_output[i];
     }
 #endif
 
-    return output / Q2;
+    return output / NNUE_Q2;
 }

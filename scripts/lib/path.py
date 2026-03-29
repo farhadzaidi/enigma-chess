@@ -11,7 +11,12 @@ BINARY_PATH = PROJECT_ROOT / 'build' / 'enigma'
 OPENINGS_PATH = PROJECT_ROOT / 'positions' / 'openings.pgn'
 
 
-def _env_path(name):
+def script_path(file):
+    """Return the path of a script relative to the project root."""
+    return Path(file).resolve().relative_to(PROJECT_ROOT.resolve())
+
+
+def env_path(name):
     """Return an environment variable as a Path, or None if unset."""
     value = os.environ.get(name)
     if value is None:
@@ -21,7 +26,7 @@ def _env_path(name):
 
 def require_env(name):
     """Return an environment variable as a Path, or exit with an error if unset."""
-    path = _env_path(name)
+    path = env_path(name)
     if path is None:
         print(f'Error: Environment variable "{name}" is not set')
         exit(1)

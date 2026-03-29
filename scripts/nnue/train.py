@@ -18,8 +18,9 @@ from dataclasses import dataclass
 from nnue.paths import (
     TRAINING_DATA_DIR, TRAINING_DATA_GLOB,
     VALIDATION_DATA_DIR, VALIDATION_DATA_GLOB,
+    WEIGHTS_DIR,
 )
-from nnue.weights import resolve_weights, next_weights_path
+from lib.versioned import resolve, next_path
 
 # --- Constants ---
 
@@ -206,7 +207,7 @@ class PositionDataset:
 # --- Feature Computation ---
 
 
-def decode_board(pieces):
+def _decode_board(pieces):
     """Unpack nibble-encoded board bytes into side and piece arrays."""
     # python-chess: WHITE=1, BLACK=0; enigma: WHITE=0, BLACK=1
     PC_TO_ENIGMA_SIDE = np.array([BLACK, WHITE], dtype=np.int32)
@@ -227,7 +228,7 @@ def decode_board(pieces):
     return side, piece
 
 
-def find_king_squares(side, piece):
+def _find_king_squares(side, piece):
     """Return the square index of each side's king for every position."""
     is_white_king = (side == WHITE) & (piece == KING)
     is_black_king = (side == BLACK) & (piece == KING)
@@ -236,7 +237,7 @@ def find_king_squares(side, piece):
     return white_king_sq, black_king_sq
 
 
-def compute_halfkp_indices(side, piece, white_king_sq, black_king_sq):
+def _compute_halfkp_indices(side, piece, white_king_sq, black_king_sq):
     """Compute HalfKP feature indices for both perspectives."""
     chunk_size = len(side)
 
@@ -273,17 +274,17 @@ def compute_halfkp_indices(side, piece, white_king_sq, black_king_sq):
     )
 
 
-def compute_features(pieces):
+def _compute_features(pieces):
     """Convert raw board bytes into HalfKP feature indices."""
-    side, piece = decode_board(pieces)
-    white_king_sq, black_king_sq = find_king_squares(side, piece)
-    return compute_halfkp_indices(side, piece, white_king_sq, black_king_sq)
+    side, piece = _decode_board(pieces)
+    white_king_sq, black_king_sq = _find_king_squares(side, piece)
+    return _compute_halfkp_indices(side, piece, white_king_sq, black_king_sq)
 
 
 # --- Data Loading ---
 
 
-def load_raw_positions(data_dir, data_glob, max_positions=None):
+def _load_raw_positions(data_dir, data_glob, max_positions=None):
     """Read .bin data files and extract pieces, side to move, scores, and outcomes."""
     NUM_BYTES_POSITION = 36
     OUTCOME_MAP = np.array([0.5, 1.0, 0.0], dtype=np.float32)
@@ -305,7 +306,7 @@ def load_raw_positions(data_dir, data_glob, max_positions=None):
     return pieces, side_to_moves, scores, outcomes
 
 
-def precompute_features(pieces):
+def _precompute_features(pieces):
     """Compute HalfKP features for all positions in chunks."""
     PRECOMPUTE_CHUNK = 65536
     n = len(pieces)
@@ -316,7 +317,7 @@ def precompute_features(pieces):
     counts = []
     for i in range(0, n, PRECOMPUTE_CHUNK):
         chunk = pieces[i:i + PRECOMPUTE_CHUNK]
-        w, b, offsets = compute_features(chunk)
+        w, b, offsets = _compute_features(chunk)
         chunk_counts = np.diff(np.append(offsets, len(w)))
         white_chunks.append(w)
         black_chunks.append(b)
@@ -331,10 +332,10 @@ def precompute_features(pieces):
     return all_white, all_black, all_counts, feature_offsets
 
 
-def load_positions(data_dir, data_glob, max_positions=None):
+def _load_positions(data_dir, data_glob, max_positions=None):
     """Load positions from .bin files, precompute features, and shuffle."""
-    pieces, side_to_moves, scores, outcomes = load_raw_positions(data_dir, data_glob, max_positions=max_positions)
-    all_white, all_black, all_counts, feature_offsets = precompute_features(pieces)
+    pieces, side_to_moves, scores, outcomes = _load_raw_positions(data_dir, data_glob, max_positions=max_positions)
+    all_white, all_black, all_counts, feature_offsets = _precompute_features(pieces)
 
     # Shuffle all arrays in unison
     n = len(scores)
@@ -356,7 +357,7 @@ def load_positions(data_dir, data_glob, max_positions=None):
 # --- Training ---
 
 
-def fit_eval_scaling_factor(scores, outcomes):
+def _fit_eval_scaling_factor(scores, outcomes):
     """Find the sigmoid scaling constant that best maps centipawn scores to win probabilities."""
 
     def error(k):
@@ -369,7 +370,7 @@ def fit_eval_scaling_factor(scores, outcomes):
     return minimize_scalar(error, bounds=(0.0001, 0.1), method='bounded').x
 
 
-def compute_loss(prediction, outcome, score, side_to_move, eval_scaling_factor):
+def _compute_loss(prediction, outcome, score, side_to_move, eval_scaling_factor):
     """Weighted blend of outcome BCE and eval BCE.
 
     Score and outcome are stored from white's perspective, but the model outputs
@@ -382,13 +383,13 @@ def compute_loss(prediction, outcome, score, side_to_move, eval_scaling_factor):
     return eval_term + outcome_term
 
 
-def train(num_epochs=NUM_EPOCHS, max_positions=MAX_POSITIONS, weights=None):
+def _train(num_epochs=NUM_EPOCHS, max_positions=MAX_POSITIONS, weights=None):
     """Run a training loop."""
     # Load training and validation data
     print('Loading training data...')
-    training_dataset = load_positions(TRAINING_DATA_DIR, TRAINING_DATA_GLOB, max_positions=max_positions)
+    training_dataset = _load_positions(TRAINING_DATA_DIR, TRAINING_DATA_GLOB, max_positions=max_positions)
     print('\nLoading validation data...')
-    validation_dataset = load_positions(VALIDATION_DATA_DIR, VALIDATION_DATA_GLOB)
+    validation_dataset = _load_positions(VALIDATION_DATA_DIR, VALIDATION_DATA_GLOB)
 
     training_sampler = BatchSampler(len(training_dataset), TRAINNG_BATCH_SIZE)
     validation_sampler = BatchSampler(len(validation_dataset), TRAINNG_BATCH_SIZE)
@@ -400,12 +401,11 @@ def train(num_epochs=NUM_EPOCHS, max_positions=MAX_POSITIONS, weights=None):
 
     # Initialize model
     model = NNUE().to(DEVICE)
-    if weights != 'none':
-        weights_path = resolve_weights(weights)
-        if weights_path:
-            checkpoint = torch.load(weights_path, weights_only=False)
-            model.load_state_dict(checkpoint['model'])
-            print(f'Loaded weights from {weights_path}')
+    weights_path = resolve(WEIGHTS_DIR, 'weights', '.pt', n=weights)
+    if weights_path:
+        checkpoint = torch.load(weights_path, weights_only=False)
+        model.load_state_dict(checkpoint['model'])
+        print(f'Loaded weights from {weights_path}')
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=INITIAL_LEARNING_RATE, weight_decay=WEIGHT_DECAY)
     scheduler = torch.optim.lr_scheduler.StepLR(
@@ -414,12 +414,12 @@ def train(num_epochs=NUM_EPOCHS, max_positions=MAX_POSITIONS, weights=None):
         gamma=LEARNING_RATE_GAMMA
     )
 
-    eval_scaling_factor = fit_eval_scaling_factor(training_dataset.scores, training_dataset.outcomes)
+    eval_scaling_factor = _fit_eval_scaling_factor(training_dataset.scores, training_dataset.outcomes)
     print(f'Evaluation scaling factor: {eval_scaling_factor:.6f}')
     print(f'Training on {len(training_dataset):,} positions, validating on {len(validation_dataset):,}')
     print(f'Device: {DEVICE}')
 
-    save_path = next_weights_path()
+    save_path = next_path(WEIGHTS_DIR, 'weights', '.pt')
     print(f'Saving best weights to {save_path}')
 
     print(f'\n--- Training ---\n')
@@ -433,7 +433,7 @@ def train(num_epochs=NUM_EPOCHS, max_positions=MAX_POSITIONS, weights=None):
         epoch_training_loss = 0
         for batch in training_loader:
             prediction = model(batch.white_indices, batch.white_offsets, batch.black_indices, batch.black_offsets, batch.side_to_move)
-            loss = compute_loss(prediction, batch.outcome, batch.score, batch.side_to_move, eval_scaling_factor)
+            loss = _compute_loss(prediction, batch.outcome, batch.score, batch.side_to_move, eval_scaling_factor)
             epoch_training_loss += loss.item()
 
             optimizer.zero_grad()
@@ -448,7 +448,7 @@ def train(num_epochs=NUM_EPOCHS, max_positions=MAX_POSITIONS, weights=None):
         with torch.no_grad():
             for batch in validation_loader:
                 prediction = model(batch.white_indices, batch.white_offsets, batch.black_indices, batch.black_offsets, batch.side_to_move)
-                loss = compute_loss(prediction, batch.outcome, batch.score, batch.side_to_move, eval_scaling_factor)
+                loss = _compute_loss(prediction, batch.outcome, batch.score, batch.side_to_move, eval_scaling_factor)
                 epoch_validation_loss += loss.item()
         average_validation_loss = epoch_validation_loss / len(validation_loader)
 
@@ -483,7 +483,7 @@ def main():
     parser.add_argument('--weights', default=None, help='Weight file number to load (default: latest, "none" for fresh)')
     args = parser.parse_args()
     try:
-        train(weights=args.weights)
+        _train(weights=args.weights)
     except KeyboardInterrupt:
         print('\nStopping...')
 

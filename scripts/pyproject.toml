@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Utility scripts for the Enigma chess engine"
 requires-python = ">=3.12"
 dependencies = [
+    "cmaes>=0.13.0",
     "numpy>=2.4.3",
     "optuna>=4.8.0",
     "psutil>=7.2.2",

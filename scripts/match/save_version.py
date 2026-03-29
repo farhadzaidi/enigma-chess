@@ -12,7 +12,7 @@ from lib.path import BINARY_PATH
 from match.version import find_latest_version, VERSIONS_DIR
 
 
-def resolve_filename(name, latest):
+def _resolve_filename(name, latest):
     """Determine the output filename: auto-increment if name given, otherwise confirm overwrite."""
     latest_version = int(re.match(r'v(\d+)_', latest.name).group(1)) if latest else -1
 
@@ -38,7 +38,7 @@ def main():
     args = parser.parse_args()
 
     latest = find_latest_version()
-    new_filename = resolve_filename(args.name, latest)
+    new_filename = _resolve_filename(args.name, latest)
 
     VERSIONS_DIR.mkdir(exist_ok=True)
     shutil.copy2(BINARY_PATH, VERSIONS_DIR / new_filename)

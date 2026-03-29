@@ -24,7 +24,7 @@ static std::array<std::array<int, LMR_MAX_MOVES>, MAX_SEARCH_PLY> LMR_TABLE{};
 void build_lmr_table() {
     for (int depth = 0; depth < MAX_SEARCH_PLY; depth++) {
         for (int move_index = 0; move_index < LMR_MAX_MOVES; move_index++) {
-            LMR_TABLE[depth][move_index] = std::log(depth + 1) * std::log(move_index + 1) / g_params.lmr_tuning_constant;
+            LMR_TABLE[depth][move_index] = std::log(depth + 1) * std::log(move_index + 1) / g_search_params.lmr_tuning_constant;
         }
     }
 }
@@ -166,7 +166,7 @@ bool can_apply_null_move(
     return (
         allow_null_move &&
         !in_check &&
-        depth >= g_params.null_move_min_depth &&
+        depth >= g_search_params.null_move_min_depth &&
         !is_pv_node &&
         has_non_pawn_material
     );
@@ -186,7 +186,7 @@ bool can_apply_futility(
         std::abs(beta) < MATE_THRESHOLD &&
         !is_pv_node &&
         !in_check &&
-        depth < g_params.futility_max_depth
+        depth < g_search_params.futility_max_depth
     );
 }
 
@@ -480,20 +480,20 @@ void Engine::apply_limits(SearchDepth max_depth, int soft_time, int hard_time, u
     ctx.set_deadlines_from(std::chrono::steady_clock::now());
 }
 
-Move Engine::sync_search(Board& board, SearchDepth max_depth, int soft_time, int hard_time, uint64_t max_nodes) {
+Engine::SearchResult Engine::sync_search(Board& board, SearchDepth max_depth, int soft_time, int hard_time, uint64_t max_nodes) {
     search(board, max_depth, soft_time, hard_time, max_nodes);
     return finish();
 }
 
-Move Engine::sync_search_depth(Board& board, SearchDepth depth) {
+Engine::SearchResult Engine::sync_search_depth(Board& board, SearchDepth depth) {
     return sync_search(board, depth, -1, -1, 0);
 }
 
-Move Engine::sync_search_time(Board& board, int soft_time, int hard_time) {
+Engine::SearchResult Engine::sync_search_time(Board& board, int soft_time, int hard_time) {
     return sync_search(board, MAX_SEARCH_PLY - 1, soft_time, hard_time, 0);
 }
 
-Move Engine::sync_search_nodes(Board& board, uint64_t max_nodes) {
+Engine::SearchResult Engine::sync_search_nodes(Board& board, uint64_t max_nodes) {
     return sync_search(board, MAX_SEARCH_PLY - 1, -1, -1, max_nodes);
 }
 
@@ -503,8 +503,8 @@ void Engine::search(const Board& board, SearchDepth max_depth, int soft_time, in
     stop();
     reset();
 
-    best_move_ = find_book_move(board);
-    if (best_move_ != NULL_MOVE) {
+    best_result_.move = find_book_move(board);
+    if (best_result_.move != NULL_MOVE) {
         Board emit_board = board;
         emit_best_move(emit_board);
         return;
@@ -528,9 +528,9 @@ void Engine::search(const Board& board, SearchDepth max_depth, int soft_time, in
         SearchDepth start_depth = 1 + i % 2;
         Board thread_board = board;
         auto worker = [this, i, b = std::move(thread_board), start_depth]() mutable {
-            Move move = iterative_deepening(b, contexts_[i], start_depth);
+            SearchResult result = iterative_deepening(b, contexts_[i], start_depth);
             if (contexts_[i].is_main_thread) {
-                best_move_ = move;
+                best_result_ = result;
                 emit_best_move(b);
             }
         };
@@ -543,7 +543,7 @@ void Engine::search(const Board& board, SearchDepth max_depth, int soft_time, in
     }
 }
 
-Move Engine::finish() {
+Engine::SearchResult Engine::finish() {
     if (main_thread_.joinable()) {
         main_thread_.join();
     }
@@ -557,11 +557,11 @@ Move Engine::finish() {
     helper_threads_.clear();
     external_stop_ = false;
     main_finished_ = false;
-    return best_move_;
+    return best_result_;
 }
 
 void Engine::reset() {
-    best_move_ = NULL_MOVE;
+    best_result_ = {};
     contexts_.clear();
     external_stop_ = false;
     main_finished_ = false;
@@ -648,25 +648,20 @@ void Engine::emit_search_info(const Context& ctx, SearchDepth depth, PositionSco
 /** Print UCI bestmove with a ponder move if one exists in the TT. */
 void Engine::emit_best_move(Board& board) {
     std::string ponder_str;
-    if (best_move_ != NULL_MOVE) {
+    if (best_result_.move != NULL_MOVE) {
         // Make the best move on the board to look up the opponent's expected reply in the TT
-        board.make_move(best_move_);
+        board.make_move(best_result_.move);
         TTEntry* tt_entry = g_tt.get_entry(board.position_hash());
         if (tt_entry && tt_entry->move() != NULL_MOVE && board.is_legal_move(tt_entry->move())) {
             ponder_str = " ponder " + decode_move_to_uci(tt_entry->move());
         }
-        board.unmake_move(best_move_);
+        board.unmake_move(best_result_.move);
     }
 
-    uci_print("bestmove " + decode_move_to_uci(best_move_) + ponder_str);
+    uci_print("bestmove " + decode_move_to_uci(best_result_.move) + ponder_str);
 }
 
 // --- Search ---
-
-struct Engine::SearchResult {
-    Move best_move;
-    PositionScore score;
-};
 
 struct Engine::TTProbeResult {
     Move tt_move;
@@ -725,8 +720,8 @@ Engine::TTProbeResult Engine::probe_tt(
 
     // Internal Iterative Deepening: do a shallow search to find a move for ordering
     // when we have no TT entry on a PV node at sufficient depth
-    if (is_pv_node && depth >= g_params.minimum_iid_depth) {
-        SearchDepth iid_depth = std::max<SearchDepth>(0, depth / 2);
+    if (is_pv_node && depth >= g_search_params.minimum_iid_depth) {
+        SearchDepth iid_depth = std::max<SearchDepth>(0, depth / g_search_params.iid_depth_divisor);
         negamax(board, ctx, iid_depth, alpha, beta);
 
         tt_entry = g_tt.get_entry(board.position_hash());
@@ -778,7 +773,7 @@ void Engine::handle_beta_cutoff(
     update_history_tables(cutoff_move, bonus);
 
     // Penalise quiet moves that were tried before the cutoff move (they failed)
-    MoveScore malus = -(bonus / 2);
+    MoveScore malus = -(bonus / g_search_params.history_malus_divisor);
     for (const Move move : searched_quiet_moves) {
         update_history_tables(move, malus);
     }
@@ -820,7 +815,7 @@ PositionScore Engine::quiescence_search(Board& board, Context& ctx, PositionScor
 
     for (Move move : moves) {
         // SEE pruning: skip captures that lose too much material
-        if (!in_check && move.type() == MT_CAPTURE && see(board, move) < g_params.see_cutoff) continue;
+        if (!in_check && move.type() == MT_CAPTURE && see(board, move) < g_search_params.see_cutoff) continue;
 
         board.make_move(move);
         PositionScore score = -quiescence_search(board, ctx, -beta, -alpha);
@@ -876,7 +871,7 @@ PositionScore Engine::negamax(
     // Null move pruning: skip a turn and search with a reduced window.
     // If the opponent still can't beat beta, the position is likely so good we can prune.
     if (can_apply_null_move(in_check, depth, is_pv_node, allow_null_move, board.has_non_pawn_material(board.to_move()))) {
-        int reduction = g_params.null_move_base_reduction + (depth >= g_params.null_move_deeper_threshold);
+        int reduction = (depth >= g_search_params.null_move_deeper_threshold) ? g_search_params.null_move_deep_reduction : g_search_params.null_move_base_reduction;
         SearchDepth null_depth = std::max(0, static_cast<int>(depth) - reduction);
         board.make_null_move();
         PositionScore score = -negamax(board, ctx, null_depth, -beta, -beta + 1, false);
@@ -899,7 +894,7 @@ PositionScore Engine::negamax(
     if (can_use_futility_pruning) {
         static_eval = board.nnue_evaluate();
     }
-    PositionScore futility_margin = g_params.futility_margin_per_depth * depth + g_params.futility_margin_base;
+    PositionScore futility_margin = g_search_params.futility_margin_per_depth * depth + g_search_params.futility_margin_base;
 
     PositionScore best_score = DUMMY_SCORE;
     Move best_move;
@@ -928,7 +923,7 @@ PositionScore Engine::negamax(
         // Late Move Reductions: search later moves at reduced depth since
         // good move ordering means they're unlikely to be best
         int reduction = LMR_TABLE[depth][num_moves];
-        if (is_pv_node) reduction -= 1;   // be less aggressive on PV nodes
+        if (is_pv_node) reduction -= g_search_params.lmr_pv_reduction;
         if (in_check) reduction = 0;       // don't reduce when in check
         if (move_selector.before_quiet_phase()) reduction = 0;  // don't reduce tacticals/killers
 
@@ -1004,8 +999,7 @@ Engine::SearchResult Engine::search_at_depth(
     PositionScore alpha,
     PositionScore beta
 ) {
-    Move best_move;
-    PositionScore best_score = DUMMY_SCORE;
+    SearchResult best_result{NULL_MOVE, DUMMY_SCORE};
     MoveList searched_quiet_moves;
     TTEntry* tt_entry = g_tt.get_entry(board.position_hash());
     Move tt_move = tt_entry ? tt_entry->move() : NULL_MOVE;
@@ -1033,12 +1027,11 @@ Engine::SearchResult Engine::search_at_depth(
         board.unmake_move(move);
 
         if (should_stop_search(ctx)) {
-            return {NULL_MOVE, 0};
+            return {NULL_MOVE, DUMMY_SCORE};
         }
 
-        if (score > best_score) {
-            best_score = score;
-            best_move = move;
+        if (score > best_result.score) {
+            best_result = {move, score};
         }
 
         if (score > alpha) {
@@ -1055,23 +1048,21 @@ Engine::SearchResult Engine::search_at_depth(
         }
     }
 
-    return {best_move, best_score};
+    return best_result;
 }
 
-Move Engine::iterative_deepening(Board& board, Context& ctx, SearchDepth depth) {
+Engine::SearchResult Engine::iterative_deepening(Board& board, Context& ctx, SearchDepth depth) {
     MoveGenerator move_generator(board);
     MoveList moves = move_generator.generate_all();
     if (moves.is_empty()) {
         signal_stop(ctx);
-        return NULL_MOVE;
+        return {NULL_MOVE, 0};
     }
 
-    Move prev_best_move;
-    Move best_move;
+    SearchResult prev_result{NULL_MOVE, 0};
+    SearchResult best_result{NULL_MOVE, 0};
     int best_move_stability = 0;  // how many consecutive iterations picked the same move
 
-    PositionScore prev_score = 0;
-    PositionScore score = 0;
     ctx.reset(board.ply());
     ctx.search_start = std::chrono::steady_clock::now();
     ctx.set_deadlines_from(ctx.search_start);
@@ -1090,8 +1081,8 @@ Move Engine::iterative_deepening(Board& board, Context& ctx, SearchDepth depth) 
         if (ctx.is_main_thread && ctx.has_runtime_limits() && ctx.soft_time != -1) {
             bool soft_limit_hit = std::chrono::steady_clock::now() >= ctx.soft_deadline;
             if (soft_limit_hit) {
-                bool score_dropped = (prev_score - score) > g_params.score_drop_threshold;
-                if (!score_dropped && best_move_stability > 0) {
+                bool score_dropped = (prev_result.score - best_result.score) > g_search_params.score_drop_threshold;
+                if (!score_dropped && best_move_stability > g_search_params.best_move_min_stability) {
                     break;
                 }
             }
@@ -1101,30 +1092,30 @@ Move Engine::iterative_deepening(Board& board, Context& ctx, SearchDepth depth) 
         // Use full window at depth 1 since we have no prior score to centre on.
         int alpha;
         int beta;
-        int alpha_delta = g_params.aspiration_window;
-        int beta_delta = g_params.aspiration_window;
+        int alpha_delta = g_search_params.aspiration_window;
+        int beta_delta = g_search_params.aspiration_window;
         if (depth == 1) {
             alpha = -CHECKMATE_SCORE;
             beta = CHECKMATE_SCORE;
         } else {
-            alpha = std::max(score - alpha_delta, -static_cast<int>(CHECKMATE_SCORE));
-            beta = std::min(score + beta_delta, static_cast<int>(CHECKMATE_SCORE));
+            alpha = std::max(best_result.score - alpha_delta, -static_cast<int>(CHECKMATE_SCORE));
+            beta = std::min(best_result.score + beta_delta, static_cast<int>(CHECKMATE_SCORE));
         }
 
         // Re-search with exponentially wider windows on fail-high/fail-low
-        SearchResult search_result;
+        SearchResult depth_result;
         while (true) {
             if (should_stop_search(ctx)) {
                 break;
             }
 
-            search_result = search_at_depth(board, ctx, depth, best_move, alpha, beta);
-            if (search_result.score <= alpha) {
+            depth_result = search_at_depth(board, ctx, depth, best_result.move, alpha, beta);
+            if (depth_result.score <= alpha) {
                 alpha_delta *= 2;
-                alpha = std::max(score - alpha_delta, -static_cast<int>(CHECKMATE_SCORE));
-            } else if (search_result.score >= beta) {
+                alpha = std::max(best_result.score - alpha_delta, -static_cast<int>(CHECKMATE_SCORE));
+            } else if (depth_result.score >= beta) {
                 beta_delta *= 2;
-                beta = std::min(score + beta_delta, static_cast<int>(CHECKMATE_SCORE));
+                beta = std::min(best_result.score + beta_delta, static_cast<int>(CHECKMATE_SCORE));
             } else {
                 break;
             }
@@ -1134,26 +1125,27 @@ Move Engine::iterative_deepening(Board& board, Context& ctx, SearchDepth depth) 
             break;
         }
 
-        prev_score = score;
-        score = search_result.score;
-        if (search_result.best_move != NULL_MOVE) {
-            prev_best_move = best_move;
-            best_move = search_result.best_move;
+        prev_result = best_result;
+        if (depth_result.move != NULL_MOVE) {
+            best_result = depth_result;
         }
 
         // Track best-move stability for soft time management decision
-        if (best_move == prev_best_move) {
+        if (best_result.move == prev_result.move) {
             best_move_stability++;
         } else {
             best_move_stability = 0;
         }
 
-        emit_search_info(ctx, depth, score);
+        emit_search_info(ctx, depth, best_result.score);
 
         depth++;
     }
 
     signal_stop(ctx);
     // Fall back to the first legal move if search was interrupted before completing depth 1
-    return best_move == NULL_MOVE && !moves.is_empty() ? moves[0] : best_move;
+    if (best_result.move == NULL_MOVE && !moves.is_empty()) {
+        best_result.move = moves[0];
+    }
+    return best_result;
 }

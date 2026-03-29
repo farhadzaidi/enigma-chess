@@ -7,11 +7,11 @@ Supports standard fixed-game matches and SPRT testing.
 import argparse
 import subprocess
 
-from lib.path import BINARY_PATH, OPENINGS_PATH, PROJECT_ROOT, require_env, _env_path
+from lib.path import BINARY_PATH, OPENINGS_PATH, PROJECT_ROOT, require_env, env_path
 from lib.concurrency import calc_concurrency
 from match.version import find_version, find_latest_version
 
-CUTECHESS_CLI_BINARY_PATH = _env_path('cutechess_cli_binary')
+CUTECHESS_CLI_BINARY_PATH = env_path('cutechess_cli_binary')
 
 # Fixed settings
 TC = '8+0.08'
@@ -27,7 +27,7 @@ SPRT_ALPHA = 0.05
 SPRT_BETA = 0.05
 
 
-def resolve_tc(no_increment):
+def _resolve_tc(no_increment):
     """Return the configured time control, optionally forcing zero increment."""
     if not no_increment:
         return TC
@@ -39,7 +39,7 @@ def resolve_tc(no_increment):
     return TC
 
 
-def build_cmd(
+def _build_cmd(
     engine_a, engine_b, engine_a_name, engine_b_name,
     threads, ponder, concurrency,
     sprt=None, max_games=STANDARD_MAX_GAMES, ordered=False, tc=TC,
@@ -77,7 +77,7 @@ def build_cmd(
     return cmd
 
 
-def resolve_engines(args):
+def _resolve_engines(args):
     """Resolve engine version arguments to binary paths and display names.
 
     No args: current build vs latest saved version.
@@ -118,13 +118,13 @@ def main():
     args = parser.parse_args()
 
     concurrency = calc_concurrency(args.threads, args.ponder)
-    engine_a, engine_b, engine_a_name, engine_b_name = resolve_engines(args)
-    tc = resolve_tc(args.no_increment)
+    engine_a, engine_b, engine_a_name, engine_b_name = _resolve_engines(args)
+    tc = _resolve_tc(args.no_increment)
 
     if args.sprt:
         max_games = args.games if args.games is not None else SPRT_MAX_GAMES
         test_type = f'SPRT (elo1={args.sprt})'
-        cmd = build_cmd(
+        cmd = _build_cmd(
             engine_a, engine_b, engine_a_name, engine_b_name,
             args.threads, args.ponder, concurrency,
             sprt={'elo0': 0, 'elo1': args.sprt, 'alpha': SPRT_ALPHA, 'beta': SPRT_BETA},
@@ -135,7 +135,7 @@ def main():
     else:
         max_games = args.games if args.games is not None else STANDARD_MAX_GAMES
         test_type = 'Standard'
-        cmd = build_cmd(
+        cmd = _build_cmd(
             engine_a, engine_b, engine_a_name, engine_b_name,
             args.threads, args.ponder, concurrency,
             max_games=max_games,

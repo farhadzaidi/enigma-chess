@@ -13,7 +13,7 @@
 #include "transposition_table.hpp"
 #include "types.hpp"
 
-/** Rebuild the LMR table from the current g_params.lmr_tuning_constant. */
+/** Rebuild the LMR table from the current g_search_params.lmr_tuning_constant. */
 void build_lmr_table();
 
 // --- Search Constants ---
@@ -31,6 +31,11 @@ constexpr int MAX_THREADS = 64;
 
 class Engine {
 public:
+    struct SearchResult {
+        Move move;
+        PositionScore score;
+    };
+
     // --- Lifecycle ---
 
     Engine();
@@ -75,14 +80,15 @@ public:
 
     // --- Synchronous search ---
 
-    /** Blocking search with any combination of limits; returns the best move. */
-    Move sync_search(Board& board, SearchDepth max_depth, int soft_time, int hard_time, uint64_t max_nodes);
-    /** Blocking search to a fixed depth; returns the best move. */
-    Move sync_search_depth(Board& board, SearchDepth depth);
-    /** Blocking search with time limits; returns the best move. */
-    Move sync_search_time(Board& board, int soft_time, int hard_time);
-    /** Blocking search bounded by node count; returns the best move. */
-    Move sync_search_nodes(Board& board, uint64_t max_nodes);
+    /** Blocking search with any combination of limits. */
+    SearchResult sync_search(Board& board, SearchDepth max_depth, int soft_time, int hard_time, uint64_t max_nodes);
+    /** Blocking search to a fixed depth. */
+    SearchResult sync_search_depth(Board& board, SearchDepth depth);
+    /** Blocking search with time limits. */
+    SearchResult sync_search_time(Board& board, int soft_time, int hard_time);
+    /** Blocking search bounded by node count. */
+    SearchResult sync_search_nodes(Board& board, uint64_t max_nodes);
+
 
 private:
 
@@ -122,7 +128,6 @@ private:
     };
 
     class MoveSelector;
-    struct SearchResult;
     struct TTProbeResult;
 
     // --- State ---
@@ -136,12 +141,12 @@ private:
     std::thread main_thread_;
     std::vector<std::thread> helper_threads_;
     std::vector<Context> contexts_;
-    Move best_move_ = NULL_MOVE;
+    SearchResult best_result_;
 
     // --- Thread management ---
 
-    /** Join all threads and return the best move found. */
-    Move finish();
+    /** Join all threads and return the result. */
+    SearchResult finish();
     /** Reset shared state for the next search. */
     void reset();
     /** Return a legal root book move, or NULL_MOVE if the position is out of book. */
@@ -213,7 +218,7 @@ private:
     );
 
     /** Iterative deepening loop with aspiration windows and soft time management. */
-    Move iterative_deepening(Board& board, Context& ctx, SearchDepth depth);
+    SearchResult iterative_deepening(Board& board, Context& ctx, SearchDepth depth);
 
     // --- Internal helpers ---
 
