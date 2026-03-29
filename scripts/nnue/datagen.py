@@ -28,7 +28,6 @@ OPENING_CUTOFF = 10
 
 # Fixed depth for the engine to search to at any given position
 SEARCH_DEPTH = 8
-SEARCH_TIME_SECONDS = 0.1 # Maximum time to spend searching
 
 # Number of workers to spawn
 NUM_WORKERS = calc_concurrency(threads=1)
@@ -102,7 +101,7 @@ def _play_game(engine, positions):
         # Have the engine search at a fixed depth and capture the best move and eval
         result = engine.play(
             board,
-            chess.engine.Limit(depth=SEARCH_DEPTH, time=SEARCH_TIME_SECONDS),
+            chess.engine.Limit(depth=SEARCH_DEPTH),
             info=chess.engine.INFO_SCORE,
             game=game,
         )
