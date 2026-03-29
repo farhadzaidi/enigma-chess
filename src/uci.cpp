@@ -100,6 +100,8 @@ void cmd_uci() {
     uci_print("option name FutilityMaxDepth type string");
     uci_print("option name LMPBase type string");
     uci_print("option name LMPMaxDepth type string");
+    uci_print("option name RazoringMargin type string");
+    uci_print("option name RazoringMaxDepth type string");
     uci_print("option name SEECutoff type string");
     uci_print("option name LMRTuningConstant type string");
     uci_print("option name MinimumIIDDepth type string");
@@ -282,6 +284,10 @@ void cmd_setoption(const std::string& cmd) {
         g_search_params.lmp_base = std::stoi(value);
     } else if (name == "LMPMaxDepth") {
         g_search_params.lmp_max_depth = std::stoi(value);
+    } else if (name == "RazoringMargin") {
+        g_search_params.razoring_margin = std::stoi(value);
+    } else if (name == "RazoringMaxDepth") {
+        g_search_params.razoring_max_depth = std::stoi(value);
     } else if (name == "SEECutoff") {
         g_search_params.see_cutoff = std::stoi(value);
     } else if (name == "LMRTuningConstant") {

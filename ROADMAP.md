@@ -5,6 +5,7 @@
 - **SEE pruning in main search** — prune losing captures in the main search (not just qsearch) at low depths based on static exchange evaluation.
 - **Razoring** — at shallow depths, if static eval is far below alpha, drop directly into qsearch instead of doing a full search.
 - **Singular extensions** — if one move is clearly better than all alternatives (by re-searching with a reduced window excluding it), extend it by one ply to resolve it more accurately.
+- **Multi-cut** — if multiple moves beat beta in a reduced search, cut the node immediately without a full-depth search.
 
 ## Move Ordering
 

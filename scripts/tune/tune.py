@@ -58,6 +58,8 @@ SEARCH_PARAMS = ParameterSet(
         Parameter("FutilityMaxDepth", 1, 8, True),
         Parameter("LMPBase", 1, 10, True),
         Parameter("LMPMaxDepth", 1, 8, True),
+        Parameter("RazoringMargin", 50, 600, True),
+        Parameter("RazoringMaxDepth", 1, 4, True),
         Parameter("SEECutoff", -500, 0, True),
         Parameter("LMRTuningConstant", 0.5, 5.0, False),
         Parameter("MinimumIIDDepth", 1, 8, True),
@@ -154,6 +156,12 @@ def _run(param_set, args):
         print(f'No params pickle found in {param_set.data_dir}. Run the generator first.')
         sys.exit(1)
     baseline_params = load_pickle(baseline_path)
+
+    # Inject defaults for new params missing from the pickle.
+    for p in param_set.params:
+        if p.name not in baseline_params:
+            baseline_params[p.name] = (int(p.min_val) + int(p.max_val)) // 2 if p.is_int else (p.min_val + p.max_val) / 2
+    
     print(f'Baseline from {baseline_path}\n')
 
     only = set(args.only) if args.only else None

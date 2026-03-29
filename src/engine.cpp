@@ -887,13 +887,29 @@ PositionScore Engine::negamax(
         }
     }
 
+    // Lazy static eval: computed once on first use, cached for all pruning decisions.
+    PositionScore static_eval = DUMMY_SCORE;
+    auto eval = [&]() {
+        if (static_eval == DUMMY_SCORE) {
+            static_eval = board.nnue_evaluate();
+        } 
+        return static_eval;
+    };
+
     // Reverse futility pruning: if static eval is so far above beta that even after
     // subtracting a margin the opponent still can't beat it, cut the node early.
     if (can_apply_pruning(alpha, beta, is_pv_node, in_check, depth, g_search_params.reverse_futility_max_depth)) {
-        PositionScore rfp_eval = board.nnue_evaluate();
         PositionScore rfp_margin = g_search_params.reverse_futility_margin_per_depth * depth + g_search_params.reverse_futility_margin_base;
-        if (rfp_eval - rfp_margin >= beta) {
-            return rfp_eval - rfp_margin;
+        if (eval() - rfp_margin >= beta) {
+            return eval() - rfp_margin;
+        }
+    }
+
+    // Razoring: if static eval is far below alpha at shallow depth, only tactics can
+    // save us — drop into quiescence search instead of doing a full search.
+    if (can_apply_pruning(alpha, beta, is_pv_node, in_check, depth, g_search_params.razoring_max_depth)) {
+        if (eval() + g_search_params.razoring_margin < alpha) {
+            return quiescence_search(board, ctx, alpha, beta);
         }
     }
 
@@ -905,10 +921,6 @@ PositionScore Engine::negamax(
     bool can_use_lmp = can_apply_pruning(alpha, beta, is_pv_node, in_check, depth, g_search_params.lmp_max_depth);
     int lmp_threshold = g_search_params.lmp_base + depth * depth;
 
-    PositionScore static_eval = 0;
-    if (can_use_futility_pruning) {
-        static_eval = board.nnue_evaluate();
-    }
     PositionScore futility_margin = g_search_params.futility_margin_per_depth * depth + g_search_params.futility_margin_base;
 
     PositionScore best_score = DUMMY_SCORE;
@@ -927,7 +939,7 @@ PositionScore Engine::negamax(
 
         // Futility pruning: skip quiet moves when static eval + margin can't reach alpha
         if (can_use_futility_pruning && num_moves > 0 && move_selector.in_quiet_phase()) {
-            if (static_eval + futility_margin < alpha) {
+            if (eval() + futility_margin < alpha) {
                 continue;
             }
         }

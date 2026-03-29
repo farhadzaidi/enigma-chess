@@ -31,6 +31,8 @@ SEARCH = {
         ("FutilityMaxDepth", "FUTILITY_MAX_DEPTH", 4),
         ("LMPBase", "LMP_BASE", 3),
         ("LMPMaxDepth", "LMP_MAX_DEPTH", 4),
+        ("RazoringMargin", "RAZORING_MARGIN", 200),
+        ("RazoringMaxDepth", "RAZORING_MAX_DEPTH", 1),
         ("SEECutoff", "SEE_CUTOFF", -200),
         ("LMRTuningConstant", "LMR_TUNING_CONSTANT", 2.0),
         ("MinimumIIDDepth", "MINIMUM_IID_DEPTH", 4),
