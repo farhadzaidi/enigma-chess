@@ -12,6 +12,10 @@ struct SearchParams {
     int null_move_deeper_threshold = DEFAULT_NULL_MOVE_DEEPER_THRESHOLD;
     int null_move_min_depth = DEFAULT_NULL_MOVE_MIN_DEPTH;
 
+    int reverse_futility_margin_per_depth = DEFAULT_REVERSE_FUTILITY_MARGIN_PER_DEPTH;
+    int reverse_futility_margin_base = DEFAULT_REVERSE_FUTILITY_MARGIN_BASE;
+    int reverse_futility_max_depth = DEFAULT_REVERSE_FUTILITY_MAX_DEPTH;
+
     int futility_margin_per_depth = DEFAULT_FUTILITY_MARGIN_PER_DEPTH;
     int futility_margin_base = DEFAULT_FUTILITY_MARGIN_BASE;
     int futility_max_depth = DEFAULT_FUTILITY_MAX_DEPTH;

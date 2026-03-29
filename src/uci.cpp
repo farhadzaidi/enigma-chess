@@ -92,6 +92,9 @@ void cmd_uci() {
     uci_print("option name NullMoveBaseReduction type string");
     uci_print("option name NullMoveDeeperThreshold type string");
     uci_print("option name NullMoveMinDepth type string");
+    uci_print("option name ReverseFutilityMarginPerDepth type string");
+    uci_print("option name ReverseFutilityMarginBase type string");
+    uci_print("option name ReverseFutilityMaxDepth type string");
     uci_print("option name FutilityMarginPerDepth type string");
     uci_print("option name FutilityMarginBase type string");
     uci_print("option name FutilityMaxDepth type string");
@@ -261,6 +264,12 @@ void cmd_setoption(const std::string& cmd) {
         g_search_params.null_move_deeper_threshold = std::stoi(value);
     } else if (name == "NullMoveMinDepth") {
         g_search_params.null_move_min_depth = std::stoi(value);
+    } else if (name == "ReverseFutilityMarginPerDepth") {
+        g_search_params.reverse_futility_margin_per_depth = std::stoi(value);
+    } else if (name == "ReverseFutilityMarginBase") {
+        g_search_params.reverse_futility_margin_base = std::stoi(value);
+    } else if (name == "ReverseFutilityMaxDepth") {
+        g_search_params.reverse_futility_max_depth = std::stoi(value);
     } else if (name == "FutilityMarginPerDepth") {
         g_search_params.futility_margin_per_depth = std::stoi(value);
     } else if (name == "FutilityMarginBase") {

@@ -172,13 +172,14 @@ bool can_apply_null_move(
     );
 }
 
-/** Guard conditions for futility pruning — only safe far from mate and at low depth. */
+/** Guard conditions for futility pruning */
 bool can_apply_futility(
     PositionScore alpha,
     PositionScore beta,
     bool is_pv_node,
     bool in_check,
-    SearchDepth depth
+    SearchDepth depth,
+    SearchDepth max_depth
 ) {
     constexpr PositionScore MATE_THRESHOLD = CHECKMATE_SCORE - MAX_SEARCH_PLY;
     return (
@@ -186,7 +187,7 @@ bool can_apply_futility(
         std::abs(beta) < MATE_THRESHOLD &&
         !is_pv_node &&
         !in_check &&
-        depth < g_search_params.futility_max_depth
+        depth <= max_depth
     );
 }
 
@@ -886,9 +887,19 @@ PositionScore Engine::negamax(
         }
     }
 
+    // Reverse futility pruning: if static eval is so far above beta that even after
+    // subtracting a margin the opponent still can't beat it, cut the node early.
+    if (can_apply_futility(alpha, beta, is_pv_node, in_check, depth, g_search_params.reverse_futility_max_depth)) {
+        PositionScore rfp_eval = board.nnue_evaluate();
+        PositionScore rfp_margin = g_search_params.reverse_futility_margin_per_depth * depth + g_search_params.reverse_futility_margin_base;
+        if (rfp_eval - rfp_margin >= beta) {
+            return rfp_eval - rfp_margin;
+        }
+    }
+
     // Futility pruning setup: at shallow depths, if static eval is far below alpha,
     // quiet moves are unlikely to raise it enough — skip them in the move loop below.
-    bool can_use_futility_pruning = can_apply_futility(alpha, beta, is_pv_node, in_check, depth);
+    bool can_use_futility_pruning = can_apply_futility(alpha, beta, is_pv_node, in_check, depth, g_search_params.futility_max_depth);
 
     PositionScore static_eval = 0;
     if (can_use_futility_pruning) {
