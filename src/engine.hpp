@@ -186,7 +186,8 @@ private:
         SearchDepth depth,
         PositionScore alpha,
         PositionScore beta,
-        bool allow_null_move = true
+        bool allow_null_move = true,
+        Move excluded_move = NULL_MOVE
     );
 
     /** Probe the TT for a cutoff or best-move hint; falls back to IID on PV misses. */

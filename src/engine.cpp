@@ -668,7 +668,9 @@ void Engine::emit_best_move(Board& board) {
 struct Engine::TTProbeResult {
     Move tt_move;
     bool has_cutoff;
-    PositionScore cutoff_score;
+    PositionScore tt_score;
+    SearchDepth tt_depth;
+    TTNode tt_node;
 };
 
 void Engine::store_tt_result(
@@ -713,11 +715,11 @@ Engine::TTProbeResult Engine::probe_tt(
                 (tt_entry->node() == TT_FAIL_LOW && tt_score <= alpha)
             )
         ) {
-            return {tt_move, true, tt_score};
+            return {tt_move, true, tt_score, tt_entry->depth(), tt_entry->node()};
         }
 
         // No cutoff, but still use the TT move for move ordering
-        return {tt_move, false, 0};
+        return {tt_move, false, tt_score, tt_entry->depth(), tt_entry->node()};
     }
 
     // Internal Iterative Deepening: do a shallow search to find a move for ordering
@@ -728,11 +730,12 @@ Engine::TTProbeResult Engine::probe_tt(
 
         tt_entry = g_tt.get_entry(board.position_hash());
         if (tt_entry) {
-            return {tt_entry->move(), false, 0};
+            PositionScore tt_score = denormalize_tt_score(tt_entry->score(), ctx.search_ply(board.ply()));
+            return {tt_entry->move(), false, tt_score, tt_entry->depth(), tt_entry->node()};
         }
     }
 
-    return {NULL_MOVE, false, 0};
+    return {NULL_MOVE, false, 0, 0, TT_FAIL_LOW};
 }
 
 void Engine::update_killer_table(Context& ctx, Move move, int ply) {
@@ -842,7 +845,8 @@ PositionScore Engine::negamax(
     SearchDepth depth,
     PositionScore alpha,
     PositionScore beta,
-    bool allow_null_move
+    bool allow_null_move,
+    Move excluded_move
 ) {
     ctx.nodes++;
 
@@ -864,7 +868,7 @@ PositionScore Engine::negamax(
     // TT probe — may produce an immediate cutoff or a best-move hint
     TTProbeResult tt_result = probe_tt(board, ctx, depth, alpha, beta, is_pv_node);
     if (tt_result.has_cutoff) {
-        return tt_result.cutoff_score;
+        return tt_result.tt_score;
     }
 
     PositionScore original_alpha = alpha;
@@ -926,6 +930,24 @@ PositionScore Engine::negamax(
     // SEE pruning: at shallow depths, skip losing captures entirely.
     bool can_use_see_pruning = can_apply_pruning(alpha, beta, is_pv_node, in_check, depth, g_search_params.see_pruning_max_depth);
 
+    // Singular extension: if the TT move is clearly better than all alternatives, extend it.
+    int singular_extension = 0;
+    if (
+        depth >= g_search_params.se_min_depth
+        && tt_result.tt_move != NULL_MOVE
+        && excluded_move == NULL_MOVE
+        && tt_result.tt_depth >= depth - g_search_params.se_tt_depth_margin
+        && (tt_result.tt_node == TT_FAIL_HIGH || tt_result.tt_node == TT_EXACT)
+        && !in_check
+    ) {
+        PositionScore se_beta = tt_result.tt_score - g_search_params.se_margin_multiplier * depth;
+        SearchDepth se_depth = std::max<SearchDepth>(0, depth / g_search_params.se_depth_divisor);
+        PositionScore se_score = negamax(board, ctx, se_depth, se_beta - 1, se_beta, false, tt_result.tt_move);
+        if (se_score < se_beta) {
+            singular_extension = 1;
+        }
+    }
+
     PositionScore best_score = DUMMY_SCORE;
     Move best_move;
     MoveList searched_quiet_moves;
@@ -938,6 +960,7 @@ PositionScore Engine::negamax(
     while (true) {
         Move move = move_selector.next_move(ctx);
         if (move == NULL_MOVE) break;
+        if (move == excluded_move) continue;
         else has_moves = true;
 
         // Futility pruning
@@ -967,8 +990,11 @@ PositionScore Engine::negamax(
         if (in_check) reduction = 0;       // don't reduce when in check
         if (move_selector.before_quiet_phase()) reduction = 0;  // don't reduce tacticals/killers
 
-        // Check extension: extend by one ply when the move gives check
-        int extension = board.in_check() ? 1 : 0;
+        // Extensions
+        int extension = board.in_check() ? 1 : 0; // check extension
+        if (move == tt_result.tt_move) {
+            extension += singular_extension;
+        }
 
         reduction = std::clamp(reduction, 0, depth - 1);
 
