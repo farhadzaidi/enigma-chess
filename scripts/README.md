@@ -1,6 +1,6 @@
 # Scripts
 
-Utility scripts for building, testing, and managing engine versions. Managed with [uv](https://docs.astral.sh/uv/).
+Utility scripts for data generation, training, tuning, and version management. Managed with [uv](https://docs.astral.sh/uv/).
 
 ## Setup
 
@@ -8,34 +8,82 @@ Utility scripts for building, testing, and managing engine versions. Managed wit
 uv sync
 ```
 
-## Scripts
+All commands below are run from the `scripts/` directory.
 
-#### `run_match.py`
+## Layout
 
-Runs a match between engine versions using cutechess-cli. Requires `cutechess_cli_binary` env var.
-
-```bash
-uv run run_match.py              # current build vs latest version
-uv run run_match.py v1           # current build vs v1
-uv run run_match.py v1 v2        # v1 vs v2
-uv run run_match.py --sprt 20    # SPRT test with 20 Elo expectation
-```
-
-#### `save_version.py`
-
-Saves the current build binary to the versions folder.
-
-```bash
-uv run save_version.py my_version   # saves as v{n}_my_version
-uv run save_version.py              # overwrites latest version
+```text
+scripts/
+  lib/              # Shared utilities (paths, concurrency, versioning)
+  generators/       # C++ header generators (book, NNUE weights, search/TM params)
+  nnue/             # NNUE data generation and training
+  match/            # Engine version management and cutechess matches
+  tune/             # Optuna-based parameter tuner (modular)
+  tune_parameters.py  # Legacy all-in-one parameter tuner
 ```
 
 ## Data Generators
 
-These scripts generate data that is embedded directly into the engine binary at compile time. The generated files are checked in and don't need to be rerun unless the source data changes.
-
-- `generators/book.py` — generates `src/data/book.hpp` from `positions/games.san`
+Generate C++ headers that are embedded into the engine binary at compile time. The generated files are checked in and don't need to be rerun unless the source data changes.
 
 ```bash
-uv run generators/book.py
+uv run -m generators          # run all generators
+```
+
+Individual generators:
+
+- `generators/book.py` — `positions/games.san` → `src/data/book.hpp`
+- `generators/nnue_weights.py` — quantizes trained NNUE weights → `src/data/nnue_weights.hpp`
+- `generators/search_params.py` — tuned search params → `src/data/search_params.hpp`
+- `generators/tm_params.py` — tuned time management params → `src/data/tm_params.hpp`
+
+## NNUE
+
+#### Data Generation
+
+Spawns parallel self-play workers to generate training data.
+
+```bash
+uv run -m nnue.datagen
+uv run -m nnue.datagen --validation
+```
+
+#### Training
+
+Trains a HalfKP neural network on the generated data.
+
+```bash
+uv run -m nnue.train
+uv run -m nnue.train --weights none    # train from scratch
+uv run -m nnue.train --weights 0       # resume from specific checkpoint
+```
+
+## Parameter Tuning
+
+Uses Optuna (TPE) to optimize engine parameters by playing matches against a baseline.
+
+```bash
+uv run -m tune.tune search    # tune search parameters
+uv run -m tune.tune tm        # tune time management parameters
+uv run -m tune.tune search --games 800
+```
+
+## Engine Matches
+
+Requires `cutechess_cli_binary` environment variable pointing to the cutechess-cli binary.
+
+#### `match/run_match.py`
+
+```bash
+uv run -m match.run_match              # current build vs latest version
+uv run -m match.run_match v1           # current build vs v1
+uv run -m match.run_match v1 v2        # v1 vs v2
+uv run -m match.run_match --sprt 20    # SPRT test with 20 Elo expectation
+```
+
+#### `match/save_version.py`
+
+```bash
+uv run -m match.save_version my_version   # saves as v{n}_my_version
+uv run -m match.save_version              # overwrites latest version
 ```
