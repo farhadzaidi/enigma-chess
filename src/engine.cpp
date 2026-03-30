@@ -205,6 +205,50 @@ bool can_apply_pruning(
     );
 }
 
+/** Return true if a quiet move attacks the enemy king after the occupancy update. */
+bool quiet_move_gives_check(const Board& board, Move move) {
+    Side moving_side = board.to_move();
+    Square enemy_king = board.king_square(opposite_side(moving_side));
+
+    std::array<Bitboard, NUM_PIECES> our_pieces = board.pieces()[moving_side];
+    Bitboard occupied = board.occupied();
+
+    Square from = move.from();
+    Square to = move.to();
+    Piece moving_piece = board.piece_map()[from];
+    Bitboard from_mask = get_mask(from);
+    Bitboard to_mask = get_mask(to);
+
+    occupied = (occupied & ~from_mask) | to_mask;
+    our_pieces[moving_piece] = (our_pieces[moving_piece] & ~from_mask) | to_mask;
+
+    if (move.flag() == MF_CASTLE) {
+        Square rook_from = NO_SQUARE;
+        Square rook_to = NO_SQUARE;
+        switch (to) {
+            case C1: rook_from = A1; rook_to = D1; break;
+            case G1: rook_from = H1; rook_to = F1; break;
+            case C8: rook_from = A8; rook_to = D8; break;
+            case G8: rook_from = H8; rook_to = F8; break;
+        }
+
+        Bitboard rook_from_mask = get_mask(rook_from);
+        Bitboard rook_to_mask = get_mask(rook_to);
+        occupied &= ~rook_from_mask;
+        occupied |= rook_to_mask;
+        our_pieces[ROOK] &= ~rook_from_mask;
+        our_pieces[ROOK] |= rook_to_mask;
+    }
+
+    return (
+        (get_pawn_attacks(moving_side, enemy_king) & our_pieces[PAWN]) |
+        (get_piece_attacks(KNIGHT, enemy_king, occupied) & our_pieces[KNIGHT]) |
+        (get_piece_attacks(KING, enemy_king, occupied) & our_pieces[KING]) |
+        (get_piece_attacks(ROOK, enemy_king, occupied) & (our_pieces[ROOK] | our_pieces[QUEEN])) |
+        (get_piece_attacks(BISHOP, enemy_king, occupied) & (our_pieces[BISHOP] | our_pieces[QUEEN]))
+    );
+}
+
 } // namespace
 
 // --- Context ---
@@ -953,7 +997,7 @@ PositionScore Engine::negamax(
     if (can_apply_pruning(alpha, beta, is_pv_node, in_check, depth, g_search_params.reverse_futility_max_depth)) {
         PositionScore rfp_margin = g_search_params.reverse_futility_margin_per_depth * depth + g_search_params.reverse_futility_margin_base;
         if (eval() - rfp_margin >= beta) {
-            return eval() - rfp_margin;
+            return beta;
         }
     }
 
@@ -1017,15 +1061,23 @@ PositionScore Engine::negamax(
         if (move == excluded_move) continue;
         else has_moves = true;
 
-        // Futility pruning
-        if (can_use_futility_pruning && num_moves > 0 && move_selector.in_quiet_phase()) {
-            if (eval() + futility_margin < alpha) {
-                continue;
+        bool quiet_gives_check = false;
+        bool quiet_gives_check_known = false;
+        auto gives_check = [&]() {
+            if (!quiet_gives_check_known) {
+                quiet_gives_check = quiet_move_gives_check(board, move);
+                quiet_gives_check_known = true;
             }
+            return quiet_gives_check;
+        };
+
+        // Futility pruning
+        if (can_use_futility_pruning && num_moves > 0 && move_selector.in_quiet_phase() && eval() + futility_margin < alpha && !gives_check()) {
+            continue;
         }
 
         // Late move pruning
-        if (can_use_lmp && num_moves >= lmp_threshold && move_selector.in_quiet_phase()) {
+        if (can_use_lmp && num_moves >= lmp_threshold && move_selector.in_quiet_phase() && !gives_check()) {
             continue;
         }
 
