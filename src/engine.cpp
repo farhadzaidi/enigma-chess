@@ -814,6 +814,11 @@ PositionScore Engine::quiescence_search(Board& board, Context& ctx, PositionScor
     MoveGenerator qmg(board);
     MoveList moves = in_check ? qmg.generate_all() : qmg.generate_tacticals();
 
+    // Sort captures by MVV-LVA (descending) to try the most promising ones first
+    std::sort(moves.begin(), moves.end(), [&board](Move a, Move b) {
+        return get_tactical_score(board, a) > get_tactical_score(board, b);
+    });
+
     if (moves.is_empty()) {
         if (in_check) {
             return -CHECKMATE_SCORE + ctx.search_ply(board.ply());
@@ -821,20 +826,7 @@ PositionScore Engine::quiescence_search(Board& board, Context& ctx, PositionScor
         return alpha;
     }
 
-    for (int i = 0; i < moves.size(); i++) {
-        // Partial selection sort: find the best remaining capture by MVV-LVA
-        int best = i;
-        MoveScore best_score = get_tactical_score(board, moves[i]);
-        for (int j = i + 1; j < moves.size(); j++) {
-            MoveScore score = get_tactical_score(board, moves[j]);
-            if (score > best_score) {
-                best = j;
-                best_score = score;
-            }
-        }
-        if (best != i) std::swap(moves[i], moves[best]);
-        Move move = moves[i];
-
+    for (Move move : moves) {
         // SEE pruning: skip captures that lose too much material
         if (!in_check && move.type() == MT_CAPTURE && see(board, move) < g_search_params.see_cutoff) continue;
 
