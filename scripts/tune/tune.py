@@ -21,7 +21,7 @@ from lib.versioned import save_pickle, load_pickle, next_path, resolve
 from tune.match import MatchConfig, play_match
 
 PATIENCE = 50
-GAMES_PER_TRIAL = 500
+GAMES_PER_TRIAL = 400
 
 
 @dataclass
@@ -40,6 +40,7 @@ class ParameterSet:
     data_dir: Path
     prefix: str
     study_name: str
+    groups: dict[str, list[str]] = None
 
 
 SEARCH_PARAMS = ParameterSet(
@@ -74,6 +75,46 @@ SEARCH_PARAMS = ParameterSet(
         Parameter("NullMoveDeepReduction", 1, 8, True),
         Parameter("HistoryMalusDivisor", 1, 8, True),
     ],
+    groups={
+        "null_move": [
+            "NullMoveBaseReduction",
+            "NullMoveDeeperThreshold",
+            "NullMoveMinDepth",
+            "NullMoveDeepReduction",
+        ],
+        "futility": [
+            "ReverseFutilityMarginPerDepth",
+            "ReverseFutilityMarginBase",
+            "ReverseFutilityMaxDepth",
+            "FutilityMarginPerDepth",
+            "FutilityMarginBase",
+            "FutilityMaxDepth",
+        ],
+        "pruning": [
+            "LMPBase",
+            "LMPMaxDepth",
+            "RazoringMargin",
+            "RazoringMaxDepth",
+            "SEEPruningMaxDepth",
+            "SEECutoff",
+        ],
+        "reductions": [
+            "LMRTuningConstant",
+            "LMRPVReduction",
+            "ReducedSearchMinDepth",
+            "ReducedSearchDepthDivisor",
+            "ReducedSearchMarginMultiplier",
+            "ReducedSearchTTDepthMargin",
+        ],
+        "misc": [
+            "AspirationWindow",
+            "ScoreDropThreshold",
+            "BestMoveMinStability",
+            "HistoryMalusDivisor",
+            "MinimumIIDDepth",
+            "IIDDepthDivisor",
+        ],
+    },
     data_dir=PROJECT_ROOT / 'scripts' / 'tune' / 'data' / 'search_params',
     prefix='search_params',
     study_name='enigma-search-tune',
@@ -94,6 +135,23 @@ TM_PARAMS = ParameterSet(
         Parameter("EmergencySoftDivisor", 4, 30, True),
         Parameter("EmergencyHardDivisor", 4, 40, True),
     ],
+    groups={
+        "alloc": [
+            "MovesLeftBase",
+            "MovesLeftPhaseScale",
+            "MinMovesNoIncrement",
+            "IncrementFraction",
+            "SoftFactorNoIncrement",
+            "SoftFactorIncrement",
+        ],
+        "limits": [
+            "HardFactor",
+            "HardCapDivisor",
+            "EmergencyTrigger",
+            "EmergencySoftDivisor",
+            "EmergencyHardDivisor",
+        ],
+    },
     data_dir=PROJECT_ROOT / 'scripts' / 'tune' / 'data' / 'tm_params',
     prefix='tm_params',
     study_name='enigma-tm-tune',
@@ -107,7 +165,7 @@ def _render(params, patience, baseline, best_params, trial_num, best_trial_num=N
     num_lines = len(params) + 1
 
     if not first:
-        sys.stdout.write(f"\033[{num_lines - 1}F")
+        sys.stdout.write(f"\033[{num_lines}F")
 
     cl = "\033[2K"
     best_str = f" (trial {best_trial_num})" if best_trial_num is not None else ""
@@ -139,46 +197,42 @@ def _render(params, patience, baseline, best_params, trial_num, best_trial_num=N
 
 
 def _save_params(param_set, best_params, baseline_params, path):
-    """Save best params to pickle for the C++ header generator."""
-    params = {}
+    """Save params to pickle — only writes baseline + tuned overrides."""
+    params = dict(baseline_params)
     for p in param_set.params:
-        val = best_params.get(p.name, baseline_params[p.name])
-        params[p.name] = round(val) if p.is_int else val
+        if p.name in best_params:
+            val = best_params[p.name]
+            params[p.name] = round(val) if p.is_int else val
     save_pickle(param_set.data_dir, param_set.prefix, params, path=path)
 
 
-def _run(param_set, args):
-    """Run the Optuna tuner for a given parameter set."""
-    warnings.filterwarnings("ignore", category=ExperimentalWarning)
-    optuna.logging.set_verbosity(optuna.logging.ERROR)
-
-    match_config = MatchConfig(args.games)
-    save_path = next_path(param_set.data_dir, param_set.prefix, '.pkl')
-
-    # Load baseline from pickle (required)
-    baseline_path = resolve(param_set.data_dir, param_set.prefix, '.pkl', n=args.baseline)
+def _load_baseline(param_set, baseline_arg):
+    """Load baseline parameters from pickle."""
+    baseline_path = resolve(param_set.data_dir, param_set.prefix, '.pkl', n=baseline_arg)
     if not baseline_path:
         print(f'No params pickle found in {param_set.data_dir}. Run the generator first.')
         sys.exit(1)
     baseline_params = load_pickle(baseline_path)
 
-    # Inject defaults for new params missing from the pickle.
-    for p in param_set.params:
-        if p.name not in baseline_params:
-            baseline_params[p.name] = (int(p.min_val) + int(p.max_val)) // 2 if p.is_int else (p.min_val + p.max_val) / 2
-    
-    print(f'Baseline from {baseline_path}\n')
+    missing = [p.name for p in param_set.params if p.name not in baseline_params]
+    if missing:
+        print(f'Baseline pickle is missing params: {", ".join(missing)}')
+        print('Regenerate the baseline pickle to include all current params.')
+        sys.exit(1)
 
-    only = set(args.only) if args.only else None
-    if only:
-        unknown = only - {p.name for p in param_set.params}
-        if unknown:
-            print(f'Unknown params: {", ".join(sorted(unknown))}')
-            sys.exit(1)
+    print(f'Baseline from {baseline_path}\n')
+    return baseline_params
+
+
+def _tune_group(param_set, baseline_params, only, match_config, save_path):
+    """Run TPE optimization for a subset of params.
+
+    Returns (merged_params, interrupted) where merged_params is the full
+    parameter dict with the best values folded in.
+    """
     display_params = [p for p in param_set.params if not only or p.name in only]
 
     def objective(trial):
-        """Build params from TPE suggestions and play a match against the baseline."""
         params = {}
         for p in param_set.params:
             if only and p.name not in only:
@@ -192,12 +246,14 @@ def _run(param_set, args):
     prev_best = None
 
     def after_trial(study, trial):
-        """Update the display and stop if patience is exhausted."""
         nonlocal prev_best
         best = study.best_trial
         trial_num = trial.number + 1
         best_num = best.number + 1
-        _render(display_params, PATIENCE, baseline_params, best.params, trial_num, best_trial_num=best_num, score=f"{best.value:.3f}")
+        _render(
+            display_params, PATIENCE, baseline_params, best.params,
+            trial_num, best_trial_num=best_num, score=f"{best.value:.3f}",
+        )
 
         if best_num != prev_best:
             prev_best = best_num
@@ -207,19 +263,55 @@ def _run(param_set, args):
             study.stop()
 
     sampler = optuna.samplers.TPESampler(multivariate=True, group=True)
-    study = optuna.create_study(direction="maximize", sampler=sampler, study_name=param_set.study_name)
+    study = optuna.create_study(
+        direction="maximize", sampler=sampler,
+        study_name=param_set.study_name,
+    )
 
-    if baseline_path:
-        enqueue = {p.name: baseline_params[p.name] for p in param_set.params if not only or p.name in only}
-        study.enqueue_trial(enqueue)
+    enqueue = {
+        p.name: baseline_params[p.name]
+        for p in param_set.params
+        if not only or p.name in only
+    }
+    study.enqueue_trial(enqueue)
 
     _render(display_params, PATIENCE, baseline_params, baseline_params, 0, score="—", first=True)
 
+    interrupted = False
     try:
         study.optimize(objective, callbacks=[after_trial])
     except KeyboardInterrupt:
-        pass
+        interrupted = True
 
+    # Merge best trial params into baseline
+    merged = dict(baseline_params)
+    if len(study.trials) > 0:
+        best = study.best_trial.params
+        for p in param_set.params:
+            if p.name in best:
+                val = best[p.name]
+                merged[p.name] = round(val) if p.is_int else val
+
+    return merged, interrupted
+
+
+def _run(param_set, args):
+    """Run the Optuna tuner for a given parameter set."""
+    warnings.filterwarnings("ignore", category=ExperimentalWarning)
+    optuna.logging.set_verbosity(optuna.logging.ERROR)
+
+    match_config = MatchConfig(args.games)
+    save_path = next_path(param_set.data_dir, param_set.prefix, '.pkl')
+    baseline_params = _load_baseline(param_set, args.baseline)
+
+    only = set(args.only) if args.only else None
+    if only:
+        unknown = only - {p.name for p in param_set.params}
+        if unknown:
+            print(f'Unknown params: {", ".join(sorted(unknown))}')
+            sys.exit(1)
+
+    _tune_group(param_set, baseline_params, only, match_config, save_path)
 
 
 def main():
@@ -227,10 +319,33 @@ def main():
     parser.add_argument("target", choices=list(PARAM_SETS.keys()), help="which parameter set to tune")
     parser.add_argument("--games", type=int, default=GAMES_PER_TRIAL, help="games per trial")
     parser.add_argument("--only", nargs="+", default=None, help="only tune these parameters (freeze the rest at baseline)")
+    parser.add_argument("--group", default=None, help="tune a named parameter group (use --list-groups to see available)")
+    parser.add_argument("--list-groups", action="store_true", help="list available groups for the target and exit")
+
     parser.add_argument("--baseline", default=None, help='baseline pickle number to load (default: latest, "none" for fresh)')
     args = parser.parse_args()
 
-    _run(PARAM_SETS[args.target], args)
+    param_set = PARAM_SETS[args.target]
+
+    if args.list_groups:
+        if not param_set.groups:
+            print(f"No groups defined for '{param_set.name}'")
+        else:
+            for name, members in param_set.groups.items():
+                print(f"  {name} ({len(members)}): {', '.join(members)}")
+        sys.exit(0)
+
+    if args.group:
+        if args.only:
+            print("Cannot use --group and --only together")
+            sys.exit(1)
+        if not param_set.groups or args.group not in param_set.groups:
+            available = ', '.join(param_set.groups) if param_set.groups else 'none'
+            print(f"Unknown group '{args.group}'. Available: {available}")
+            sys.exit(1)
+        args.only = param_set.groups[args.group]
+
+    _run(param_set, args)
 
 
 if __name__ == "__main__":
