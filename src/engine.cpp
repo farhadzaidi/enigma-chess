@@ -867,7 +867,7 @@ PositionScore Engine::negamax(
 
     // TT probe — may produce an immediate cutoff or a best-move hint
     TTProbeResult tt_result = probe_tt(board, ctx, depth, alpha, beta, is_pv_node);
-    if (tt_result.has_cutoff) {
+    if (tt_result.has_cutoff && excluded_move == NULL_MOVE) {
         return tt_result.tt_score;
     }
 
