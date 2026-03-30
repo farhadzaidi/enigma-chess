@@ -56,6 +56,21 @@ constexpr std::array<MoveScore, NUM_MOVE_FLAGS> PROMOTION_BONUS = {
     0, 0, 0, 200, 300, 200, 600,
 };
 
+/** Score a tactical move by MVV-LVA + promotion bonus. */
+MoveScore get_tactical_score(const Board& board, Move move) {
+    MoveScore score = 0;
+    if (move.type() == MT_CAPTURE) {
+        Piece attacker = board.piece_map()[move.from()];
+        Piece victim = move.flag() == MF_EN_PASSANT ? PAWN : board.piece_map()[move.to()];
+        score += MVV_LVA_TABLE[attacker][victim];
+    }
+    if (move.is_promotion()) {
+        score += PROMOTION_BONUS[move.flag()];
+    }
+    return score;
+}
+
+
 // --- SEE ---
 
 /** Static Exchange Evaluation — estimate the material outcome of a capture sequence. */
@@ -259,7 +274,7 @@ private:
 
     void generate_tactical_moves();
     void generate_quiet_moves(Context& ctx);
-    MoveScore get_tactical_score(Move move);
+
     void sort_tactical_moves(MoveList& moves);
     void sort_quiet_moves(Context& ctx);
     Move pop_next(MoveList& moves);
@@ -369,22 +384,10 @@ void Engine::MoveSelector::generate_quiet_moves(Context& ctx) {
     quiets_generated_ = true;
 }
 
-MoveScore Engine::MoveSelector::get_tactical_score(Move move) {
-    MoveScore score = 0;
-    if (move.type() == MT_CAPTURE) {
-        Piece attacker = board_.piece_map()[move.from()];
-        Piece victim = move.flag() == MF_EN_PASSANT ? PAWN : board_.piece_map()[move.to()];
-        score += MVV_LVA_TABLE[attacker][victim];
-    }
-    if (move.is_promotion()) {
-        score += PROMOTION_BONUS[move.flag()];
-    }
-    return score;
-}
 
 void Engine::MoveSelector::sort_tactical_moves(MoveList& moves) {
-    std::sort(moves.begin(), moves.end(), [&](Move move_1, Move move_2) {
-        return get_tactical_score(move_1) < get_tactical_score(move_2);
+    std::sort(moves.begin(), moves.end(), [this](Move a, Move b) {
+        return get_tactical_score(board_, a) < get_tactical_score(board_, b);
     });
 }
 
@@ -818,7 +821,20 @@ PositionScore Engine::quiescence_search(Board& board, Context& ctx, PositionScor
         return alpha;
     }
 
-    for (Move move : moves) {
+    for (int i = 0; i < moves.size(); i++) {
+        // Partial selection sort: find the best remaining capture by MVV-LVA
+        int best = i;
+        MoveScore best_score = get_tactical_score(board, moves[i]);
+        for (int j = i + 1; j < moves.size(); j++) {
+            MoveScore score = get_tactical_score(board, moves[j]);
+            if (score > best_score) {
+                best = j;
+                best_score = score;
+            }
+        }
+        if (best != i) std::swap(moves[i], moves[best]);
+        Move move = moves[i];
+
         // SEE pruning: skip captures that lose too much material
         if (!in_check && move.type() == MT_CAPTURE && see(board, move) < g_search_params.see_cutoff) continue;
 
