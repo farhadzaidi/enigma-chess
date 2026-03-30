@@ -155,7 +155,6 @@ bool test_null_move_zobrist(Board& b) {
     for (const auto& tc : test_cases) {
         b.load_from_fen(tc.fen);
         ZobristHash original_hash = b.position_hash();
-        ZobristHash original_pawn_hash = b.pawn_hash();
 
         b.make_null_move();
 
@@ -166,21 +165,12 @@ bool test_null_move_zobrist(Board& b) {
             return false;
         }
 
-        if (b.pawn_hash() != original_pawn_hash) {
-            std::clog << "[FAILURE] 'null_move_zobrist' - Pawn hash changed after null move\n";
-            std::clog << "Case: " << tc.description << "\n";
-            std::clog << "Expected: " << original_pawn_hash << " Got: " << b.pawn_hash() << "\n";
-            b.unmake_null_move();
-            return false;
-        }
-
         b.unmake_null_move();
 
-        if (b.position_hash() != original_hash || b.pawn_hash() != original_pawn_hash) {
+        if (b.position_hash() != original_hash) {
             std::clog << "[FAILURE] 'null_move_zobrist' - Hash not restored after unmake\n";
             std::clog << "Case: " << tc.description << "\n";
             std::clog << "Zobrist expected: " << original_hash << " Got: " << b.position_hash() << "\n";
-            std::clog << "Pawn hash expected: " << original_pawn_hash << " Got: " << b.pawn_hash() << "\n";
             return false;
         }
     }

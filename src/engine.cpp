@@ -9,7 +9,6 @@
 
 #include "bitboard.hpp"
 #include "params.hpp"
-#include "pawn_table.hpp"
 #include "move_generator.hpp"
 #include "print.hpp"
 #include "notation.hpp"
@@ -478,7 +477,6 @@ void Engine::stop() {
 void Engine::clear() {
     stop();
     g_tt.clear();
-    g_pawn_table.clear();
 }
 
 uint64_t Engine::total_nodes() const {

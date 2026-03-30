@@ -6,7 +6,6 @@
 #include <string>
 
 #include "board.hpp"
-#include "evaluate.hpp"
 #include "move.hpp"
 #include "params.hpp"
 #include "perft.hpp"

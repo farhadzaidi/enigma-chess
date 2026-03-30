@@ -17,14 +17,12 @@ bool test_check(Board& b);
 bool test_legal(Board& b);
 bool test_make_unmake(Board& b);
 bool test_perft(Board& b);
-bool test_eval(Board& b);
 bool test_zobrist(Board& b);
 bool test_opening_book(Board& b);
 bool test_search(Board& b);
 bool test_draws(Board& b);
 bool test_transposition_table();
 bool test_null_move(Board& b);
-bool test_pawn_table(Board& b);
 
 
 extern const std::vector<TestEntry> TESTS;

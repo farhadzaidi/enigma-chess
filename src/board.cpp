@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "bitboard.hpp"
-#include "evaluate.hpp"
 #include "move_generator.hpp"
 #include "notation.hpp"
 #include "zobrist.hpp"
@@ -59,10 +58,6 @@ void Board::reset() {
     piece_map_.fill(NO_PIECE);
     king_squares_.fill(NO_SQUARE);
     position_hashes_.fill(0);
-    pawn_hashes_.fill(0);
-
-    early_score_.fill(0);
-    late_score_.fill(0);
     game_phase_ = 0;
 
     occupied_ = EMPTY_BITBOARD;
@@ -73,7 +68,6 @@ void Board::reset() {
     fullmoves_ = 0;
     ply_ = 0;
     position_hash_ = 0;
-    pawn_hash_ = 0;
 
     nnue_.clear_history();
 }
@@ -148,7 +142,6 @@ void Board::load_from_fen(std::string_view fen) {
     this->fullmoves_ = std::stoi(fullmoves);
 
     position_hashes_[0] = position_hash_;
-    pawn_hashes_[0] = pawn_hash_;
 
     nnue_.refresh_features(king_squares_, pieces_);
 }
@@ -268,7 +261,6 @@ void Board::make_move(Move move) {
     state_history_[ply_] = state;
     ply_ += 1;
     position_hashes_[ply_] = position_hash_;
-    // pawn_hashes_[ply_] = pawn_hash_;
 }
 
 void Board::unmake_move(Move move) {
@@ -313,7 +305,6 @@ void Board::unmake_move(Move move) {
     // Switch side back and restore hashes and NNUE state from history
     toggle_side_to_move();
     position_hash_ = position_hashes_[ply_];
-    // pawn_hash_ = pawn_hashes_[ply_];
     nnue_.pop();
 }
 
@@ -327,7 +318,6 @@ void Board::make_null_move() {
     toggle_side_to_move();
     ply_++;
     position_hashes_[ply_] = position_hash_;
-    // pawn_hashes_[ply_] = pawn_hash_;
 }
 
 void Board::unmake_null_move() {
@@ -336,7 +326,6 @@ void Board::unmake_null_move() {
     en_passant_target_ = prev_state.en_passant_target;
     toggle_side_to_move();
     position_hash_ = position_hashes_[ply_];
-    // pawn_hash_ = pawn_hashes_[ply_];
 }
 
 // --- Piece Mutation ---
@@ -357,13 +346,6 @@ void Board::place_piece(Side side, Piece piece, Square square, bool update_nnue)
     // Toggle the Zobrist hash for this piece placement (XOR is its own inverse)
     uint64_t zobrist_number = ZOBRIST_PIECES[side][piece][square];
     position_hash_ ^= zobrist_number;
-    // if (piece == PAWN) {
-    //     pawn_hash_ ^= zobrist_number;
-    // }
-
-    // Incrementally update evaluation scores and game phase
-    // early_score_[side] += EARLY_EVAL_TABLE[side][piece][square];
-    // late_score_[side] += LATE_EVAL_TABLE[side][piece][square];
     game_phase_ += GAME_PHASE_INCREMENT[piece];
 
     // Incrementally update NNUE accumulator
@@ -385,12 +367,6 @@ void Board::remove_piece(Side side, Piece piece, Square square, bool update_nnue
     // Toggle the Zobrist hash for this piece removal (XOR is its own inverse)
     uint64_t zobrist_number = ZOBRIST_PIECES[side][piece][square];
     position_hash_ ^= zobrist_number;
-    // if (piece == PAWN) {
-    //     pawn_hash_ ^= zobrist_number;
-    // }
-
-    // early_score_[side] -= EARLY_EVAL_TABLE[side][piece][square];
-    // late_score_[side] -= LATE_EVAL_TABLE[side][piece][square];
     game_phase_ -= GAME_PHASE_INCREMENT[piece];
 
     // Incrementally update NNUE accumulator

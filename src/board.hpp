@@ -12,6 +12,16 @@
 constexpr int MAX_GAME_PLY = 2048;
 constexpr int FIFTY_MOVE_PLY_LIMIT = 100;
 
+constexpr std::array<int, NUM_PIECES> GAME_PHASE_INCREMENT = {0, 1, 1, 2, 4, 0};
+constexpr int MAX_GAME_PHASE = (
+    8 * GAME_PHASE_INCREMENT[PAWN]   +
+    2 * GAME_PHASE_INCREMENT[KNIGHT] +
+    2 * GAME_PHASE_INCREMENT[BISHOP] +
+    2 * GAME_PHASE_INCREMENT[ROOK]   +
+    1 * GAME_PHASE_INCREMENT[QUEEN]  +
+    1 * GAME_PHASE_INCREMENT[KING]
+) * 2;
+
 // --- FEN Strings ---
 
 constexpr std::string_view START_POS_FEN =
@@ -68,21 +78,14 @@ public:
     const std::array<Bitboard, NUM_SIDES>& sides() const { return sides_; }
     const std::array<Piece, NUM_SQUARES>& piece_map() const { return piece_map_; }
     const std::array<Square, NUM_SIDES>& king_squares() const { return king_squares_; }
-    const std::array<int, NUM_SIDES>& early_scores() const { return early_score_; }
-    const std::array<int, NUM_SIDES>& late_scores() const { return late_score_; }
-
     Bitboard piece_bitboard(Side side, Piece piece) const { return pieces_[side][piece]; }
     Bitboard side_bitboard(Side side) const { return sides_[side]; }
     Piece piece_at(Square square) const { return piece_map_[square]; }
 
     ZobristHash position_hash() const { return position_hash_; }
-    ZobristHash pawn_hash() const { return pawn_hash_; }
-
     Square king_square(Side side) const { return king_squares_[side]; }
     Bitboard occupied() const { return occupied_; }
 
-    int early_score(Side side) const { return early_score_[side]; }
-    int late_score(Side side) const { return late_score_[side]; }
     int game_phase() const { return game_phase_; }
 
     Side to_move() const { return to_move_; }
@@ -120,14 +123,9 @@ private:
     std::array<Bitboard, NUM_SIDES> sides_;
     std::array<Piece, NUM_SQUARES> piece_map_;
     ZobristHash position_hash_;
-    ZobristHash pawn_hash_;
     std::array<Square, NUM_SIDES> king_squares_;
     Bitboard occupied_;
 
-    // --- Score ---
-
-    std::array<int, NUM_SIDES> early_score_;
-    std::array<int, NUM_SIDES> late_score_;
     int game_phase_;
 
     // --- State ---
@@ -144,7 +142,6 @@ private:
     std::array<Move, MAX_GAME_PLY> move_history_;
     std::array<UndoState, MAX_GAME_PLY> state_history_;
     std::array<ZobristHash, MAX_GAME_PLY + 1> position_hashes_;
-    std::array<ZobristHash, MAX_GAME_PLY + 1> pawn_hashes_;
 
     // --- NNUE ---
     NNUE nnue_;

@@ -43,18 +43,16 @@ bool test_zobrist_make_unmake(Board& b) {
     for (const auto& tc : test_cases) {
         b.load_from_fen(tc.fen);
         ZobristHash original_hash = b.position_hash();
-        ZobristHash original_pawn_hash = b.pawn_hash();
 
         Move move = encode_move_from_uci(b, tc.uci);
         b.make_move(move);
         b.unmake_move(move);
 
-        if (b.position_hash() != original_hash || b.pawn_hash() != original_pawn_hash) {
+        if (b.position_hash() != original_hash) {
             std::clog << "[FAILURE] 'zobrist_make_unmake' - Hash mismatch after make/unmake\n";
             std::clog << "Case: " << tc.description << "\n";
             std::clog << "FEN: " << tc.fen << " Move: " << tc.uci << "\n";
             std::clog << "Zobrist expected: " << original_hash << " Got: " << b.position_hash() << "\n";
-            std::clog << "Pawn hash expected: " << original_pawn_hash << " Got: " << b.pawn_hash() << "\n";
             return false;
         }
     }
@@ -70,7 +68,6 @@ bool test_zobrist_transposition(Board& b) {
     b.make_move(encode_move_from_uci(b, "d7d5"));
     b.make_move(encode_move_from_uci(b, "g1f3"));
     ZobristHash hash_a = b.position_hash();
-    ZobristHash pawn_hash_a = b.pawn_hash();
 
     // Path B: 1.Nf3 d5 2.e4
     b.load_from_fen();
@@ -78,12 +75,11 @@ bool test_zobrist_transposition(Board& b) {
     b.make_move(encode_move_from_uci(b, "d7d5"));
     b.make_move(encode_move_from_uci(b, "e2e4"));
     ZobristHash hash_b = b.position_hash();
-    ZobristHash pawn_hash_b = b.pawn_hash();
 
-    if (hash_a != hash_b || pawn_hash_a != pawn_hash_b) {
+    if (hash_a != hash_b) {
         std::clog << "[FAILURE] 'zobrist_transposition' - Same position has different hashes\n";
-        std::clog << "Path A (1.e4 d5 2.Nf3) zobrist/pawn: " << hash_a << " / " << pawn_hash_a << "\n";
-        std::clog << "Path B (1.Nf3 d5 2.e4) zobrist/pawn: " << hash_b << " / " << pawn_hash_b << "\n";
+        std::clog << "Path A (1.e4 d5 2.Nf3): " << hash_a << "\n";
+        std::clog << "Path B (1.Nf3 d5 2.e4): " << hash_b << "\n";
         return false;
     }
 
@@ -95,7 +91,6 @@ bool test_zobrist_transposition(Board& b) {
     b.make_move(encode_move_from_uci(b, "e7e6"));
     b.make_move(encode_move_from_uci(b, "g1f3"));
     ZobristHash hash_c = b.position_hash();
-    ZobristHash pawn_hash_c = b.pawn_hash();
 
     // Path D: 1.Nf3 Nf6 2.c4 e6 3.d4
     b.load_from_fen();
@@ -105,12 +100,11 @@ bool test_zobrist_transposition(Board& b) {
     b.make_move(encode_move_from_uci(b, "e7e6"));
     b.make_move(encode_move_from_uci(b, "d2d4"));
     ZobristHash hash_d = b.position_hash();
-    ZobristHash pawn_hash_d = b.pawn_hash();
 
-    if (hash_c != hash_d || pawn_hash_c != pawn_hash_d) {
+    if (hash_c != hash_d) {
         std::clog << "[FAILURE] 'zobrist_transposition' - Same position has different hashes (case 2)\n";
-        std::clog << "Path C (1.d4 Nf6 2.c4 e6 3.Nf3) zobrist/pawn: " << hash_c << " / " << pawn_hash_c << "\n";
-        std::clog << "Path D (1.Nf3 Nf6 2.c4 e6 3.d4) zobrist/pawn: " << hash_d << " / " << pawn_hash_d << "\n";
+        std::clog << "Path C (1.d4 Nf6 2.c4 e6 3.Nf3): " << hash_c << "\n";
+        std::clog << "Path D (1.Nf3 Nf6 2.c4 e6 3.d4): " << hash_d << "\n";
         return false;
     }
 
@@ -123,7 +117,6 @@ bool test_zobrist_state_components(Board& b) {
         std::string_view fen_a;
         std::string_view fen_b;
         bool expect_zobrist_equal;
-        bool expect_pawn_hash_equal;
         std::string_view description;
     };
 
@@ -132,27 +125,23 @@ bool test_zobrist_state_components(Board& b) {
             "8/8/8/8/8/8/8/4K2k w - - 0 1",
             "8/8/8/8/8/8/8/4K2k b - - 0 1",
             false,
-            true,
             "side to move changes hash"
         },
         {
             "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1",
             "r3k2r/8/8/8/8/8/8/R3K2R w - - 0 1",
             false,
-            true,
             "castling rights change hash"
         },
         {
             "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1",
             "4k3/8/8/3pP3/8/8/8/4K3 w - - 0 1",
             false,
-            true,
             "capturable en passant changes hash"
         },
         {
             "4k3/8/8/P2p4/8/8/8/4K3 w - d6 0 1",
             "4k3/8/8/P2p4/8/8/8/4K3 w - - 0 1",
-            true,
             true,
             "non-capturable en passant should not change hash"
         },
@@ -160,41 +149,30 @@ bool test_zobrist_state_components(Board& b) {
             "8/8/8/8/8/8/8/4K2k w - - 0 1",
             "8/8/8/8/8/8/8/4K2k w - - 99 50",
             true,
-            true,
             "move clocks should not change hash"
         },
         {
             "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1",
             "4k3/8/8/8/8/4P3/8/4K3 w - - 0 1",
             false,
-            false,
-            "pawn placement changes both hashes"
+            "pawn placement changes hash"
         },
     };
 
     for (const auto& tc : test_cases) {
         b.load_from_fen(tc.fen_a);
         ZobristHash hash_a = b.position_hash();
-        ZobristHash pawn_hash_a = b.pawn_hash();
 
         b.load_from_fen(tc.fen_b);
         ZobristHash hash_b = b.position_hash();
-        ZobristHash pawn_hash_b = b.pawn_hash();
 
-        bool zobrist_equal = hash_a == hash_b;
-        bool pawn_hash_equal = pawn_hash_a == pawn_hash_b;
-        if (
-            zobrist_equal != tc.expect_zobrist_equal
-            || pawn_hash_equal != tc.expect_pawn_hash_equal
-        ) {
+        if ((hash_a == hash_b) != tc.expect_zobrist_equal) {
             std::clog << "[FAILURE] 'zobrist_state_components' - Unexpected hash comparison result\n";
             std::clog << "Case: " << tc.description << "\n";
             std::clog << "FEN A: " << tc.fen_a << "\n";
             std::clog << "FEN B: " << tc.fen_b << "\n";
             std::clog << "Zobrist A/B: " << hash_a << " / " << hash_b
                       << " (expected equal=" << tc.expect_zobrist_equal << ")\n";
-            std::clog << "Pawn hash A/B: " << pawn_hash_a << " / " << pawn_hash_b
-                      << " (expected equal=" << tc.expect_pawn_hash_equal << ")\n";
             return false;
         }
     }
@@ -285,21 +263,18 @@ bool test_zobrist_incremental_matches_reloaded(Board& b) {
 
         b.make_move(move);
         ZobristHash incremental_hash = b.position_hash();
-        ZobristHash incremental_pawn_hash = b.pawn_hash();
 
         Board rebuilt;
         rebuilt.load_from_fen(tc.post_fen);
         ZobristHash rebuilt_hash = rebuilt.position_hash();
-        ZobristHash rebuilt_pawn_hash = rebuilt.pawn_hash();
 
-        if (incremental_hash != rebuilt_hash || incremental_pawn_hash != rebuilt_pawn_hash) {
+        if (incremental_hash != rebuilt_hash) {
             std::clog << "[FAILURE] 'zobrist_incremental_matches_reloaded' - Hash mismatch\n";
             std::clog << "Case: " << tc.description << "\n";
             std::clog << "Pre FEN: " << tc.pre_fen << "\n";
             std::clog << "Move: " << tc.uci << "\n";
             std::clog << "Post FEN: " << tc.post_fen << "\n";
             std::clog << "Zobrist incremental/rebuilt: " << incremental_hash << " / " << rebuilt_hash << "\n";
-            std::clog << "Pawn hash incremental/rebuilt: " << incremental_pawn_hash << " / " << rebuilt_pawn_hash << "\n";
             return false;
         }
     }
@@ -332,30 +307,6 @@ bool test_zobrist_uniqueness(Board& b) {
         }
 
         hashes.insert(b.position_hash());
-    }
-
-    std::string_view pawn_fens[] = {
-        "8/8/8/8/8/8/8/4K2k w - - 0 1",
-        "8/8/8/8/8/8/4P3/4K2k w - - 0 1",
-        "8/8/8/8/8/4P3/8/4K2k w - - 0 1",
-        "8/8/8/3p4/8/8/8/4K2k w - - 0 1",
-        "8/8/3p4/8/8/8/8/4K2k w - - 0 1",
-        "8/8/8/8/8/8/3P4/4K2k w - - 0 1",
-        "8/8/8/8/8/8/2P5/4K2k w - - 0 1",
-    };
-
-    std::set<ZobristHash> pawn_hashes;
-    for (std::string_view fen : pawn_fens) {
-        b.load_from_fen(fen);
-
-        if (pawn_hashes.count(b.pawn_hash())) {
-            std::clog << "[FAILURE] 'zobrist_uniqueness' - Pawn hash collision detected in distinct pawn structures\n";
-            std::clog << "FEN: " << fen << "\n";
-            std::clog << "Pawn hash: " << b.pawn_hash() << "\n";
-            return false;
-        }
-
-        pawn_hashes.insert(b.pawn_hash());
     }
 
     return true;

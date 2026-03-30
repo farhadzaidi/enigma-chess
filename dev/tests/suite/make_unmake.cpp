@@ -112,8 +112,8 @@ bool test_make_unmake_all_legal_moves(Board& b) {
     return true;
 }
 
-// Incremental score updates should match a fresh load_from_fen of the resulting position
-bool test_make_unmake_incremental_scores(Board& b) {
+// Incremental game phase should match a fresh load_from_fen of the resulting position
+bool test_make_unmake_incremental_game_phase(Board& b) {
     struct TestCase {
         std::string_view pre_fen;
         std::string_view uci;
@@ -168,23 +168,11 @@ bool test_make_unmake_incremental_scores(Board& b) {
         Board rebuilt;
         rebuilt.load_from_fen(tc.post_fen);
 
-        bool match = (
-            b.early_scores()[WHITE] == rebuilt.early_scores()[WHITE]
-            && b.early_scores()[BLACK] == rebuilt.early_scores()[BLACK]
-            && b.late_scores()[WHITE] == rebuilt.late_scores()[WHITE]
-            && b.late_scores()[BLACK] == rebuilt.late_scores()[BLACK]
-            && b.game_phase() == rebuilt.game_phase()
-        );
-
-        if (!match) {
-            std::clog << "[FAILURE] 'make_unmake_incremental_scores' - Score mismatch after make_move\n";
+        if (b.game_phase() != rebuilt.game_phase()) {
+            std::clog << "[FAILURE] 'make_unmake_incremental_game_phase' - Game phase mismatch after make_move\n";
             std::clog << "Case: " << tc.description << "\n";
             std::clog << "Pre FEN: " << tc.pre_fen << " Move: " << tc.uci << "\n";
             std::clog << "Post FEN: " << tc.post_fen << "\n";
-            std::clog << "Incremental early[W]/[B]: " << b.early_scores()[WHITE] << "/" << b.early_scores()[BLACK]
-                      << " Rebuilt: " << rebuilt.early_scores()[WHITE] << "/" << rebuilt.early_scores()[BLACK] << "\n";
-            std::clog << "Incremental late[W]/[B]: " << b.late_scores()[WHITE] << "/" << b.late_scores()[BLACK]
-                      << " Rebuilt: " << rebuilt.late_scores()[WHITE] << "/" << rebuilt.late_scores()[BLACK] << "\n";
             std::clog << "Incremental game_phase: " << b.game_phase()
                       << " Rebuilt: " << rebuilt.game_phase() << "\n";
             return false;
@@ -224,7 +212,7 @@ bool test_make_unmake_sequence(Board& b) {
 bool test_make_unmake(Board& b) {
     if (!test_make_unmake_restore(b)) return false;
     if (!test_make_unmake_all_legal_moves(b)) return false;
-    if (!test_make_unmake_incremental_scores(b)) return false;
+    if (!test_make_unmake_incremental_game_phase(b)) return false;
     if (!test_make_unmake_sequence(b)) return false;
     return true;
 }
