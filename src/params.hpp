@@ -28,10 +28,10 @@ struct SearchParams {
 
     int see_pruning_max_depth = DEFAULT_SEE_PRUNING_MAX_DEPTH;
 
-    int se_min_depth = DEFAULT_SE_MIN_DEPTH;
-    int se_depth_divisor = DEFAULT_SE_DEPTH_DIVISOR;
-    int se_margin_multiplier = DEFAULT_SE_MARGIN_MULTIPLIER;
-    int se_tt_depth_margin = DEFAULT_SE_TT_DEPTH_MARGIN;
+    int reduced_search_min_depth = DEFAULT_REDUCED_SEARCH_MIN_DEPTH;
+    int reduced_search_depth_divisor = DEFAULT_REDUCED_SEARCH_DEPTH_DIVISOR;
+    int reduced_search_margin_multiplier = DEFAULT_REDUCED_SEARCH_MARGIN_MULTIPLIER;
+    int reduced_search_tt_depth_margin = DEFAULT_REDUCED_SEARCH_TT_DEPTH_MARGIN;
 
     int see_cutoff = DEFAULT_SEE_CUTOFF;
 

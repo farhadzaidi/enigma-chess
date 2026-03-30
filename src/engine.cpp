@@ -848,6 +848,7 @@ PositionScore Engine::negamax(
     bool allow_null_move,
     Move excluded_move
 ) {
+    PositionScore original_alpha = alpha;
     ctx.nodes++;
 
     if (should_stop_search(ctx)) {
@@ -871,7 +872,6 @@ PositionScore Engine::negamax(
         return tt_result.tt_score;
     }
 
-    PositionScore original_alpha = alpha;
     bool in_check = board.in_check();
 
     // Null move pruning: skip a turn and search with a reduced window.
@@ -930,21 +930,28 @@ PositionScore Engine::negamax(
     // SEE pruning: at shallow depths, skip losing captures entirely.
     bool can_use_see_pruning = can_apply_pruning(alpha, beta, is_pv_node, in_check, depth, g_search_params.see_pruning_max_depth);
 
-    // Singular extension: if the TT move is clearly better than all alternatives, extend it.
+    // Reduced search: re-search at reduced depth with the TT move excluded to probe
+    // how the position holds up without the best known move.
     int singular_extension = 0;
     if (
-        depth >= g_search_params.se_min_depth
+        depth >= g_search_params.reduced_search_min_depth
         && tt_result.tt_move != NULL_MOVE
         && excluded_move == NULL_MOVE
-        && tt_result.tt_depth >= depth - g_search_params.se_tt_depth_margin
+        && tt_result.tt_depth >= depth - g_search_params.reduced_search_tt_depth_margin
         && (tt_result.tt_node == TT_FAIL_HIGH || tt_result.tt_node == TT_EXACT)
         && !in_check
     ) {
-        PositionScore se_beta = tt_result.tt_score - g_search_params.se_margin_multiplier * depth;
-        SearchDepth se_depth = std::max<SearchDepth>(0, depth / g_search_params.se_depth_divisor);
-        PositionScore se_score = negamax(board, ctx, se_depth, se_beta - 1, se_beta, false, tt_result.tt_move);
-        if (se_score < se_beta) {
+        PositionScore rs_beta = tt_result.tt_score - g_search_params.reduced_search_margin_multiplier * depth;
+        SearchDepth rs_depth = std::max<SearchDepth>(0, depth / g_search_params.reduced_search_depth_divisor);
+        PositionScore rs_score = negamax(board, ctx, rs_depth, rs_beta - 1, rs_beta, false, tt_result.tt_move);
+
+        // Singular extension: no alternative came close to the TT move — extend it.
+        if (rs_score < rs_beta) {
             singular_extension = 1;
+        }
+        // Multi-cut: even without the TT move, alternatives beat beta — prune the node.
+        else if (rs_score >= beta) {
+            return beta;
         }
     }
 

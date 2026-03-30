@@ -103,10 +103,10 @@ void cmd_uci() {
     uci_print("option name RazoringMargin type string");
     uci_print("option name RazoringMaxDepth type string");
     uci_print("option name SEEPruningMaxDepth type string");
-    uci_print("option name SEMinDepth type string");
-    uci_print("option name SEDepthDivisor type string");
-    uci_print("option name SEMarginMultiplier type string");
-    uci_print("option name SETTDepthMargin type string");
+    uci_print("option name ReducedSearchMinDepth type string");
+    uci_print("option name ReducedSearchDepthDivisor type string");
+    uci_print("option name ReducedSearchMarginMultiplier type string");
+    uci_print("option name ReducedSearchTTDepthMargin type string");
     uci_print("option name SEECutoff type string");
     uci_print("option name LMRTuningConstant type string");
     uci_print("option name MinimumIIDDepth type string");
@@ -295,14 +295,14 @@ void cmd_setoption(const std::string& cmd) {
         g_search_params.razoring_max_depth = std::stoi(value);
     } else if (name == "SEEPruningMaxDepth") {
         g_search_params.see_pruning_max_depth = std::stoi(value);
-    } else if (name == "SEMinDepth") {
-        g_search_params.se_min_depth = std::stoi(value);
-    } else if (name == "SEDepthDivisor") {
-        g_search_params.se_depth_divisor = std::stoi(value);
-    } else if (name == "SEMarginMultiplier") {
-        g_search_params.se_margin_multiplier = std::stoi(value);
-    } else if (name == "SETTDepthMargin") {
-        g_search_params.se_tt_depth_margin = std::stoi(value);
+    } else if (name == "ReducedSearchMinDepth") {
+        g_search_params.reduced_search_min_depth = std::stoi(value);
+    } else if (name == "ReducedSearchDepthDivisor") {
+        g_search_params.reduced_search_depth_divisor = std::stoi(value);
+    } else if (name == "ReducedSearchMarginMultiplier") {
+        g_search_params.reduced_search_margin_multiplier = std::stoi(value);
+    } else if (name == "ReducedSearchTTDepthMargin") {
+        g_search_params.reduced_search_tt_depth_margin = std::stoi(value);
     } else if (name == "SEECutoff") {
         g_search_params.see_cutoff = std::stoi(value);
     } else if (name == "LMRTuningConstant") {
