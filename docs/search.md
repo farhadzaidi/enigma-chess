@@ -1,3 +1,5 @@
+*Part 8 of 16 — [← Prev: Evaluation](eval.md) | [Next: Transposition Table →](transposition-table.md)*
+
 # Search
 
 ## What Is Search?
@@ -230,6 +232,18 @@ and you time out with nothing.
 
 Helper threads start at staggered depths to create search diversity — see
 [Advanced Search](advanced-search.md) for the full Lazy SMP discussion.
+
+## Building Your Own
+
+If you're implementing search from scratch, start with plain negamax (no alpha-beta).
+Get it working and verify it finds the right move in simple tactical puzzles. Then add
+alpha-beta — the speedup is dramatic and immediately visible in the search depth you
+can reach in the same time. Add iterative deepening next, and you'll have a search that
+can play under time controls.
+
+Don't try to add move ordering, pruning, or a transposition table all at once. Add them
+one at a time, running matches after each change to verify it helps. The docs below
+cover these in the order you'd typically implement them.
 
 ## What's Next
 

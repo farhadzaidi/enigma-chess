@@ -1,3 +1,5 @@
+*Part 14 of 16 — [← Prev: NNUE Evaluation](nnue.md) | [Next: Time Management →](time-management.md)*
+
 # NNUE Training
 
 ## The Self-Improvement Cycle

@@ -1,3 +1,5 @@
+*Part 4 of 16 — [← Prev: Bitboards](bitboards.md) | [Next: Moves & Make/Unmake →](moves.md)*
+
 # Board State
 
 The board is the engine's model of reality. Every other system — move generation, search,

@@ -1,3 +1,5 @@
+*Part 3 of 16 — [← Prev: Bit Manipulation](bit-manipulation.md) | [Next: Board State →](board.md)*
+
 # Bitboards
 
 ## What Is a Bitboard?

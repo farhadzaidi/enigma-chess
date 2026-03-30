@@ -1,3 +1,5 @@
+*Part 11 of 16 — [← Prev: Move Ordering](move-ordering.md) | [Next: Advanced Search →](advanced-search.md)*
+
 # Pruning and Extensions
 
 ## What Is Pruning?

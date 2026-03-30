@@ -1,3 +1,5 @@
+*Part 15 of 16 — [← Prev: NNUE Training](nnue-training.md) | [Next: Tooling & Workflow →](tooling.md)*
+
 # Time Management
 
 ## Why Time Management Matters

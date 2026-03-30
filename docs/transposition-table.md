@@ -1,3 +1,5 @@
+*Part 9 of 16 — [← Prev: Search](search.md) | [Next: Move Ordering →](move-ordering.md)*
+
 # Transposition Table
 
 ## What Is a Transposition Table?

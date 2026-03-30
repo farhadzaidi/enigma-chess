@@ -1,3 +1,5 @@
+*Part 12 of 16 — [← Prev: Pruning & Extensions](pruning.md) | [Next: NNUE Evaluation →](nnue.md)*
+
 # Advanced Search
 
 This doc builds on the fundamentals from [Search](search.md). If you haven't read that

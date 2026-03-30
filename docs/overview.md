@@ -1,3 +1,5 @@
+*Part 1 of 16 — [Next: Bit Manipulation →](bit-manipulation.md)*
+
 # Architecture Overview
 
 ## What Is a Chess Engine?
@@ -192,3 +194,37 @@ src/
 
 Python tooling in `scripts/`: NNUE training, parameter tuning (Optuna), match automation
 (CuteChess). Tests and benchmarks in `dev/`, compiling to `enigma-dev`.
+
+## Building Your Own Engine
+
+If you're reading these docs because you want to write your own chess engine, here's a
+suggested implementation order:
+
+1. **Board representation and move generation.** Get this working first, and verify it
+   with perft (see [Move Generation](movegen.md)). Nothing else works without correct
+   move generation. Start with pseudo-legal generation if you prefer — it's simpler and
+   you can switch to legal-only later.
+
+2. **Basic search.** Implement negamax with alpha-beta and iterative deepening. Use a
+   simple material-counting eval. The engine will play legal chess at this point, just
+   badly.
+
+3. **Handcrafted evaluation.** Add piece-square tables. This single addition typically
+   gains hundreds of Elo. Then add terms one at a time (see [Evaluation](eval.md)),
+   testing each with matches to confirm it actually helps.
+
+4. **Transposition table and move ordering.** These are the biggest search speed wins.
+   A TT alone can double your effective search depth.
+
+5. **Pruning and reductions.** Null move pruning, late move reductions, and futility
+   pruning. Each one lets the engine search deeper in the same time.
+
+6. **NNUE (optional).** This is a big step — it requires a training pipeline, self-play
+   data generation, and quantized inference. But it replaces all your handcrafted eval
+   terms with a single neural network that's typically much stronger. Don't attempt this
+   until everything else is solid.
+
+At each step, save a version and run matches against the previous version. If a change
+doesn't measurably improve play, revert it — even ideas that "should" help sometimes
+don't. See [Tooling & Workflow](tooling.md) for how to run matches and measure
+improvement.

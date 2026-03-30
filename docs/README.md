@@ -1,6 +1,6 @@
 # Enigma Chess Engine
 
-Enigma is a UCI chess engine written. These docs walk through the ideas behind
+Enigma is a UCI chess engine written in C++. These docs walk through the ideas behind
 chess programming — how engines represent the board, search for the best move, and
 evaluate positions — using Enigma's source code as a concrete example.
 

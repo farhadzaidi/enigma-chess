@@ -1,3 +1,5 @@
+*Part 2 of 16 — [← Prev: Architecture Overview](overview.md) | [Next: Bitboards →](bitboards.md)*
+
 # Bit Manipulation
 
 ## Why You Need This
@@ -11,65 +13,21 @@ skip ahead to [Bitboards](bitboards.md). Otherwise, read on.
 
 ## How Integers Are Stored
 
-### Binary Representation
-
-Computers store everything as sequences of bits (0s and 1s). An 8-bit integer (a byte)
-can represent values from 0 to 255:
-
-```
-00000000 = 0
-00000001 = 1
-00000010 = 2
-00000011 = 3
-00001010 = 10
-11111111 = 255
-```
-
-Each bit position represents a power of 2, reading right to left:
+Computers store integers as sequences of bits (0s and 1s). Each bit position represents a
+power of 2, reading right to left:
 
 ```
 bit position:  7    6    5    4    3    2    1    0
 value:        128   64   32   16    8    4    2    1
 ```
 
-So `00001010` = 8 + 2 = 10.
+So the byte `00001010` = 8 + 2 = 10. An **unsigned** integer uses all its bits for the
+value — an 8-bit unsigned integer ranges from 0 to 255. A **signed** integer reserves
+the highest bit for the sign (look up "two's complement" if you want the details).
 
-### Unsigned vs. Signed Integers
-
-An **unsigned** integer uses all its bits for the value. An 8-bit unsigned integer ranges
-from 0 to 255. A 64-bit unsigned integer (`uint64_t`) ranges from 0 to about 1.8 × 10^19.
-
-A **signed** integer reserves the highest bit as the **sign bit**. Modern computers use
-**two's complement** representation: the sign bit has negative weight. For an 8-bit
-signed integer:
-
-```
-01111111 =  127  (largest positive)
-00000001 =    1
-00000000 =    0
-11111111 =   -1
-11111110 =   -2
-10000000 = -128  (most negative)
-```
-
-The clever part: addition and subtraction work the same way for signed and unsigned. The
-hardware doesn't need to know which you're using — the bit patterns and arithmetic are
-identical.
-
-### Bit Width
-
-Common integer types and their ranges:
-
-| Type | Bits | Range (unsigned) | Range (signed) |
-|------|------|------------------|----------------|
-| `uint8_t` | 8 | 0 to 255 | — |
-| `int16_t` | 16 | — | -32768 to 32767 |
-| `uint16_t` | 16 | 0 to 65535 | — |
-| `int32_t` | 32 | — | ±2.1 billion |
-| `uint64_t` | 64 | 0 to ~1.8 × 10^19 | — |
-
-Why this matters for chess engines: a 64-bit integer has exactly 64 bits — one per square
-on the board. That's not a coincidence; it's why bitboards work.
+The type that matters most for chess engines is `uint64_t`: a 64-bit unsigned integer. It
+has exactly 64 bits — one per square on the board. That's not a coincidence; it's why
+bitboards work.
 
 ### LSB and MSB
 

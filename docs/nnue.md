@@ -1,3 +1,5 @@
+*Part 13 of 16 — [← Prev: Advanced Search](advanced-search.md) | [Next: NNUE Training →](nnue-training.md)*
+
 # NNUE Evaluation
 
 **NNUE** (Efficiently Updatable Neural Network) is a small neural network that replaces
@@ -389,6 +391,18 @@ AVX2 — just 4-8× slower for NNUE inference. The compile-time check in
 bitboard lookups — that's a different feature flag. AVX2 and BMI2 are typically present
 together on modern x86, but they're independent capabilities.)
 
+## Where NNUE Fits in the Search
+
+The search calls NNUE evaluation at **leaf nodes** — positions where the engine stops
+searching deeper and needs a static score. This happens in two places: at the depth
+limit of the main search, and throughout quiescence search (see
+[Advanced Search](advanced-search.md)). Pruning decisions in
+[Pruning & Extensions](pruning.md) also use the eval score to decide whether to skip
+branches.
+
+Because the search explores millions of nodes per second, and most nodes eventually
+need an eval, NNUE inference is one of the hottest paths in the entire engine.
+
 ## Calling the Evaluation
 
 The eval is called through `Board::nnue_evaluate()` (`src/board.hpp:100`):
@@ -434,3 +448,23 @@ nanoseconds. At millions of evals per second, cache misses would be catastrophic
 
 See [NNUE Training](nnue-training.md) for how these weights are produced from the training
 pipeline.
+
+## Building Your Own
+
+NNUE is an advanced topic. If you're writing your first engine, start with a
+[handcrafted evaluation](eval.md) — material counting plus piece-square tables will get
+you surprisingly far, and the infrastructure is much simpler (no training pipeline, no
+data generation, no quantization).
+
+When you're ready to add NNUE, the key decisions are:
+
+- **Feature set**: HalfKP (what Enigma uses) is a good starting point. Simpler
+  piece-square features (768 inputs) are easier to implement but weaker.
+- **Accumulator width**: 256 is the standard. Wider is more expressive but uses more
+  memory and is slower to refresh on king moves.
+- **Hidden layer size**: keep it tiny (32 neurons). The search compensates for eval
+  inaccuracy — a fast, shallow network plus deep search beats a slow, accurate network
+  plus shallow search.
+
+The training pipeline is covered in [NNUE Training](nnue-training.md) and the practical
+workflow in [Tooling & Workflow](tooling.md).

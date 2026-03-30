@@ -1,3 +1,5 @@
+*Part 16 of 16 — [← Prev: Time Management](time-management.md)*
+
 # Tooling & Workflow
 
 ## Building
@@ -103,6 +105,11 @@ uv run -m nnue.datagen --validation   # validation data
 Self-play at fixed depth 8. Output goes to `scripts/nnue/data/{training,validation}/`.
 Parallelization is automatic.
 
+Datagen is the slowest part of the pipeline — expect hours to days depending on depth and
+position count. You typically need millions of positions: 10-50 million is a reasonable
+starting point for a first network. Depth 8 is a sweet spot between data quality and speed;
+higher depths produce better labels but take exponentially longer per position.
+
 ### Train
 
 ```bash
@@ -112,6 +119,11 @@ uv run -m nnue.train --weights 3      # resume from checkpoint 3
 ```
 
 Checkpoints saved to `scripts/nnue/data/weights/weights_N.pt`.
+
+Training is much faster than datagen — usually minutes to a couple of hours depending on
+dataset size. Typical runs are 50-200 epochs. Watch the validation loss: it should drop
+quickly at first and then plateau. If it starts rising, you're overfitting and should stop.
+A final loss around 0.02-0.05 is normal for a well-trained small network.
 
 ### Export Weights
 
@@ -134,7 +146,13 @@ uv run -m tune.tune search --only AspirationWindow ScoreDropThreshold  # subset
 ```
 
 Each trial plays the candidate parameters against the current baseline. 500 games per
-trial by default. Results saved as pickles in `scripts/tune/data/`.
+trial by default (each trial takes roughly 15-30 minutes). Results saved as pickles in
+`scripts/tune/data/`.
+
+A typical tuning session runs dozens to hundreds of trials. Optuna's TPE sampler gets
+smarter over time, so early trials are mostly exploration. You'll usually see diminishing
+returns after 50-100 trials — check the optimization history plot and stop when the best
+value hasn't improved in a while.
 
 To apply tuned parameters:
 
@@ -170,6 +188,12 @@ uv run -m match.run_match --sprt 20       # SPRT test (20 Elo threshold)
 Match config: 8+0.08 time control, 500 openings played from both sides (1000 games),
 concurrency auto-detected.
 
+The `--sprt` flag uses a Sequential Probability Ratio Test — a statistical test that stops
+the match early once there's enough evidence to accept or reject a given Elo gain. This
+saves time compared to running a fixed number of games. For context, typical Elo gains:
+a bug fix or new pruning technique might gain 10-30 Elo, a new NNUE network 20-50, and
+parameter tuning 5-15.
+
 ## Code Generators
 
 The `generators` module converts external data into C++ headers that get compiled into
@@ -189,40 +213,40 @@ Always rebuild after running any generator.
 From nothing to a stronger engine:
 
 ```bash
-# build
+# build (seconds)
 cmake -B build && cmake --build build
 
-# verify everything works
+# verify everything works (seconds — all tests should pass)
 ./build/enigma-dev test
 
 # save current version as baseline
 cd scripts
 uv run -m match.save_version baseline
 
-# generate training data (takes hours)
+# generate training data (hours to days — the longest step by far)
 uv run -m nnue.datagen &
 uv run -m nnue.datagen --validation &
 wait
 
-# train the network
+# train the network (minutes to hours — watch validation loss converge)
 uv run -m nnue.train
 
-# export weights and rebuild
+# export weights and rebuild (seconds)
 uv run -m generators.nnue_weights
 cd .. && cmake --build build
 
-# check for regression
+# check for regression (30-60 min — should be roughly even or better)
 cd scripts
 uv run -m match.run_match
 
-# optionally tune search parameters
+# optionally tune search parameters (hours — 50+ trials recommended)
 uv run -m tune.tune search
 
-# export tuned params and rebuild
+# export tuned params and rebuild (seconds)
 uv run -m generators.params all
 cd .. && cmake --build build
 
-# final match to verify improvement
+# final match to verify improvement (stops early via SPRT once conclusive)
 cd scripts
 uv run -m match.run_match --sprt 20
 ```

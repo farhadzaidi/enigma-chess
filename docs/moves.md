@@ -1,3 +1,5 @@
+*Part 5 of 16 — [← Prev: Board State](board.md) | [Next: Move Generation →](movegen.md)*
+
 # Moves & Make/Unmake
 
 Moves are the interface between the search and the board. Every search node makes a

@@ -1,3 +1,5 @@
+*Part 10 of 16 — [← Prev: Transposition Table](transposition-table.md) | [Next: Pruning & Extensions →](pruning.md)*
+
 # Move Ordering
 
 ## Why Move Ordering Matters

@@ -1,3 +1,5 @@
+*Part 6 of 16 — [← Prev: Moves & Make/Unmake](moves.md) | [Next: Evaluation →](eval.md)*
+
 # Move Generation
 
 ## What Is Move Generation?
@@ -108,14 +110,15 @@ can move anywhere along this line (including capturing the pinner) but nowhere e
 ### Example
 
 ```
-. . . . . . . .
-. . . . . . . .
-. . . r . . . .    Black rook on D6
-. . . . . . . .
-. . . N . . . .    White knight on D4 — PINNED!
-. . . . . . . .
-. . . . . . . .
-. . . K . . . .    White king on D1
+8  ·  ·  ·  ·  ·  ·  ·  ·
+7  ·  ·  ·  ·  ·  ·  ·  ·
+6  ·  ·  ·  ♜  ·  ·  ·  ·    Black rook on D6
+5  ·  ·  ·  ·  ·  ·  ·  ·
+4  ·  ·  ·  ♘  ·  ·  ·  ·    White knight on D4 — PINNED!
+3  ·  ·  ·  ·  ·  ·  ·  ·
+2  ·  ·  ·  ·  ·  ·  ·  ·
+1  ·  ·  ·  ♔  ·  ·  ·  ·    White king on D1
+   a  b  c  d  e  f  g  h
 ```
 
 The knight on D4 is pinned to the king on D1 by the rook on D6. It can only move along
@@ -159,10 +162,15 @@ temporarily removed** from the occupied set. This is necessary because otherwise
 would block the slider's ray, making it look like the square behind the king is safe.
 
 ```
-. . . . . . . .
-. . . . . . . .
-r . . . K . . .    Rook on A6, king on E6
-. . . . . . . .
+8  ·  ·  ·  ·  ·  ·  ·  ·
+7  ·  ·  ·  ·  ·  ·  ·  ·
+6  ♜  ·  ·  ·  ♔  ·  ·  ·    Rook on A6, king on E6
+5  ·  ·  ·  ·  ·  ·  ·  ·
+4  ·  ·  ·  ·  ·  ·  ·  ·
+3  ·  ·  ·  ·  ·  ·  ·  ·
+2  ·  ·  ·  ·  ·  ·  ·  ·
+1  ·  ·  ·  ·  ·  ·  ·  ·
+   a  b  c  d  e  f  g  h
 ```
 
 Without removing the king, E6 blocks the rook's ray — F6 appears safe. But if the king
@@ -243,14 +251,15 @@ fundamentally alter the material balance.
 En passant has the most notorious edge case in chess programming. Consider this position:
 
 ```
-. . . . . . . .
-. . . . . . . .
-. . . . . . . .
-R . . Pp . . K     White rook on A5, black pawn on D5,
-. . . . . . . .    white pawn on E5, white king on H5
-. . . . . . . .
-. . . . . . . .
-. . . . . . . .
+8  ·  ·  ·  ·  ·  ·  ·  ·
+7  ·  ·  ·  ·  ·  ·  ·  ·
+6  ·  ·  ·  ·  ·  ·  ·  ·
+5  ♖  ·  ·  ♟  ♙  ·  ·  ♔    White rook on A5, black pawn on D5,
+4  ·  ·  ·  ·  ·  ·  ·  ·    white pawn on E5, white king on H5
+3  ·  ·  ·  ·  ·  ·  ·  ·
+2  ·  ·  ·  ·  ·  ·  ·  ·
+1  ·  ·  ·  ·  ·  ·  ·  ·
+   a  b  c  d  e  f  g  h
 ```
 
 (After black played d7-d5, en passant is available on D6.)
@@ -303,3 +312,5 @@ don't, there's a bug. Enigma's perft tests are in the test suite:
 
 Perft is invaluable during development. Any time you change the move generator, run perft
 to verify you haven't broken anything.
+
+Once moves are generated, the search doesn't try them in arbitrary order — see [Move Ordering](move-ordering.md) for how the engine prioritizes which moves to search first.
