@@ -251,6 +251,7 @@ void Engine::Context::reset(int board_ply) {
     countermoves = {};
     side_piece_to_history = {};
     from_to_history = {};
+    continuation_history = {};
 }
 
 // --- MoveSelector ---
@@ -419,20 +420,23 @@ void Engine::MoveSelector::sort_tactical_moves(MoveList& moves) {
 
 /** Order quiets by combined side-piece-to and from-to history scores. */
 void Engine::MoveSelector::sort_quiet_moves(Context& ctx) {
-    std::sort(quiet_moves_.begin(), quiet_moves_.end(), [this, &ctx](Move move_1, Move move_2) {
-        Square move_1_from = move_1.from();
-        Square move_1_to = move_1.to();
-        Piece move_1_piece = board_.piece_map()[move_1_from];
-        MoveScore move_1_score = ctx.side_piece_to_history[board_.to_move()][move_1_piece][move_1_to] +
-            ctx.from_to_history[move_1_from][move_1_to];
+    Move prev = board_.previous_move();
+    Piece prev_piece = prev != NULL_MOVE ? board_.piece_map()[prev.to()] : NO_PIECE;
 
-        Square move_2_from = move_2.from();
-        Square move_2_to = move_2.to();
-        Piece move_2_piece = board_.piece_map()[move_2_from];
-        MoveScore move_2_score = ctx.side_piece_to_history[board_.to_move()][move_2_piece][move_2_to] +
-            ctx.from_to_history[move_2_from][move_2_to];
+    auto score = [&](Move move) {
+        Piece piece = board_.piece_map()[move.from()];
+        MoveScore s = ctx.side_piece_to_history[board_.to_move()][piece][move.to()]
+            + ctx.from_to_history[move.from()][move.to()];
 
-        return move_1_score < move_2_score;
+        if (prev != NULL_MOVE) {
+            s += ctx.continuation_history[prev_piece][prev.to()][piece][move.to()];
+        }
+
+        return s;
+    };
+
+    std::sort(quiet_moves_.begin(), quiet_moves_.end(), [&](Move a, Move b) {
+        return score(a) < score(b);
     });
 }
 
@@ -784,17 +788,24 @@ void Engine::handle_beta_cutoff(
     // Only update quiet-move heuristics; captures have their own ordering (MVV/LVA + SEE)
     if (cutoff_move.type() != MT_QUIET) return;
 
-    // History gravity: blend the bonus toward the current score so values stay bounded.
-    // Formula: score += bonus - score * |bonus| / MAX, which asymptotically saturates.
+    Move prev = b.previous_move();
+    Piece prev_piece = prev != NULL_MOVE ? b.piece_map()[prev.to()] : NO_PIECE;
+    Square prev_to = prev.to();
+
+    // History gravity: blend the bonus toward the current score so values stay bounded
+    auto apply_history_bonus = [](MoveScore& score, MoveScore bonus) {
+        bonus = std::clamp(bonus, MIN_MOVE_SCORE, MAX_MOVE_SCORE);
+        score += bonus - score * std::abs(bonus) / MAX_MOVE_SCORE;
+    };
+
     auto update_history_tables = [&](Move move, MoveScore bonus) {
-        MoveScore clamped_bonus = std::clamp(bonus, MIN_MOVE_SCORE, MAX_MOVE_SCORE);
         Piece moving_piece = b.piece_map()[move.from()];
 
-        MoveScore& side_piece_to_history_score = ctx.side_piece_to_history[b.to_move()][moving_piece][move.to()];
-        side_piece_to_history_score += clamped_bonus - side_piece_to_history_score * std::abs(clamped_bonus) / MAX_MOVE_SCORE;
-
-        MoveScore& from_to_history_score = ctx.from_to_history[move.from()][move.to()];
-        from_to_history_score += clamped_bonus - from_to_history_score * std::abs(clamped_bonus) / MAX_MOVE_SCORE;
+        apply_history_bonus(ctx.side_piece_to_history[b.to_move()][moving_piece][move.to()], bonus);
+        apply_history_bonus(ctx.from_to_history[move.from()][move.to()], bonus);
+        if (prev != NULL_MOVE) {
+            apply_history_bonus(ctx.continuation_history[prev_piece][prev_to][moving_piece][move.to()], bonus);
+        }
     };
 
     // Remove the cutoff move itself from the quiet list before applying malus
@@ -807,11 +818,8 @@ void Engine::handle_beta_cutoff(
     update_history_tables(cutoff_move, bonus);
 
     // Record this move as the refutation of the opponent's last move
-    Move prev = b.previous_move();
     if (prev != NULL_MOVE) {
-        Square to = prev.to();
-        Piece prev_piece = b.piece_map()[to];
-        ctx.countermoves[prev_piece][to] = cutoff_move;
+        ctx.countermoves[prev_piece][prev_to] = cutoff_move;
     }
 
     // Penalise quiet moves that were tried before the cutoff move (they failed)

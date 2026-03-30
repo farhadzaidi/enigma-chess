@@ -110,6 +110,7 @@ private:
         using SidePieceToHistory = std::array<std::array<std::array<MoveScore, NUM_SQUARES>, NUM_PIECES>, NUM_SIDES>;
         using FromToHistory = std::array<std::array<MoveScore, NUM_SQUARES>, NUM_SQUARES>;
         using CounterMoveTable = std::array<std::array<Move, NUM_SQUARES>, NUM_PIECES>;
+        using ContinuationHistory = std::array<std::array<std::array<std::array<MoveScore, NUM_SQUARES>, NUM_PIECES>, NUM_SQUARES>, NUM_PIECES>;
 
         KillerMoves killer_1;
         KillerMoves killer_2;
@@ -117,6 +118,7 @@ private:
         CounterMoveTable countermoves;
         SidePieceToHistory side_piece_to_history;
         FromToHistory from_to_history;
+        ContinuationHistory continuation_history;
 
         std::chrono::steady_clock::time_point search_start;
         std::chrono::steady_clock::time_point soft_deadline;
