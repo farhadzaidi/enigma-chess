@@ -23,6 +23,7 @@ bool test_search(Board& b);
 bool test_draws(Board& b);
 bool test_transposition_table();
 bool test_null_move(Board& b);
+bool test_nnue(Board& b);
 
 
 extern const std::vector<TestEntry> TESTS;

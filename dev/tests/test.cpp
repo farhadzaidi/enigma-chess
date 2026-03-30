@@ -11,6 +11,7 @@ const std::vector<TestEntry> TESTS = {
     {"draws",               [](Board& b) { return test_draws(b); }},
     {"transposition_table", [](Board&)   { return test_transposition_table(); }},
     {"null_move",           [](Board& b) { return test_null_move(b); }},
+    {"nnue",                [](Board& b) { return test_nnue(b); }},
 };
 
 bool is_valid_test_selector(const std::string& selector) {
