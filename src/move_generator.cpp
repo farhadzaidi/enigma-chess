@@ -452,7 +452,10 @@ bool MoveGenerator::is_attacked_by_slider(Square square, Bitboard occupied) {
     if (ray_mask) {
         Square first = pop_next<D>(ray_mask);
         Bitboard first_mask = get_mask(first);
-        if ((first_mask & board_.sides()[enemy_side]) && is_relevant_sliding_piece<D>(board_.piece_map()[first])) {
+        if (
+            (first_mask & board_.sides()[enemy_side]) 
+            && is_relevant_sliding_piece<D>(board_.piece_map()[first])
+        ) {
             return true;
         }
     }

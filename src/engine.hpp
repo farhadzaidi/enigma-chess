@@ -13,7 +13,7 @@
 #include "transposition_table.hpp"
 #include "types.hpp"
 
-/** Rebuild the LMR table from the current g_search_params.lmr_tuning_constant. */
+/** Rebuild the LMR table from the current prm.lmr_tuning_constant. */
 void build_lmr_table();
 
 // --- Search Constants ---

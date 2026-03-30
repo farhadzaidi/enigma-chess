@@ -263,63 +263,63 @@ void cmd_setoption(const std::string& cmd) {
 
     // --- Tunable search parameters ---
     } else if (name == "AspirationWindow") {
-        g_search_params.aspiration_window = std::stoi(value);
+        prm.aspiration_window = std::stoi(value);
     } else if (name == "ScoreDropThreshold") {
-        g_search_params.score_drop_threshold = std::stoi(value);
+        prm.score_drop_threshold = std::stoi(value);
     } else if (name == "NullMoveBaseReduction") {
-        g_search_params.null_move_base_reduction = std::stoi(value);
+        prm.null_move_base_reduction = std::stoi(value);
     } else if (name == "NullMoveDeeperThreshold") {
-        g_search_params.null_move_deeper_threshold = std::stoi(value);
+        prm.null_move_deeper_threshold = std::stoi(value);
     } else if (name == "NullMoveMinDepth") {
-        g_search_params.null_move_min_depth = std::stoi(value);
+        prm.null_move_min_depth = std::stoi(value);
     } else if (name == "ReverseFutilityMarginPerDepth") {
-        g_search_params.reverse_futility_margin_per_depth = std::stoi(value);
+        prm.reverse_futility_margin_per_depth = std::stoi(value);
     } else if (name == "ReverseFutilityMarginBase") {
-        g_search_params.reverse_futility_margin_base = std::stoi(value);
+        prm.reverse_futility_margin_base = std::stoi(value);
     } else if (name == "ReverseFutilityMaxDepth") {
-        g_search_params.reverse_futility_max_depth = std::stoi(value);
+        prm.reverse_futility_max_depth = std::stoi(value);
     } else if (name == "FutilityMarginPerDepth") {
-        g_search_params.futility_margin_per_depth = std::stoi(value);
+        prm.futility_margin_per_depth = std::stoi(value);
     } else if (name == "FutilityMarginBase") {
-        g_search_params.futility_margin_base = std::stoi(value);
+        prm.futility_margin_base = std::stoi(value);
     } else if (name == "FutilityMaxDepth") {
-        g_search_params.futility_max_depth = std::stoi(value);
+        prm.futility_max_depth = std::stoi(value);
     } else if (name == "LMPBase") {
-        g_search_params.lmp_base = std::stoi(value);
+        prm.lmp_base = std::stoi(value);
     } else if (name == "LMPMaxDepth") {
-        g_search_params.lmp_max_depth = std::stoi(value);
+        prm.lmp_max_depth = std::stoi(value);
     } else if (name == "RazoringMargin") {
-        g_search_params.razoring_margin = std::stoi(value);
+        prm.razoring_margin = std::stoi(value);
     } else if (name == "RazoringMaxDepth") {
-        g_search_params.razoring_max_depth = std::stoi(value);
+        prm.razoring_max_depth = std::stoi(value);
     } else if (name == "SEEPruningMaxDepth") {
-        g_search_params.see_pruning_max_depth = std::stoi(value);
+        prm.see_pruning_max_depth = std::stoi(value);
     } else if (name == "ReducedSearchMinDepth") {
-        g_search_params.reduced_search_min_depth = std::stoi(value);
+        prm.reduced_search_min_depth = std::stoi(value);
     } else if (name == "ReducedSearchDepthDivisor") {
-        g_search_params.reduced_search_depth_divisor = std::stoi(value);
+        prm.reduced_search_depth_divisor = std::stoi(value);
     } else if (name == "ReducedSearchMarginMultiplier") {
-        g_search_params.reduced_search_margin_multiplier = std::stoi(value);
+        prm.reduced_search_margin_multiplier = std::stoi(value);
     } else if (name == "ReducedSearchTTDepthMargin") {
-        g_search_params.reduced_search_tt_depth_margin = std::stoi(value);
+        prm.reduced_search_tt_depth_margin = std::stoi(value);
     } else if (name == "SEECutoff") {
-        g_search_params.see_cutoff = std::stoi(value);
+        prm.see_cutoff = std::stoi(value);
     } else if (name == "LMRTuningConstant") {
-        g_search_params.lmr_tuning_constant = std::stod(value);
+        prm.lmr_tuning_constant = std::stod(value);
         // Rebuild LMR table if the tuning constant changed
         build_lmr_table();
     } else if (name == "MinimumIIDDepth") {
-        g_search_params.minimum_iid_depth = std::stoi(value);
+        prm.minimum_iid_depth = std::stoi(value);
     } else if (name == "IIDDepthDivisor") {
-        g_search_params.iid_depth_divisor = std::stoi(value);
+        prm.iid_depth_divisor = std::stoi(value);
     } else if (name == "LMRPVReduction") {
-        g_search_params.lmr_pv_reduction = std::stoi(value);
+        prm.lmr_pv_reduction = std::stoi(value);
     } else if (name == "BestMoveMinStability") {
-        g_search_params.best_move_min_stability = std::stoi(value);
+        prm.best_move_min_stability = std::stoi(value);
     } else if (name == "NullMoveDeepReduction") {
-        g_search_params.null_move_deep_reduction = std::stoi(value);
+        prm.null_move_deep_reduction = std::stoi(value);
     } else if (name == "HistoryMalusDivisor") {
-        g_search_params.history_malus_divisor = std::stoi(value);
+        prm.history_malus_divisor = std::stoi(value);
 
     // --- Tunable time management parameters ---
     } else if (name == "MovesLeftBase") {

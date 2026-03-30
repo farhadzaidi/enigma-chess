@@ -60,5 +60,5 @@ struct TMParams {
     int emergency_hard_divisor = DEFAULT_EMERGENCY_HARD_DIVISOR;
 };
 
-inline SearchParams g_search_params;
+inline SearchParams prm;
 inline TMParams g_tm_params;
