@@ -121,7 +121,7 @@ int see(Board& board, Move move) {
     attacking_side = opposite_side(attacking_side);
     num_exchanges++;
 
-    // Build the exchange sequence: each side captures with its least valuable piece
+    // Each side captures with its least valuable piece until one side runs out
     while ((attackers = board.attackers_to(target_square, occupied)) != EMPTY_BITBOARD) {
         Attacker attacker = get_least_valuable_attacker(attacking_side, attackers);
 
@@ -297,7 +297,7 @@ private:
 /** Return the next move in priority order, or NULL_MOVE when exhausted. */
 Move Engine::MoveSelector::next_move(Context& ctx) {
     switch (phase_) {
-        // Phase 1: previous iteration's best move (root only)
+        // Try the previous iteration's best move first (root only)
         case MSP_PREV_BEST: {
             if (prev_best_move_ != NULL_MOVE) {
                 phase_ = MSP_TT;
@@ -306,7 +306,7 @@ Move Engine::MoveSelector::next_move(Context& ctx) {
             phase_ = MSP_TT;
             [[fallthrough]];
         }
-        // Phase 2: transposition table move
+        // Then the transposition table move
         case MSP_TT: {
             if (tt_move_ != NULL_MOVE && tt_move_ != prev_best_move_ && board_.is_legal_move(tt_move_)) {
                 phase_ = MSP_TACTICAL;
@@ -315,7 +315,7 @@ Move Engine::MoveSelector::next_move(Context& ctx) {
             phase_ = MSP_TACTICAL;
             [[fallthrough]];
         }
-        // Phase 3: winning/equal captures and promotions (SEE >= 0)
+        // Winning/equal captures and promotions (SEE >= 0)
         case MSP_TACTICAL: {
             if (!tacticals_generated_) generate_tactical_moves();
             Move next_tactical = pop_next(tactical_moves_);
@@ -323,7 +323,7 @@ Move Engine::MoveSelector::next_move(Context& ctx) {
             phase_ = MSP_KILLER;
             [[fallthrough]];
         }
-        // Phase 4: killer moves — quiet moves that caused a beta cutoff at this ply
+        // Killer moves — quiet moves that caused a beta cutoff at this ply
         case MSP_KILLER: {
             int ply = ctx.search_ply(board_.ply());
             Move killer_move_1 = ctx.killer_1[ply];
@@ -352,7 +352,7 @@ Move Engine::MoveSelector::next_move(Context& ctx) {
             phase_ = MSP_COUNTERMOVE;
             [[fallthrough]];
         }
-        // Phase 5: countermove — the move that historically refuted the opponent's last move
+        // The move that historically refuted the opponent's last move
         case MSP_COUNTERMOVE: {
             Move countermove = ctx.get_countermove(board_);
             if (
@@ -366,7 +366,7 @@ Move Engine::MoveSelector::next_move(Context& ctx) {
             phase_ = MSP_QUIET;
             [[fallthrough]];
         }
-        // Phase 6: remaining quiet moves, ordered by history heuristic
+        // Remaining quiet moves, ordered by history heuristic
         case MSP_QUIET: {
             if (!quiets_generated_) generate_quiet_moves(ctx);
             Move next_quiet = pop_next(quiet_moves_);
@@ -374,7 +374,7 @@ Move Engine::MoveSelector::next_move(Context& ctx) {
             phase_ = MSP_BAD_CAPTURE;
             [[fallthrough]];
         }
-        // Phase 6: losing captures (SEE < 0), tried last
+        // Losing captures (SEE < 0), tried last
         case MSP_BAD_CAPTURE: {
             if (!bad_captures_sorted_) {
                 sort_tactical_moves(bad_captures_);
@@ -755,8 +755,7 @@ Engine::TTProbeResult Engine::probe_tt(
         return {tt_move, false, tt_score, tt_entry->depth(), tt_entry->node()};
     }
 
-    // Internal Iterative Deepening: do a shallow search to find a move for ordering
-    // when we have no TT entry on a PV node at sufficient depth
+    // No TT entry on a deep PV node, so do a shallow search to find a move for ordering
     if (is_pv_node && depth >= g_search_params.minimum_iid_depth) {
         SearchDepth iid_depth = std::max<SearchDepth>(0, depth / g_search_params.iid_depth_divisor);
         negamax(board, ctx, iid_depth, alpha, beta);
@@ -792,7 +791,7 @@ void Engine::handle_beta_cutoff(
     Piece prev_piece = prev != NULL_MOVE ? b.piece_map()[prev.to()] : NO_PIECE;
     Square prev_to = prev.to();
 
-    // History gravity: blend the bonus toward the current score so values stay bounded
+    // Blend the bonus toward the current score so history values stay bounded
     auto apply_history_bonus = [](MoveScore& score, MoveScore bonus) {
         bonus = std::clamp(bonus, MIN_MOVE_SCORE, MAX_MOVE_SCORE);
         score += bonus - score * std::abs(bonus) / MAX_MOVE_SCORE;
@@ -843,7 +842,7 @@ PositionScore Engine::quiescence_search(Board& board, Context& ctx, PositionScor
 
     bool in_check = board.in_check();
 
-    // Standing pat: if not in check, use static eval as a lower bound
+    // If not in check, the side to move can always stand pat with the static eval
     if (!in_check) {
         PositionScore static_eval = board.nnue_evaluate();
         alpha = std::max(alpha, static_eval);
@@ -869,7 +868,7 @@ PositionScore Engine::quiescence_search(Board& board, Context& ctx, PositionScor
     }
 
     for (Move move : moves) {
-        // SEE pruning: skip captures that lose too much material
+        // Skip captures that lose too much material
         if (!in_check && move.type() == MT_CAPTURE && see(board, move) < g_search_params.see_cutoff) continue;
 
         board.make_move(move);
@@ -924,8 +923,8 @@ PositionScore Engine::negamax(
 
     bool in_check = board.in_check();
 
-    // Null move pruning: skip a turn and search with a reduced window.
-    // If the opponent still can't beat beta, the position is likely so good we can prune.
+    // If we skip our turn and the opponent still can't beat beta, the position
+    // is likely so good we can prune.
     if (can_apply_null_move(in_check, depth, is_pv_node, allow_null_move, board.has_non_pawn_material(board.to_move()))) {
         int reduction = (depth >= g_search_params.null_move_deeper_threshold) ? g_search_params.null_move_deep_reduction : g_search_params.null_move_base_reduction;
         SearchDepth null_depth = std::max(0, static_cast<int>(depth) - reduction);
@@ -942,7 +941,7 @@ PositionScore Engine::negamax(
         }
     }
 
-    // Lazy static eval: computed once on first use, cached for all pruning decisions.
+    // Computed once on first use, then cached for all the pruning decisions below.
     PositionScore static_eval = DUMMY_SCORE;
     auto eval = [&]() {
         if (static_eval == DUMMY_SCORE) {
@@ -951,8 +950,8 @@ PositionScore Engine::negamax(
         return static_eval;
     };
 
-    // Reverse futility pruning: if static eval is so far above beta that even after
-    // subtracting a margin the opponent still can't beat it, cut the node early.
+    // If the static eval is so far above beta that even after subtracting a
+    // depth-scaled margin the opponent still can't beat it, cut the node early.
     if (can_apply_pruning(alpha, beta, is_pv_node, in_check, depth, g_search_params.reverse_futility_max_depth)) {
         PositionScore rfp_margin = g_search_params.reverse_futility_margin_per_depth * depth + g_search_params.reverse_futility_margin_base;
         if (eval() - rfp_margin >= beta) {
@@ -960,28 +959,28 @@ PositionScore Engine::negamax(
         }
     }
 
-    // Razoring: if static eval is far below alpha at shallow depth, only tactics can
-    // save us — drop into quiescence search instead of doing a full search.
+    // When the static eval is far below alpha at shallow depth, only tactics can
+    // save us so drop straight into quiescence search.
     if (can_apply_pruning(alpha, beta, is_pv_node, in_check, depth, g_search_params.razoring_max_depth)) {
         if (eval() + g_search_params.razoring_margin < alpha) {
             return quiescence_search(board, ctx, alpha, beta);
         }
     }
 
-    // Futility pruning setup: at shallow depths, if static eval is far below alpha,
-    // quiet moves are unlikely to raise it enough — skip them in the move loop below.
+    // At shallow depths, if the static eval is far below alpha, quiet moves are
+    // unlikely to raise it enough — we'll skip them in the move loop below.
     bool can_use_futility_pruning = can_apply_pruning(alpha, beta, is_pv_node, in_check, depth, g_search_params.futility_max_depth);
     PositionScore futility_margin = g_search_params.futility_margin_per_depth * depth + g_search_params.futility_margin_base;
 
-    // Late move pruning: at shallow depths, skip quiet moves after searching enough of them.
+    // At shallow depths, skip quiet moves once we've searched enough of them.
     bool can_use_lmp = can_apply_pruning(alpha, beta, is_pv_node, in_check, depth, g_search_params.lmp_max_depth);
     int lmp_threshold = g_search_params.lmp_base + depth * depth;
 
-    // SEE pruning: at shallow depths, skip losing captures entirely.
+    // At shallow depths, skip losing captures entirely.
     bool can_use_see_pruning = can_apply_pruning(alpha, beta, is_pv_node, in_check, depth, g_search_params.see_pruning_max_depth);
 
-    // Reduced search: re-search at reduced depth with the TT move excluded to probe
-    // how the position holds up without the best known move.
+    // Re-search at reduced depth with the TT move excluded to see how the
+    // position holds up without the best known move.
     int singular_extension = 0;
     if (
         depth >= g_search_params.reduced_search_min_depth
@@ -995,11 +994,11 @@ PositionScore Engine::negamax(
         SearchDepth rs_depth = std::max<SearchDepth>(0, depth / g_search_params.reduced_search_depth_divisor);
         PositionScore rs_score = negamax(board, ctx, rs_depth, rs_beta - 1, rs_beta, false, tt_result.tt_move);
 
-        // Singular extension: no alternative came close to the TT move — extend it.
+        // No alternative came close to the TT move, so extend it.
         if (rs_score < rs_beta) {
             singular_extension = 1;
         }
-        // Multi-cut: even without the TT move, alternatives beat beta — prune the node.
+        // Even without the TT move, alternatives beat beta — prune the node.
         else if (rs_score >= beta) {
             return beta;
         }
@@ -1040,8 +1039,8 @@ PositionScore Engine::negamax(
         board.make_move(move);
         num_moves++;
 
-        // Late Move Reductions: search later moves at reduced depth since
-        // good move ordering means they're unlikely to be best
+        // Search later moves at reduced depth since good move ordering means
+        // they're unlikely to be best.
         int reduction = LMR_TABLE[depth][num_moves];
         if (is_pv_node) reduction -= g_search_params.lmr_pv_reduction;
         if (in_check) reduction = 0;       // don't reduce when in check
@@ -1058,7 +1057,7 @@ PositionScore Engine::negamax(
         // Principal Variation Search
         PositionScore score;
         if (is_first_move) {
-            // First move: search with full window
+            // Search the first move with a full window.
             score = -negamax(board, ctx, depth - 1 + extension, -beta, -alpha);
             is_first_move = false;
         } else {
@@ -1199,8 +1198,8 @@ Engine::SearchResult Engine::iterative_deepening(Board& board, Context& ctx, Sea
             break;
         }
 
-        // Soft time management: stop after the soft deadline unless the score dropped
-        // significantly or the best move keeps changing (unstable search).
+        // Stop after the soft deadline unless the score dropped significantly
+        // or the best move keeps changing (unstable search).
         if (ctx.is_main_thread && ctx.has_runtime_limits() && ctx.soft_time != -1) {
             bool soft_limit_hit = std::chrono::steady_clock::now() >= ctx.soft_deadline;
             if (soft_limit_hit) {
@@ -1211,8 +1210,8 @@ Engine::SearchResult Engine::iterative_deepening(Board& board, Context& ctx, Sea
             }
         }
 
-        // Aspiration windows: start with a narrow window around the previous score.
-        // Use full window at depth 1 since we have no prior score to centre on.
+        // Start with a narrow window around the previous score, widening on
+        // fail-high/fail-low. Use full window at depth 1 since there's no prior score.
         int alpha;
         int beta;
         int alpha_delta = g_search_params.aspiration_window;
