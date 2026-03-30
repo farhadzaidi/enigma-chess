@@ -293,6 +293,13 @@ def _load_raw_positions(data_dir, data_glob, max_positions=None):
     for file in sorted(data_dir.glob(data_glob)):
         chunks.append(np.fromfile(file, dtype=np.uint8))
 
+    if not chunks:
+        raise FileNotFoundError(
+            f"No data files found matching '{data_glob}' in {data_dir}/\n"
+            f"Generate data first:  uv run -m nnue.datagen"
+            + (" --validation" if "validation" in data_glob else "")
+        )
+
     raw = np.concatenate(chunks).reshape(-1, NUM_BYTES_POSITION)
     if max_positions and max_positions < len(raw):
         indices = np.random.choice(len(raw), max_positions, replace=False)
