@@ -73,16 +73,16 @@ MoveScore get_tactical_score(const Board& board, Move move) {
 
 // --- SEE ---
 
+struct Attacker {
+    Piece piece;
+    Square square;
+};
+
+constexpr int MAX_CAPTURES = 32;
+constexpr std::array<int, NUM_PIECES> SEE_PIECE_VALUES = {100, 300, 325, 500, 900, 0};
+
 /** Static Exchange Evaluation — estimate the material outcome of a capture sequence. */
 int see(Board& board, Move move) {
-    struct Attacker {
-        Piece piece;
-        Square square;
-    };
-
-    constexpr int MAX_CAPTURES = 32;
-    constexpr std::array<int, NUM_PIECES> SEE_PIECE_VALUES = {100, 300, 325, 500, 900, 0};
-
     auto en_passant_capture_square = [](Square to, Side moving_side) {
         return moving_side == WHITE ? to + SOUTH : to + NORTH;
     };
@@ -214,6 +214,17 @@ int Engine::Context::search_ply(int board_ply) const {
     return board_ply - ply_offset;
 }
 
+Move Engine::Context::get_countermove(const Board& board) const {
+    Move prev = board.previous_move();
+    if (prev == NULL_MOVE) {
+        return NULL_MOVE;
+    }
+
+    Square to = prev.to();
+    Piece prev_piece = board.piece_map()[to];
+    return countermoves[prev_piece][to];
+}
+
 bool Engine::Context::has_runtime_limits() const {
     return soft_time != -1 || hard_time != -1 || max_nodes > 0;
 }
@@ -235,8 +246,9 @@ void Engine::Context::reset(int board_ply) {
     nodes = 0;
     ply_offset = board_ply;
     search_interrupted = false;
-    killer_1.fill(NULL_MOVE);
-    killer_2.fill(NULL_MOVE);
+    killer_1 = {};
+    killer_2 = {};
+    countermoves = {};
     side_piece_to_history = {};
     from_to_history = {};
 }
@@ -253,7 +265,7 @@ public:
         : phase_(MSP_PREV_BEST), board_(board), move_generator_(board), tt_move_(tt_move), prev_best_move_(prev_best_move) {}
 
     Move next_move(Context& ctx);
-    bool before_quiet_phase() const { return phase_ <= MSP_KILLER; }
+    bool before_quiet_phase() const { return phase_ <= MSP_COUNTERMOVE; }
     bool in_quiet_phase() const { return phase_ == MSP_QUIET; }
     bool in_bad_capture_phase() const { return phase_ == MSP_BAD_CAPTURE; }
 
@@ -336,10 +348,24 @@ Move Engine::MoveSelector::next_move(Context& ctx) {
                 return killer_move_2;
             }
 
+            phase_ = MSP_COUNTERMOVE;
+            [[fallthrough]];
+        }
+        // Phase 5: countermove — the move that historically refuted the opponent's last move
+        case MSP_COUNTERMOVE: {
+            Move countermove = ctx.get_countermove(board_);
+            if (
+                countermove != NULL_MOVE &&
+                !is_already_returned(countermove) &&
+                board_.is_legal_move(countermove)
+            ) {
+                phase_ = MSP_QUIET;
+                return countermove;
+            }
             phase_ = MSP_QUIET;
             [[fallthrough]];
         }
-        // Phase 5: remaining quiet moves, ordered by history heuristic
+        // Phase 6: remaining quiet moves, ordered by history heuristic
         case MSP_QUIET: {
             if (!quiets_generated_) generate_quiet_moves(ctx);
             Move next_quiet = pop_next(quiet_moves_);
@@ -779,6 +805,14 @@ void Engine::handle_beta_cutoff(
 
     update_killer_table(ctx, cutoff_move, ply);
     update_history_tables(cutoff_move, bonus);
+
+    // Record this move as the refutation of the opponent's last move
+    Move prev = b.previous_move();
+    if (prev != NULL_MOVE) {
+        Square to = prev.to();
+        Piece prev_piece = b.piece_map()[to];
+        ctx.countermoves[prev_piece][to] = cutoff_move;
+    }
 
     // Penalise quiet moves that were tried before the cutoff move (they failed)
     MoveScore malus = -(bonus / g_search_params.history_malus_divisor);

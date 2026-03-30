@@ -91,6 +91,7 @@ public:
     int halfmoves() const { return halfmoves_; }
     int fullmoves() const { return fullmoves_; }
     int ply() const { return ply_; }
+    Move previous_move() const { return ply_ > 0 ? move_history_[ply_ - 1] : NULL_MOVE; }
 
     /** Evaluate the current position using NNUE */
     PositionScore nnue_evaluate() { return nnue_.evaluate(to_move_); }

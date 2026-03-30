@@ -109,10 +109,12 @@ private:
         using KillerMoves = std::array<Move, MAX_SEARCH_PLY>;
         using SidePieceToHistory = std::array<std::array<std::array<MoveScore, NUM_SQUARES>, NUM_PIECES>, NUM_SIDES>;
         using FromToHistory = std::array<std::array<MoveScore, NUM_SQUARES>, NUM_SQUARES>;
+        using CounterMoveTable = std::array<std::array<Move, NUM_SQUARES>, NUM_PIECES>;
 
         KillerMoves killer_1;
         KillerMoves killer_2;
 
+        CounterMoveTable countermoves;
         SidePieceToHistory side_piece_to_history;
         FromToHistory from_to_history;
 
@@ -121,6 +123,7 @@ private:
         std::chrono::steady_clock::time_point hard_deadline;
 
         int search_ply(int board_ply) const;
+        Move get_countermove(const Board& board) const;
         bool has_runtime_limits() const;
         void set_deadlines_from(std::chrono::steady_clock::time_point now);
         uint64_t elapsed_ms() const;

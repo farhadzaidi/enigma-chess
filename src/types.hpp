@@ -42,6 +42,7 @@ enum MoveSelectorPhase : uint8_t {
     MSP_TT,
     MSP_TACTICAL,
     MSP_KILLER,
+    MSP_COUNTERMOVE,
     MSP_QUIET,
     MSP_BAD_CAPTURE
 };

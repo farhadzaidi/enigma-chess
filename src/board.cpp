@@ -321,6 +321,7 @@ void Board::unmake_move(Move move) {
 
 void Board::make_null_move() {
     state_history_[ply_] = Board::UndoState(en_passant_target_, castling_rights_, halfmoves_, NO_PIECE);
+    move_history_[ply_] = NULL_MOVE;
     xor_en_passant();
     en_passant_target_ = NO_SQUARE;
     toggle_side_to_move();
