@@ -514,9 +514,11 @@ bool Board::is_legal_move(Move move) {
             if (piece_map_[to] != NO_PIECE) return false;
         }
 
-        if (move.is_promotion() && piece != PAWN) return false;
-
         if (piece == PAWN) {
+            int promotion_rank = friendly_side == WHITE ? RANK_8 : RANK_1;
+            bool reaches_promotion_rank = get_rank(to) == promotion_rank;
+            if (reaches_promotion_rank != move.is_promotion()) return false;
+
             if (move.type() == MT_CAPTURE) {
                 bool valid_attack = get_pawn_attacks(enemy_side, from) & to_mask;
                 if (!valid_attack) return false;
@@ -534,6 +536,8 @@ bool Board::is_legal_move(Move move) {
                 if (!is_single && !is_double) return false;
             }
         } else {
+            if (move.is_promotion()) return false;
+
             bool can_attack = ::get_piece_attacks(piece, from, occupied_) & to_mask;
             if (!can_attack) return false;
         }

@@ -86,10 +86,15 @@ bool test_legal_targeted(Board& b) {
         // Promotions
         {"4k3/P7/8/8/8/8/8/4K3 w - - 0 1", "a7a8q", true,  "quiet promotion legal"},
         {"4k3/P7/8/8/8/8/8/4K3 w - - 0 1", "a7a8n", true,  "underpromotion legal"},
+        {"4k3/P7/8/8/8/8/8/4K3 w - - 0 1", "a7a8", false, "promotion without suffix rejected"},
+        {"4k3/P7/8/8/8/8/8/4K3 w - - 0 1", "a7a6q", false, "promotion flag rejected off back rank"},
         {"4k3/N7/8/8/8/8/8/4K3 w - - 0 1", "a7a8q", false, "promotion flag rejected for non-pawn move"},
         {"r3k3/1P6/8/8/8/8/8/4K3 w - - 0 1", "b7a8q", true,  "capture promotion legal"},
+        {"r3k3/1P6/8/8/8/8/8/4K3 w - - 0 1", "b7a8", false, "capture promotion without suffix rejected"},
         {"4k3/1P6/8/8/8/8/8/4K3 w - - 0 1",  "b7a8q", false, "diagonal quiet promotion illegal"},
         {"4k3/8/8/8/8/8/p7/4K3 b - - 0 1",  "a2a1q", true,  "black quiet promotion legal"},
+        {"4k3/8/8/8/8/8/p7/4K3 b - - 0 1",  "a2a1", false, "black promotion without suffix rejected"},
+        {"4k3/8/8/8/8/8/p7/4K3 b - - 0 1",  "a2a3q", false, "black promotion flag rejected off back rank"},
     };
 
     for (const auto& tc : tests) {
@@ -149,6 +154,23 @@ bool test_legal_stale_encoded_branches(Board& b) {
         b, stale_promo, false, "legal",
         promo_target_fen, "a7a8q(stale)",
         "stale promotion move rejected when from-square piece is not pawn"
+    )) {
+        return false;
+    }
+
+    const std::string quiet_source_fen = "4k3/8/8/8/8/8/2k5/4K3 b - - 0 1";
+    const std::string quiet_target_fen = "8/8/5k2/7p/8/5K2/2p5/8 b - - 1 55";
+
+    b.reset();
+    b.load_from_fen(quiet_source_fen);
+    Move stale_quiet = encode_move_from_uci(b, "c2c1");
+
+    b.reset();
+    b.load_from_fen(quiet_target_fen);
+    if (!assert_legal_result(
+        b, stale_quiet, false, "legal",
+        quiet_target_fen, "c2c1(stale)",
+        "stale quiet move rejected when destination requires promotion"
     )) {
         return false;
     }
