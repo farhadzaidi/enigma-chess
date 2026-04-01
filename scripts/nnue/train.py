@@ -296,8 +296,8 @@ def _load_raw_positions(data_dir, data_glob, max_positions=None):
     if not chunks:
         raise FileNotFoundError(
             f"No data files found matching '{data_glob}' in {data_dir}/\n"
-            f"Generate data first:  uv run -m nnue.datagen"
-            + (" --validation" if "validation" in data_glob else "")
+            f'Generate data first:  uv run -m nnue.datagen'
+            + (' --validation' if 'validation' in data_glob else '')
         )
 
     raw = np.concatenate(chunks).reshape(-1, NUM_BYTES_POSITION)

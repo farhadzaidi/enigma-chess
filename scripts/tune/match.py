@@ -19,8 +19,8 @@ from lib.path import BINARY_PATH, OPENINGS_PATH
 from lib.concurrency import calc_concurrency
 
 TIME_CONTROLS = [
-    "8+0", # no increment
-    "8+0.08", # with increment
+    '8+0', # no increment
+    '8+0.08', # with increment
 ]
 
 MATCH_SEED = 42
@@ -68,7 +68,7 @@ def _load_openings(count, path=OPENINGS_PATH):
 def _configure_engine(params):
     """Start a UCI engine and configure it with the given tunable parameters."""
     engine = chess.engine.SimpleEngine.popen_uci(BINARY_PATH)
-    engine.configure({"OwnBook": False, **params})
+    engine.configure({'OwnBook': False, **params})
     return engine
 
 
@@ -81,7 +81,7 @@ def _play_game(engine_a, engine_b, opening_moves, tc):
     # Parse time control string (e.g. "1+0.01" -> 1s base, 0.01s increment)
     engines = [engine_a, engine_b]
     games = [object(), object()]
-    parse_tc = tc.split("+")
+    parse_tc = tc.split('+')
     base_sec = float(parse_tc[0])
     inc_sec = float(parse_tc[1]) if len(parse_tc) > 1 else 0.0
     times = [base_sec, base_sec]
@@ -106,9 +106,9 @@ def _play_game(engine_a, engine_b, opening_moves, tc):
         times[side] = max(0.0, times[side] - elapsed + inc_sec)
 
     result = board.result(claim_draw=True)
-    if result == "1-0":
+    if result == '1-0':
         return 1.0
-    elif result == "0-1":
+    elif result == '0-1':
         return 0.0
     else:
         return 0.5
@@ -138,9 +138,9 @@ def _match_worker(params_trial, params_default, work_queue, result_queue):
 
     except Exception as exc:
         result_queue.put({
-            "type": "crash",
-            "error": repr(exc),
-            "traceback": traceback.format_exc(),
+            'type': 'crash',
+            'error': repr(exc),
+            'traceback': traceback.format_exc(),
         })
     finally:
         for engine in (engine_trial, engine_default):
@@ -184,7 +184,7 @@ def play_match(params_trial, params_default, match_config):
         for _ in range(total_games):
             score = result_queue.get()
 
-            if isinstance(score, dict) and score.get("type") == "crash":
+            if isinstance(score, dict) and score.get('type') == 'crash':
                 _kill_workers(workers)
                 raise RuntimeError(
                     f"Worker crashed: {score['error']}\n{score['traceback']}"

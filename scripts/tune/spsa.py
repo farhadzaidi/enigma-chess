@@ -53,46 +53,46 @@ class Param:
 
 PARAMS = [
     # Search
-    Param("AspirationWindow", 1, 200, True),
-    Param("ScoreDropThreshold", 1, 500, True),
-    Param("NullMoveBaseReduction", 1, 4, True),
-    Param("NullMoveDeeperThreshold", 2, 12, True),
-    Param("NullMoveMinDepth", 1, 6, True),
-    Param("ReverseFutilityMarginPerDepth", 20, 200, True),
-    Param("ReverseFutilityMarginBase", 0, 100, True),
-    Param("ReverseFutilityMaxDepth", 3, 10, True),
-    Param("FutilityMarginPerDepth", 10, 300, True),
-    Param("FutilityMarginBase", 0, 200, True),
-    Param("FutilityMaxDepth", 1, 8, True),
-    Param("LMPBase", 1, 10, True),
-    Param("LMPMaxDepth", 1, 8, True),
-    Param("RazoringMargin", 50, 600, True),
-    Param("RazoringMaxDepth", 1, 4, True),
-    Param("SEEPruningMaxDepth", 1, 8, True),
-    Param("ReducedSearchMinDepth", 3, 10, True),
-    Param("ReducedSearchDepthDivisor", 1, 4, True),
-    Param("ReducedSearchMarginMultiplier", 1, 6, True),
-    Param("ReducedSearchTTDepthMargin", 1, 6, True),
-    Param("SEECutoff", -500, 0, True),
-    Param("LMRTuningConstant", 0.5, 5.0, False),
-    Param("MinimumIIDDepth", 1, 8, True),
-    Param("IIDDepthDivisor", 2, 4, True),
-    Param("LMRPVReduction", 0, 3, True),
-    Param("BestMoveMinStability", 0, 5, True),
-    Param("NullMoveDeepReduction", 1, 8, True),
-    Param("HistoryMalusDivisor", 1, 8, True),
+    Param('AspirationWindow', 1, 200, True),
+    Param('ScoreDropThreshold', 1, 500, True),
+    Param('NullMoveBaseReduction', 1, 4, True),
+    Param('NullMoveDeeperThreshold', 2, 12, True),
+    Param('NullMoveMinDepth', 1, 6, True),
+    Param('ReverseFutilityMarginPerDepth', 20, 200, True),
+    Param('ReverseFutilityMarginBase', 0, 100, True),
+    Param('ReverseFutilityMaxDepth', 3, 10, True),
+    Param('FutilityMarginPerDepth', 10, 300, True),
+    Param('FutilityMarginBase', 0, 200, True),
+    Param('FutilityMaxDepth', 1, 8, True),
+    Param('LMPBase', 1, 10, True),
+    Param('LMPMaxDepth', 1, 8, True),
+    Param('RazoringMargin', 50, 600, True),
+    Param('RazoringMaxDepth', 1, 4, True),
+    Param('SEEPruningMaxDepth', 1, 8, True),
+    Param('ReducedSearchMinDepth', 3, 10, True),
+    Param('ReducedSearchDepthDivisor', 1, 4, True),
+    Param('ReducedSearchMarginMultiplier', 1, 6, True),
+    Param('ReducedSearchTTDepthMargin', 1, 6, True),
+    Param('SEECutoff', -500, 0, True),
+    Param('LMRTuningConstant', 0.5, 5.0, False),
+    Param('MinimumIIDDepth', 1, 8, True),
+    Param('IIDDepthDivisor', 2, 4, True),
+    Param('LMRPVReduction', 0, 3, True),
+    Param('BestMoveMinStability', 0, 5, True),
+    Param('NullMoveDeepReduction', 1, 8, True),
+    Param('HistoryMalusDivisor', 1, 8, True),
     # Time management
-    Param("MovesLeftBase", 5, 30, True),
-    Param("MovesLeftPhaseScale", 10, 120, True),
-    Param("MinMovesNoIncrement", 15, 60, True),
-    Param("IncrementFraction", 0.1, 2.0, False),
-    Param("SoftFactorNoIncrement", 0.2, 1.5, False),
-    Param("SoftFactorIncrement", 0.2, 1.5, False),
-    Param("HardFactor", 1.0, 8.0, False),
-    Param("HardCapDivisor", 1, 6, True),
-    Param("EmergencyTrigger", 2, 16, True),
-    Param("EmergencySoftDivisor", 4, 30, True),
-    Param("EmergencyHardDivisor", 4, 40, True),
+    Param('MovesLeftBase', 5, 30, True),
+    Param('MovesLeftPhaseScale', 10, 120, True),
+    Param('MinMovesNoIncrement', 15, 60, True),
+    Param('IncrementFraction', 0.1, 2.0, False),
+    Param('SoftFactorNoIncrement', 0.2, 1.5, False),
+    Param('SoftFactorIncrement', 0.2, 1.5, False),
+    Param('HardFactor', 1.0, 8.0, False),
+    Param('HardCapDivisor', 1, 6, True),
+    Param('EmergencyTrigger', 2, 16, True),
+    Param('EmergencySoftDivisor', 4, 30, True),
+    Param('EmergencyHardDivisor', 4, 40, True),
 ]
 
 
@@ -135,23 +135,23 @@ def _render(params, baseline, theta, iteration, max_iter, last_wr, avg_wr, a_k, 
     num_lines = len(params) + 1
 
     if not first:
-        sys.stdout.write(f"\033[{num_lines}F")
+        sys.stdout.write(f'\033[{num_lines}F')
 
-    cl = "\033[2K"
+    cl = '\033[2K'
     if last_wr is not None:
-        last_plus = f"{last_wr:.3f}"
-        last_minus = f"{1 - last_wr:.3f}"
+        last_plus = f'{last_wr:.3f}'
+        last_minus = f'{1 - last_wr:.3f}'
     else:
-        last_plus = last_minus = "n/a"
+        last_plus = last_minus = 'n/a'
     if avg_wr is not None:
-        avg_plus = f"{avg_wr:.3f}"
-        avg_minus = f"{1 - avg_wr:.3f}"
+        avg_plus = f'{avg_wr:.3f}'
+        avg_minus = f'{1 - avg_wr:.3f}'
     else:
-        avg_plus = avg_minus = "n/a"
+        avg_plus = avg_minus = 'n/a'
     sys.stdout.write(
-        f"{cl}iter {iteration}/{max_iter}"
-        f"  |  last: +{last_plus} -{last_minus}"
-        f"  |  avg({CONVERGE_WINDOW}): +{avg_plus} -{avg_minus}"
+        f'{cl}iter {iteration}/{max_iter}'
+        f'  |  last: +{last_plus} -{last_minus}'
+        f'  |  avg({CONVERGE_WINDOW}): +{avg_plus} -{avg_minus}'
         f"  |  a_k: {'n/a' if a_k is None else f'{a_k:.4f}'}\n"
     )
 
@@ -164,22 +164,22 @@ def _render(params, baseline, theta, iteration, max_iter, last_wr, avg_wr, a_k, 
             display_val = round(val)
             base = round(base)
             diff = display_val - base
-            base_str = f"{base:>7d}"
-            val_str = f"{display_val:>7d}"
-            diff_str = f"{diff:+d}"
+            base_str = f'{base:>7d}'
+            val_str = f'{display_val:>7d}'
+            diff_str = f'{diff:+d}'
         else:
             diff = val - base
-            base_str = f"{base:>7.3f}"
-            val_str = f"{val:>7.3f}"
-            diff_str = f"{diff:+.3f}"
+            base_str = f'{base:>7.3f}'
+            val_str = f'{val:>7.3f}'
+            diff_str = f'{diff:+.3f}'
 
         sys.stdout.write(
-            f"{cl}  {p.name:<{name_w}}"
-            f"  {base_str} --> {val_str}"
-            f"  ({diff_str:>7s})\n"
+            f'{cl}  {p.name:<{name_w}}'
+            f'  {base_str} --> {val_str}'
+            f'  ({diff_str:>7s})\n'
         )
 
-    sys.stdout.write(f"{cl}")
+    sys.stdout.write(f'{cl}')
     sys.stdout.flush()
 
 
