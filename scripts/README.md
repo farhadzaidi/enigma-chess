@@ -15,11 +15,10 @@ All commands below are run from the `scripts/` directory.
 ```text
 scripts/
   lib/              # Shared utilities (paths, concurrency, versioning)
-  generators/       # C++ header generators (book, NNUE weights, search/TM params)
+  generators/       # C++ header generators (book, NNUE weights, params)
   nnue/             # NNUE data generation and training
   match/            # Engine version management and cutechess matches
-  tune/             # Optuna-based parameter tuner (modular)
-  tune_parameters.py  # Legacy all-in-one parameter tuner
+  tune/             # SPSA-based parameter tuner
 ```
 
 ## Data Generators
@@ -34,8 +33,7 @@ Individual generators:
 
 - `generators/book.py` — `positions/games.san` → `src/data/book.hpp`
 - `generators/nnue_weights.py` — quantizes trained NNUE weights → `src/data/nnue_weights.hpp`
-- `generators/search_params.py` — tuned search params → `src/data/search_params.hpp`
-- `generators/tm_params.py` — tuned time management params → `src/data/tm_params.hpp`
+- `generators/params.py` — tuned engine params → `src/data/params.hpp`
 
 ## NNUE
 
@@ -60,12 +58,12 @@ uv run -m nnue.train --weights 0       # resume from specific checkpoint
 
 ## Parameter Tuning
 
-Uses Optuna (TPE) to optimize engine parameters by playing matches against a baseline.
+Uses SPSA to optimize all engine parameters simultaneously by playing matches between
+perturbed configurations. Auto-stops on convergence.
 
 ```bash
-uv run -m tune.tune search    # tune search parameters
-uv run -m tune.tune tm        # tune time management parameters
-uv run -m tune.tune search --games 800
+uv run -m tune              # fresh tuning run
+uv run -m tune --resume     # resume interrupted run
 ```
 
 ## Engine Matches

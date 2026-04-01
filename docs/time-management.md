@@ -1,4 +1,4 @@
-*Part 15 of 16 — [← Prev: NNUE Training](nnue-training.md) | [Next: Tooling & Workflow →](tooling.md)*
+*Part 15 of 17 — [← Prev: NNUE Training](nnue-training.md) | [Next: Parameter Tuning →](tuning.md)*
 
 # Time Management
 
@@ -60,9 +60,9 @@ estimate.
 In the opening with all pieces, the estimate is deliberately high — conserving time for
 the long game. As pieces trade off, it drops toward `base_moves`.
 
-All constants are auto-tuned (stored in `src/data/tm_params.hpp`). Optuna plays thousands
-of games at various time controls and finds the values that maximize playing strength
-while minimizing time forfeits.
+All constants are auto-tuned (stored in `src/data/params.hpp`). SPSA plays hundreds of
+games per iteration, perturbing all parameters simultaneously to find the values that
+maximize playing strength while minimizing time forfeits.
 
 ## Allocating Time
 
@@ -152,8 +152,9 @@ the main thread.
 ## The Tuning Dimension
 
 Every constant in time management — base moves, phase scale, soft/hard factors, emergency
-thresholds, score drop threshold — is a tunable parameter. Enigma tunes them by playing
-thousands of games with different values, using Optuna to find the best combination.
+thresholds, score drop threshold — is a tunable parameter. Enigma tunes them alongside
+all search parameters using SPSA, which perturbs everything simultaneously and uses the
+win rate gradient to converge on optimal values.
 
 This is important because time management interacts with search quality in non-obvious
 ways. Spending more time per move means deeper search, but also less time for future

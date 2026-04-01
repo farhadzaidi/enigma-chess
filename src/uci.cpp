@@ -45,21 +45,21 @@ TimeLimits calc_time_limit(Board& b, int remaining, int increment, int movestogo
     } else {
         // Estimate remaining moves based on game phase (more material = more moves left)
         float phase_ratio = static_cast<float>(b.game_phase()) / MAX_GAME_PHASE;
-        moves_left = g_tm_params.moves_left_base + static_cast<int>(g_tm_params.moves_left_phase_scale * phase_ratio);
+        moves_left = prm.moves_left_base + static_cast<int>(prm.moves_left_phase_scale * phase_ratio);
     }
 
     if (increment == 0) {
-        moves_left = std::max(moves_left, g_tm_params.min_moves_no_increment);
+        moves_left = std::max(moves_left, prm.min_moves_no_increment);
     }
 
-    int base = remaining / moves_left + static_cast<int>(increment * g_tm_params.increment_fraction);
-    int soft = base * (increment == 0 ? g_tm_params.soft_factor_no_increment : g_tm_params.soft_factor_increment);
-    int hard = std::min(static_cast<int>(base * g_tm_params.hard_factor), remaining / g_tm_params.hard_cap_divisor);
+    int base = remaining / moves_left + static_cast<int>(increment * prm.increment_fraction);
+    int soft = base * (increment == 0 ? prm.soft_factor_no_increment : prm.soft_factor_increment);
+    int hard = std::min(static_cast<int>(base * prm.hard_factor), remaining / prm.hard_cap_divisor);
 
     // Emergency scaling: when time is critically low, play fast to avoid flagging
-    if (remaining < base * g_tm_params.emergency_trigger) {
-        soft = remaining / g_tm_params.emergency_soft_divisor;
-        hard = remaining / g_tm_params.emergency_hard_divisor;
+    if (remaining < base * prm.emergency_trigger) {
+        soft = remaining / prm.emergency_soft_divisor;
+        hard = remaining / prm.emergency_hard_divisor;
     }
 
     return {soft, hard};
@@ -323,27 +323,27 @@ void cmd_setoption(const std::string& cmd) {
 
     // --- Tunable time management parameters ---
     } else if (name == "MovesLeftBase") {
-        g_tm_params.moves_left_base = std::stoi(value);
+        prm.moves_left_base = std::stoi(value);
     } else if (name == "MovesLeftPhaseScale") {
-        g_tm_params.moves_left_phase_scale = std::stoi(value);
+        prm.moves_left_phase_scale = std::stoi(value);
     } else if (name == "MinMovesNoIncrement") {
-        g_tm_params.min_moves_no_increment = std::stoi(value);
+        prm.min_moves_no_increment = std::stoi(value);
     } else if (name == "IncrementFraction") {
-        g_tm_params.increment_fraction = std::stod(value);
+        prm.increment_fraction = std::stod(value);
     } else if (name == "SoftFactorNoIncrement") {
-        g_tm_params.soft_factor_no_increment = std::stod(value);
+        prm.soft_factor_no_increment = std::stod(value);
     } else if (name == "SoftFactorIncrement") {
-        g_tm_params.soft_factor_increment = std::stod(value);
+        prm.soft_factor_increment = std::stod(value);
     } else if (name == "HardFactor") {
-        g_tm_params.hard_factor = std::stod(value);
+        prm.hard_factor = std::stod(value);
     } else if (name == "HardCapDivisor") {
-        g_tm_params.hard_cap_divisor = std::stoi(value);
+        prm.hard_cap_divisor = std::stoi(value);
     } else if (name == "EmergencyTrigger") {
-        g_tm_params.emergency_trigger = std::stoi(value);
+        prm.emergency_trigger = std::stoi(value);
     } else if (name == "EmergencySoftDivisor") {
-        g_tm_params.emergency_soft_divisor = std::stoi(value);
+        prm.emergency_soft_divisor = std::stoi(value);
     } else if (name == "EmergencyHardDivisor") {
-        g_tm_params.emergency_hard_divisor = std::stoi(value);
+        prm.emergency_hard_divisor = std::stoi(value);
     }
 }
 

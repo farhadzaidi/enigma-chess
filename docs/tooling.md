@@ -1,4 +1,4 @@
-*Part 16 of 16 — [← Prev: Time Management](time-management.md)*
+*Part 17 of 17 — [← Prev: Parameter Tuning](tuning.md)*
 
 # Tooling & Workflow
 
@@ -135,32 +135,31 @@ Produces `src/data/nnue_weights.hpp`. **Rebuild the engine** after this step.
 
 ## Parameter Tuning
 
-Uses Optuna with TPE (Tree-structured Parzen Estimator) to optimize search or time
-management parameters by playing matches.
+Uses SPSA (Simultaneous Perturbation Stochastic Approximation) to optimize all engine
+parameters simultaneously by playing matches between perturbed configurations.
 
 ```bash
-uv run -m tune.tune search               # tune search params
-uv run -m tune.tune tm                    # tune time management params
-uv run -m tune.tune search --games 800   # custom games per trial
-uv run -m tune.tune search --only AspirationWindow ScoreDropThreshold  # subset
+uv run -m tune                  # fresh tuning run
+uv run -m tune --resume         # resume interrupted run
 ```
 
-Each trial plays the candidate parameters against the current baseline. 500 games per
-trial by default (each trial takes roughly 15-30 minutes). Results saved as pickles in
-`scripts/tune/data/`.
+Each iteration perturbs all 38 parameters (search + time management) in random directions
+and plays 200 games per time control at 8+0 and 8+0.08. The gradient estimate from each
+iteration nudges parameters toward stronger values. Perturbation size (`c`) and learning
+rate (`a`) are derived automatically from each parameter's range — no per-parameter tuning
+needed.
 
-A typical tuning session runs dozens to hundreds of trials. Optuna's TPE sampler gets
-smarter over time, so early trials are mostly exploration. You'll usually see diminishing
-returns after 50-100 trials — check the optimization history plot and stop when the best
-value hasn't improved in a while.
+The tuner auto-stops when the rolling average win rate over the last 30 iterations stays
+within 0.5 ± 0.015, meaning the gradient is flat (converged). Results saved as pickles in
+`scripts/tune/data/`.
 
 To apply tuned parameters:
 
 ```bash
-uv run -m generators.params search    # or: tm, all
+uv run -m generators.params
 ```
 
-This writes `src/data/search_params.hpp` and/or `src/data/tm_params.hpp`. Rebuild after.
+This writes `src/data/params.hpp`. Rebuild after.
 
 ## Running Matches
 
@@ -239,11 +238,11 @@ cd .. && cmake --build build
 cd scripts
 uv run -m match.run_match
 
-# optionally tune search parameters (hours — 50+ trials recommended)
-uv run -m tune.tune search
+# optionally tune parameters (hours — auto-stops on convergence)
+uv run -m tune
 
 # export tuned params and rebuild (seconds)
-uv run -m generators.params all
+uv run -m generators.params
 cd .. && cmake --build build
 
 # final match to verify improvement (stops early via SPRT once conclusive)

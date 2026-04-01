@@ -93,5 +93,9 @@ completely new, follow the order below.
 15. **[Time Management](time-management.md)** — deciding when to stop thinking. Harder
     than it sounds when you don't know how many moves are left in the game.
 
-16. **[Tooling & Workflow](tooling.md)** — building, testing, benchmarking, parameter
-    tuning, and running matches.
+16. **[Parameter Tuning](tuning.md)** — why hand-tuning doesn't scale, how SPSA
+    finds optimal values for all 38 engine parameters simultaneously, and why parameters
+    need retuning as the engine evolves.
+
+17. **[Tooling & Workflow](tooling.md)** — building, testing, benchmarking, and running
+    matches.

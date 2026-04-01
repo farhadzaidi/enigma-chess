@@ -1,123 +1,98 @@
 #!/usr/bin/env python3
 """
-Generates src/data/{search,tm}_params.hpp from tuned parameter pickles.
+Generates src/data/params.hpp from tuned parameter pickle.
 
 Usage:
-    python -m generators.params search
-    python -m generators.params tm
-    python -m generators.params all
+    python -m generators.params
 """
-
-import sys
 
 from lib.path import PROJECT_ROOT, script_path
 from lib.versioned import resolve, load_pickle, save_pickle
 
-SEARCH = {
-    'dir': PROJECT_ROOT / 'scripts' / 'tune' / 'data' / 'search_params',
-    'prefix': 'search_params',
-    'output': PROJECT_ROOT / 'src' / 'data' / 'search_params.hpp',
-    'params': [
-        ("AspirationWindow", "ASPIRATION_WINDOW", 25),
-        ("ScoreDropThreshold", "SCORE_DROP_THRESHOLD", 50),
-        ("NullMoveBaseReduction", "NULL_MOVE_BASE_REDUCTION", 2),
-        ("NullMoveDeeperThreshold", "NULL_MOVE_DEEPER_THRESHOLD", 6),
-        ("NullMoveMinDepth", "NULL_MOVE_MIN_DEPTH", 3),
-        ("ReverseFutilityMarginPerDepth", "REVERSE_FUTILITY_MARGIN_PER_DEPTH", 80),
-        ("ReverseFutilityMarginBase", "REVERSE_FUTILITY_MARGIN_BASE", 0),
-        ("ReverseFutilityMaxDepth", "REVERSE_FUTILITY_MAX_DEPTH", 7),
-        ("FutilityMarginPerDepth", "FUTILITY_MARGIN_PER_DEPTH", 90),
-        ("FutilityMarginBase", "FUTILITY_MARGIN_BASE", 40),
-        ("FutilityMaxDepth", "FUTILITY_MAX_DEPTH", 4),
-        ("LMPBase", "LMP_BASE", 3),
-        ("LMPMaxDepth", "LMP_MAX_DEPTH", 4),
-        ("RazoringMargin", "RAZORING_MARGIN", 200),
-        ("RazoringMaxDepth", "RAZORING_MAX_DEPTH", 1),
-        ("SEEPruningMaxDepth", "SEE_PRUNING_MAX_DEPTH", 4),
-        ("ReducedSearchMinDepth", "REDUCED_SEARCH_MIN_DEPTH", 7),
-        ("ReducedSearchDepthDivisor", "REDUCED_SEARCH_DEPTH_DIVISOR", 2),
-        ("ReducedSearchMarginMultiplier", "REDUCED_SEARCH_MARGIN_MULTIPLIER", 2),
-        ("ReducedSearchTTDepthMargin", "REDUCED_SEARCH_TT_DEPTH_MARGIN", 3),
-        ("SEECutoff", "SEE_CUTOFF", -200),
-        ("LMRTuningConstant", "LMR_TUNING_CONSTANT", 2.0),
-        ("MinimumIIDDepth", "MINIMUM_IID_DEPTH", 4),
-        ("IIDDepthDivisor", "IID_DEPTH_DIVISOR", 2),
-        ("LMRPVReduction", "LMR_PV_REDUCTION", 1),
-        ("BestMoveMinStability", "BEST_MOVE_MIN_STABILITY", 0),
-        ("NullMoveDeepReduction", "NULL_MOVE_DEEP_REDUCTION", 5),
-        ("HistoryMalusDivisor", "HISTORY_MALUS_DIVISOR", 2),
-    ],
-}
+DATA_DIR = PROJECT_ROOT / 'scripts' / 'tune' / 'data'
+PREFIX = 'params'
+OUTPUT = PROJECT_ROOT / 'src' / 'data' / 'params.hpp'
 
-TM = {
-    'dir': PROJECT_ROOT / 'scripts' / 'tune' / 'data' / 'tm_params',
-    'prefix': 'tm_params',
-    'output': PROJECT_ROOT / 'src' / 'data' / 'tm_params.hpp',
-    'params': [
-        ("MovesLeftBase", "MOVES_LEFT_BASE", 10),
-        ("MovesLeftPhaseScale", "MOVES_LEFT_PHASE_SCALE", 30),
-        ("MinMovesNoIncrement", "MIN_MOVES_NO_INCREMENT", 45),
-        ("IncrementFraction", "INCREMENT_FRACTION", 0.5),
-        ("SoftFactorNoIncrement", "SOFT_FACTOR_NO_INCREMENT", 0.5),
-        ("SoftFactorIncrement", "SOFT_FACTOR_INCREMENT", 0.6),
-        ("HardFactor", "HARD_FACTOR", 2.625),
-        ("HardCapDivisor", "HARD_CAP_DIVISOR", 3),
-        ("EmergencyTrigger", "EMERGENCY_TRIGGER", 4),
-        ("EmergencySoftDivisor", "EMERGENCY_SOFT_DIVISOR", 15),
-        ("EmergencyHardDivisor", "EMERGENCY_HARD_DIVISOR", 8),
-    ],
-}
-
-TARGETS = {'search': SEARCH, 'tm': TM}
+PARAMS = [
+    # Search
+    ("AspirationWindow", "ASPIRATION_WINDOW", 25),
+    ("ScoreDropThreshold", "SCORE_DROP_THRESHOLD", 50),
+    ("NullMoveBaseReduction", "NULL_MOVE_BASE_REDUCTION", 2),
+    ("NullMoveDeeperThreshold", "NULL_MOVE_DEEPER_THRESHOLD", 6),
+    ("NullMoveMinDepth", "NULL_MOVE_MIN_DEPTH", 3),
+    ("ReverseFutilityMarginPerDepth", "REVERSE_FUTILITY_MARGIN_PER_DEPTH", 80),
+    ("ReverseFutilityMarginBase", "REVERSE_FUTILITY_MARGIN_BASE", 0),
+    ("ReverseFutilityMaxDepth", "REVERSE_FUTILITY_MAX_DEPTH", 7),
+    ("FutilityMarginPerDepth", "FUTILITY_MARGIN_PER_DEPTH", 90),
+    ("FutilityMarginBase", "FUTILITY_MARGIN_BASE", 40),
+    ("FutilityMaxDepth", "FUTILITY_MAX_DEPTH", 4),
+    ("LMPBase", "LMP_BASE", 3),
+    ("LMPMaxDepth", "LMP_MAX_DEPTH", 4),
+    ("RazoringMargin", "RAZORING_MARGIN", 200),
+    ("RazoringMaxDepth", "RAZORING_MAX_DEPTH", 1),
+    ("SEEPruningMaxDepth", "SEE_PRUNING_MAX_DEPTH", 4),
+    ("ReducedSearchMinDepth", "REDUCED_SEARCH_MIN_DEPTH", 7),
+    ("ReducedSearchDepthDivisor", "REDUCED_SEARCH_DEPTH_DIVISOR", 2),
+    ("ReducedSearchMarginMultiplier", "REDUCED_SEARCH_MARGIN_MULTIPLIER", 2),
+    ("ReducedSearchTTDepthMargin", "REDUCED_SEARCH_TT_DEPTH_MARGIN", 3),
+    ("SEECutoff", "SEE_CUTOFF", -200),
+    ("LMRTuningConstant", "LMR_TUNING_CONSTANT", 2.0),
+    ("MinimumIIDDepth", "MINIMUM_IID_DEPTH", 4),
+    ("IIDDepthDivisor", "IID_DEPTH_DIVISOR", 2),
+    ("LMRPVReduction", "LMR_PV_REDUCTION", 1),
+    ("BestMoveMinStability", "BEST_MOVE_MIN_STABILITY", 0),
+    ("NullMoveDeepReduction", "NULL_MOVE_DEEP_REDUCTION", 5),
+    ("HistoryMalusDivisor", "HISTORY_MALUS_DIVISOR", 2),
+    # Time management
+    ("MovesLeftBase", "MOVES_LEFT_BASE", 10),
+    ("MovesLeftPhaseScale", "MOVES_LEFT_PHASE_SCALE", 30),
+    ("MinMovesNoIncrement", "MIN_MOVES_NO_INCREMENT", 45),
+    ("IncrementFraction", "INCREMENT_FRACTION", 0.5),
+    ("SoftFactorNoIncrement", "SOFT_FACTOR_NO_INCREMENT", 0.5),
+    ("SoftFactorIncrement", "SOFT_FACTOR_INCREMENT", 0.6),
+    ("HardFactor", "HARD_FACTOR", 2.625),
+    ("HardCapDivisor", "HARD_CAP_DIVISOR", 3),
+    ("EmergencyTrigger", "EMERGENCY_TRIGGER", 4),
+    ("EmergencySoftDivisor", "EMERGENCY_SOFT_DIVISOR", 15),
+    ("EmergencyHardDivisor", "EMERGENCY_HARD_DIVISOR", 8),
+]
 
 
-def _load_params(config):
+def _load_params():
     """Load latest tuned params, injecting defaults for any new entries."""
-    param_map = config['params']
-    path = resolve(config['dir'], config['prefix'], '.pkl')
+    path = resolve(DATA_DIR, PREFIX, '.pkl')
     if path is None:
-        params = {name: default for name, _, default in param_map}
-        saved = save_pickle(config['dir'], config['prefix'], params)
+        params = {name: default for name, _, default in PARAMS}
+        saved = save_pickle(DATA_DIR, PREFIX, params)
         print(f'No tuned params found, initialized defaults at {saved}')
         return params
 
     params = load_pickle(path)
-    for name, _, default in param_map:
+    # Strip SPSA metadata if present
+    params.pop('_spsa_state', None)
+    for name, _, default in PARAMS:
         if name not in params:
             params[name] = default
     return params
 
 
-def generate(config):
-    """Generate a C++ header from a param config."""
-    params = _load_params(config)
+def generate():
+    """Generate the C++ params header."""
+    params = _load_params()
 
-    with open(config['output'], 'w') as f:
+    with open(OUTPUT, 'w') as f:
         f.write(f'// Auto-generated by {script_path(__file__)} — do not edit manually\n\n')
         f.write('#pragma once\n\n')
 
-        for uci_name, const_name, default in config['params']:
+        for uci_name, const_name, default in PARAMS:
             val = params.get(uci_name, default)
             if isinstance(default, int):
                 f.write(f'constexpr int DEFAULT_{const_name} = {round(val)};\n')
             else:
                 f.write(f'constexpr double DEFAULT_{const_name} = {val};\n')
 
-    print(f'Wrote params to {config["output"]}')
-
-
-def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in (*TARGETS, 'all'):
-        print(f'Usage: {sys.argv[0]} {{search|tm|all}}')
-        sys.exit(1)
-
-    target = sys.argv[1]
-    if target == 'all':
-        for config in TARGETS.values():
-            generate(config)
-    else:
-        generate(TARGETS[target])
+    print(f'Wrote params to {OUTPUT}')
 
 
 if __name__ == '__main__':
-    main()
+    generate()

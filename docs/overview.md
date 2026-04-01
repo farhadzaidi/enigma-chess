@@ -188,11 +188,10 @@ src/
     ├── magics.hpp         — magic numbers for sliding pieces
     ├── book.hpp           — opening book data
     ├── nnue_weights.hpp   — quantized NNUE network (~21 MB)
-    ├── search_params.hpp  — tuned search constants
-    └── tm_params.hpp      — tuned time management constants
+    └── params.hpp         — tuned engine constants
 ```
 
-Python tooling in `scripts/`: NNUE training, parameter tuning (Optuna), match automation
+Python tooling in `scripts/`: NNUE training, parameter tuning (SPSA), match automation
 (CuteChess). Tests and benchmarks in `dev/`, compiling to `enigma-dev`.
 
 ## Building Your Own Engine

@@ -19,26 +19,24 @@ from lib.path import BINARY_PATH, OPENINGS_PATH
 from lib.concurrency import calc_concurrency
 
 TIME_CONTROLS = [
-    "1+0", # no increment
-    "1+0.01", # with increment
+    "8+0", # no increment
+    "8+0.08", # with increment
 ]
 
-NUM_OPENINGS = 500
 MATCH_SEED = 42
 
 
 class MatchConfig:
     """Opaque match state: openings + pre-sampled work items."""
 
-    def __init__(self, games_per_trial):
-        openings = _load_openings()
+    def __init__(self, games_per_tc):
+        num_openings = games_per_tc // 2
+        openings = _load_openings(num_openings)
         rng = random.Random(MATCH_SEED)
 
-        # Divide total games evenly across TCs, then across openings (2 games per opening: both colors)
-        games_per_tc = games_per_trial // len(TIME_CONTROLS)
+        # Each TC gets games_per_tc games, split across openings (2 games per opening: both colors)
         self.work_items = []
         for tc in TIME_CONTROLS:
-            num_openings = games_per_tc // 2
             selected = rng.sample(openings, min(num_openings, len(openings)))
             for opening in selected:
                 self.work_items.append((opening, tc))
@@ -46,11 +44,11 @@ class MatchConfig:
         rng.shuffle(self.work_items)
 
 
-def _load_openings(path=OPENINGS_PATH):
+def _load_openings(count, path=OPENINGS_PATH):
     """Load opening positions from a PGN file, returning a list of UCI move strings."""
     openings = []
     with open(path) as f:
-        while len(openings) < NUM_OPENINGS:
+        while len(openings) < count:
             game = chess.pgn.read_game(f)
             if game is None:
                 break

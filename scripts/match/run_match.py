@@ -15,6 +15,7 @@ CUTECHESS_CLI_BINARY_PATH = env_path('cutechess_cli_binary')
 
 # Fixed settings
 TC = '8+0.08'
+SMOKE_TC = '1+0'
 TIMEMARGIN = 150
 STANDARD_MAX_GAMES = 2000
 SPRT_MAX_GAMES = 10000
@@ -113,13 +114,14 @@ def main():
     parser.add_argument('--threads', type=int, default=1, help='Number of search threads per engine (default: 1)')
     parser.add_argument('--ponder', action='store_true', help='Enable pondering')
     parser.add_argument('--no-increment', action='store_true', help='Force zero increment by stripping the +inc from the configured TC')
+    parser.add_argument('--smoke', action='store_true', help='Quick smoke test at 1+0')
     parser.add_argument('--games', type=int, help='Override number of games')
     parser.add_argument('--ordered', action='store_true', help='Use opening file order instead of random order')
     args = parser.parse_args()
 
     concurrency = calc_concurrency(args.threads, args.ponder)
     engine_a, engine_b, engine_a_name, engine_b_name = _resolve_engines(args)
-    tc = _resolve_tc(args.no_increment)
+    tc = SMOKE_TC if args.smoke else _resolve_tc(args.no_increment)
 
     if args.sprt:
         max_games = args.games if args.games is not None else SPRT_MAX_GAMES

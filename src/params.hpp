@@ -1,10 +1,10 @@
 #pragma once
 
-#include "data/search_params.hpp"
-#include "data/tm_params.hpp"
+#include "data/params.hpp"
 #include "types.hpp"
 
-struct SearchParams {
+struct EngineParams {
+    // Search
     int aspiration_window = DEFAULT_ASPIRATION_WINDOW;
     int score_drop_threshold = DEFAULT_SCORE_DROP_THRESHOLD;
 
@@ -44,9 +44,8 @@ struct SearchParams {
     int best_move_min_stability = DEFAULT_BEST_MOVE_MIN_STABILITY;
     int null_move_deep_reduction = DEFAULT_NULL_MOVE_DEEP_REDUCTION;
     int history_malus_divisor = DEFAULT_HISTORY_MALUS_DIVISOR;
-};
 
-struct TMParams {
+    // Time management
     int moves_left_base = DEFAULT_MOVES_LEFT_BASE;
     int moves_left_phase_scale = DEFAULT_MOVES_LEFT_PHASE_SCALE;
     int min_moves_no_increment = DEFAULT_MIN_MOVES_NO_INCREMENT;
@@ -60,5 +59,4 @@ struct TMParams {
     int emergency_hard_divisor = DEFAULT_EMERGENCY_HARD_DIVISOR;
 };
 
-inline SearchParams prm;
-inline TMParams g_tm_params;
+inline EngineParams prm;

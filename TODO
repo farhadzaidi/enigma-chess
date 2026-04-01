@@ -1,2 +1,0 @@
-- Add docs and update README's
-- Embed NNUE weights into a binary and load in the engine instead of using a header

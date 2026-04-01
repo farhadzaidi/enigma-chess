@@ -37,7 +37,7 @@ right first.
 
 The thresholds for every pruning technique are auto-tuned. Each has been validated by
 playing thousands of games — if changing a threshold costs Elo, it stays where it is.
-The tuned values live in `src/data/search_params.hpp`.
+The tuned values live in `src/data/params.hpp`.
 
 ## Pre-Move Pruning
 
