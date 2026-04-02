@@ -76,7 +76,7 @@ def _load_params():
     return params
 
 
-def generate():
+def main():
     """Generate the C++ params header."""
     params = _load_params()
 
@@ -95,4 +95,4 @@ def generate():
 
 
 if __name__ == '__main__':
-    generate()
+    main()

@@ -7,7 +7,12 @@
 
 #include "types.hpp"
 
-constexpr size_t ACCUMULATOR_SIZE = 256;
+constexpr size_t FEATURE_SIZE = 40960;
+constexpr size_t L1_SIZE = 256;
+constexpr size_t L2_SIZE = 32;
+constexpr size_t L3_SIZE = 32;
+constexpr int32_t Q1 = 127;
+constexpr int32_t Q2 = 64;
 
 /** NNUE evaluation network with incremental accumulator updates */
 class NNUE {
@@ -40,7 +45,7 @@ public:
     PositionScore evaluate(Side us);
 
 private:
-    using Accumulator = std::array<int16_t, ACCUMULATOR_SIZE>;
+    using Accumulator = std::array<int16_t, L1_SIZE>;
     using Accumulators = std::array<Accumulator, NUM_SIDES>;
 
     alignas(64) Accumulators accumulators;

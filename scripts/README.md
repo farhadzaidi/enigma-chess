@@ -32,7 +32,7 @@ uv run -m generators          # run all generators
 Individual generators:
 
 - `generators/book.py` — `positions/games.san` → `src/data/book.hpp`
-- `generators/nnue_weights.py` — quantizes trained NNUE weights → `src/data/nnue_weights.hpp`
+- `generators/nnue.py` — quantizes trained NNUE weights → `src/data/nnue.bin`
 - `generators/params.py` — tuned engine params → `src/data/params.hpp`
 
 ## NNUE

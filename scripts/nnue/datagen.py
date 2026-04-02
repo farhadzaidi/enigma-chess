@@ -27,7 +27,7 @@ from nnue.paths import (
 OPENING_CUTOFF = 10
 
 # Fixed depth for the engine to search to at any given position
-SEARCH_DEPTH = 8
+SEARCH_DEPTH = 10
 
 # Number of workers to spawn
 NUM_WORKERS = calc_concurrency(threads=1)

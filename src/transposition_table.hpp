@@ -12,11 +12,11 @@ constexpr size_t DEFAULT_HASH_MB = 64;
 constexpr size_t MIN_HASH_MB = 1;
 constexpr size_t MAX_HASH_MB = 16384;
 
+constexpr uint64_t EMPTY_DATA = 0;
+
 /** Single entry in the transposition table, packing move/depth/score/node into 64 bits */
 class TTEntry {
 public:
-    static constexpr uint64_t EMPTY_DATA = 0;
-
     TTEntry() = default;
     /** Construct an entry, XOR-compressing the hash with packed data */
     TTEntry(ZobristHash hash, Move best_move, SearchDepth depth, PositionScore score, TTNode node);

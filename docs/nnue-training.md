@@ -153,7 +153,7 @@ positional compensation for material, initiative, and prophylaxis.
 ## Step 3: Weight Export
 
 ```bash
-uv run -m generators.nnue_weights
+uv run -m generators.nnue
 ```
 
 This reads the latest PyTorch checkpoint and quantizes float32 weights to the integer
@@ -172,8 +172,8 @@ The key trick: `qeval = Q2 / (Q1 × σ)` where σ is the sigmoid scaling factor 
 training. This folds the centipawn conversion into the quantization, so the engine's
 integer arithmetic produces centipawns directly.
 
-The output is `src/data/nnue_weights.hpp` — about 21 MB. Rebuild the engine after
-generating new weights.
+The output is `src/data/nnue.bin` — about 21 MB. The binary is embedded into the
+executable via `objcopy` at build time. Rebuild the engine after generating new weights.
 
 ### Quantization Overflow Check
 
@@ -200,7 +200,7 @@ wait
 uv run -m nnue.train
 
 # export and rebuild
-uv run -m generators.nnue_weights
+uv run -m generators.nnue
 cd .. && cmake --build build
 
 # play a match against the baseline

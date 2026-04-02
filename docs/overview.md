@@ -187,7 +187,7 @@ src/
 └── data/                  — auto-generated headers (don't edit by hand)
     ├── magics.hpp         — magic numbers for sliding pieces
     ├── book.hpp           — opening book data
-    ├── nnue_weights.hpp   — quantized NNUE network (~21 MB)
+    ├── nnue.bin           — quantized NNUE network (~21 MB)
     └── params.hpp         — tuned engine constants
 ```
 

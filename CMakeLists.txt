@@ -36,12 +36,27 @@ set(COMMON_LINK_OPTIONS
   >
 )
 
+# --- Embed NNUE weights binary ---
+
+set(NNUE_BIN ${CMAKE_SOURCE_DIR}/src/data/nnue.bin)
+set(NNUE_OBJ ${CMAKE_BINARY_DIR}/nnue.o)
+
+add_custom_command(
+  OUTPUT ${NNUE_OBJ}
+  COMMAND objcopy -I binary -O elf64-x86-64 -B i386:x86-64
+    --add-section .note.GNU-stack=/dev/null
+    --set-section-flags .note.GNU-stack=noload,readonly
+    nnue.bin ${NNUE_OBJ}
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/src/data
+  DEPENDS ${NNUE_BIN}
+)
+
 # --- Engine library ---
 
 file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS src/*.cpp)
 list(REMOVE_ITEM ENGINE_SOURCES "${CMAKE_SOURCE_DIR}/src/main.cpp")
 
-add_library(enigma-lib STATIC ${ENGINE_SOURCES})
+add_library(enigma-lib STATIC ${ENGINE_SOURCES} ${NNUE_OBJ})
 target_include_directories(enigma-lib PRIVATE src)
 target_compile_options(enigma-lib PRIVATE ${COMMON_COMPILE_OPTIONS})
 target_link_options(enigma-lib PRIVATE ${COMMON_LINK_OPTIONS})

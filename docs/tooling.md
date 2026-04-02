@@ -128,10 +128,10 @@ A final loss around 0.02-0.05 is normal for a well-trained small network.
 ### Export Weights
 
 ```bash
-uv run -m generators.nnue_weights
+uv run -m generators.nnue
 ```
 
-Produces `src/data/nnue_weights.hpp`. **Rebuild the engine** after this step.
+Produces `src/data/nnue.bin`. **Rebuild the engine** after this step.
 
 ## Parameter Tuning
 
@@ -201,8 +201,8 @@ the binary.
 ```bash
 uv run -m generators              # run all generators
 uv run -m generators.book         # opening book → src/data/book.hpp
-uv run -m generators.nnue_weights # NNUE weights → src/data/nnue_weights.hpp
-uv run -m generators.params all   # tuned params → src/data/*_params.hpp
+uv run -m generators.nnue         # NNUE weights → src/data/nnue.bin
+uv run -m generators.params       # tuned params → src/data/params.hpp
 ```
 
 Always rebuild after running any generator.
@@ -231,7 +231,7 @@ wait
 uv run -m nnue.train
 
 # export weights and rebuild (seconds)
-uv run -m generators.nnue_weights
+uv run -m generators.nnue
 cd .. && cmake --build build
 
 # check for regression (30-60 min — should be roughly even or better)

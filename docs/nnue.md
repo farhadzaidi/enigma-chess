@@ -12,8 +12,8 @@ middlegames — without being told any of this.
 For background on what evaluation is and why handcrafted approaches have limitations, see
 [Evaluation](eval.md). For the training pipeline, see [NNUE Training](nnue-training.md).
 
-The NNUE implementation lives in `src/nnue.hpp` and `src/nnue.cpp`. Weights are compiled
-into the binary as static arrays in `src/data/nnue_weights.hpp`.
+The NNUE implementation lives in `src/nnue.hpp` and `src/nnue.cpp`. Weights are stored
+in `src/data/nnue.bin` and embedded into the executable at build time via `objcopy`.
 
 ## The Speed Problem
 
@@ -423,19 +423,21 @@ of roughly ±32000 centipawns. Scores near ±32000 represent checkmate (see
 
 ## Weight Storage
 
-Weights are compiled into the binary as static arrays in `src/data/nnue_weights.hpp`,
-all `alignas(64)` for SIMD alignment:
+Weights are stored as a flat binary file (`src/data/nnue.bin`) and embedded into the
+executable at build time via `objcopy`. At startup, the first NNUE construction copies
+them into `alignas(64)` arrays for SIMD alignment.
+
 
 | Array | Type | Shape | Size | Notes |
 |-------|------|-------|------|-------|
-| `NNUE_L1_WEIGHT` | int16 | 40960 × 256 | ~21 MB | The embedding table |
-| `NNUE_L1_BIAS` | int16 | 256 | 512 B | Accumulator initial values |
-| `NNUE_L2_WEIGHT` | int8 | 32 × 512 | 16 KB | Fits in L1 cache |
-| `NNUE_L2_BIAS` | int32 | 32 | 128 B | Pre-scaled to Q1×Q2 |
-| `NNUE_L3_WEIGHT` | int8 | 32 × 32 | 1 KB | |
-| `NNUE_L3_BIAS` | int32 | 32 | 128 B | Pre-scaled to Q1×Q2 |
-| `NNUE_OUTPUT_WEIGHT` | int16 | 32 | 64 B | Includes centipawn conversion |
-| `NNUE_OUTPUT_BIAS` | int32 | 1 | 4 B | |
+| `l1_weight` | int16 | 40960 × 256 | ~21 MB | The embedding table |
+| `l1_bias` | int16 | 256 | 512 B | Accumulator initial values |
+| `l2_weight` | int8 | 32 × 512 | 16 KB | Fits in L1 cache |
+| `l2_bias` | int32 | 32 | 128 B | Pre-scaled to Q1×Q2 |
+| `l3_weight` | int8 | 32 × 32 | 1 KB | |
+| `l3_bias` | int32 | 32 | 128 B | Pre-scaled to Q1×Q2 |
+| `output_weight` | int16 | 32 | 64 B | Includes centipawn conversion |
+| `output_bias` | int32 | 1 | 4 B | |
 
 The 21 MB L1 table dominates. This is the price of a per-king-square feature set — 64
 king squares × 640 features × 256 accumulator values × 2 bytes. The engine binary is
