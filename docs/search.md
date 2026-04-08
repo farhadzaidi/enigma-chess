@@ -1,4 +1,4 @@
-*Part 8 of 16 — [← Prev: Evaluation](eval.md) | [Next: Transposition Table →](transposition-table.md)*
+*Part 8 of 17 — [← Prev: Evaluation](eval.md) | [Next: Transposition Table →](transposition-table.md)*
 
 # Search
 

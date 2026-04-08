@@ -1,4 +1,4 @@
-*Part 1 of 16 — [Next: Bit Manipulation →](bit-manipulation.md)*
+*Part 1 of 17 — [Next: Bit Manipulation →](bit-manipulation.md)*
 
 # Architecture Overview
 

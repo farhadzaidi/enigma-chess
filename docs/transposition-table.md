@@ -1,4 +1,4 @@
-*Part 9 of 16 — [← Prev: Search](search.md) | [Next: Move Ordering →](move-ordering.md)*
+*Part 9 of 17 — [← Prev: Search](search.md) | [Next: Move Ordering →](move-ordering.md)*
 
 # Transposition Table
 

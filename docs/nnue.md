@@ -1,4 +1,4 @@
-*Part 13 of 16 — [← Prev: Advanced Search](advanced-search.md) | [Next: NNUE Training →](nnue-training.md)*
+*Part 13 of 17 — [← Prev: Advanced Search](advanced-search.md) | [Next: NNUE Training →](nnue-training.md)*
 
 # NNUE Evaluation
 

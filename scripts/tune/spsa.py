@@ -19,15 +19,13 @@ from tune.match import MatchConfig, play_match
 DATA_DIR = PROJECT_ROOT / 'scripts' / 'tune' / 'data'
 PREFIX = 'params'
 
-GAMES_PER_TC = 200
-MAX_ITER = 1000
+GAMES_PER_TC = 60
 A_INIT = 1.0
 ALPHA = 0.602
 GAMMA = 0.101
-A_FRAC = 0.1
+A = 10  # stability constant, controls step decay rate
 SAVE_INTERVAL = 10
-CONVERGE_WINDOW = 30  # stop if avg over last N iters is within 0.5 ± eps
-CONVERGE_EPS = 0.015
+RNG_SEED = 42
 
 
 C_FRAC = 0.075  # perturbation = 7.5% of range
@@ -54,7 +52,6 @@ class Param:
 PARAMS = [
     # Search
     Param('AspirationWindow', 1, 200, True),
-    Param('ScoreDropThreshold', 1, 500, True),
     Param('NullMoveBaseReduction', 1, 4, True),
     Param('NullMoveDeeperThreshold', 2, 12, True),
     Param('NullMoveMinDepth', 1, 6, True),
@@ -78,21 +75,8 @@ PARAMS = [
     Param('MinimumIIDDepth', 1, 8, True),
     Param('IIDDepthDivisor', 2, 4, True),
     Param('LMRPVReduction', 0, 3, True),
-    Param('BestMoveMinStability', 0, 5, True),
     Param('NullMoveDeepReduction', 1, 8, True),
     Param('HistoryMalusDivisor', 1, 8, True),
-    # Time management
-    Param('MovesLeftBase', 5, 30, True),
-    Param('MovesLeftPhaseScale', 10, 120, True),
-    Param('MinMovesNoIncrement', 15, 60, True),
-    Param('IncrementFraction', 0.1, 2.0, False),
-    Param('SoftFactorNoIncrement', 0.2, 1.5, False),
-    Param('SoftFactorIncrement', 0.2, 1.5, False),
-    Param('HardFactor', 1.0, 8.0, False),
-    Param('HardCapDivisor', 1, 6, True),
-    Param('EmergencyTrigger', 2, 16, True),
-    Param('EmergencySoftDivisor', 4, 30, True),
-    Param('EmergencyHardDivisor', 4, 40, True),
 ]
 
 
@@ -130,7 +114,7 @@ def _perturb(params, theta, rng, k):
     return theta_plus, theta_minus, realized
 
 
-def _render(params, baseline, theta, iteration, max_iter, last_wr, avg_wr, a_k, first=False):
+def _render(params, baseline, theta, iteration, max_iter, first=False):
     """Redraw the in-place terminal display with current theta vs baseline."""
     num_lines = len(params) + 1
 
@@ -138,22 +122,8 @@ def _render(params, baseline, theta, iteration, max_iter, last_wr, avg_wr, a_k, 
         sys.stdout.write(f'\033[{num_lines}F')
 
     cl = '\033[2K'
-    if last_wr is not None:
-        last_plus = f'{last_wr:.3f}'
-        last_minus = f'{1 - last_wr:.3f}'
-    else:
-        last_plus = last_minus = 'n/a'
-    if avg_wr is not None:
-        avg_plus = f'{avg_wr:.3f}'
-        avg_minus = f'{1 - avg_wr:.3f}'
-    else:
-        avg_plus = avg_minus = 'n/a'
-    sys.stdout.write(
-        f'{cl}iter {iteration}/{max_iter}'
-        f'  |  last: +{last_plus} -{last_minus}'
-        f'  |  avg({CONVERGE_WINDOW}): +{avg_plus} -{avg_minus}'
-        f"  |  a_k: {'n/a' if a_k is None else f'{a_k:.4f}'}\n"
-    )
+    iter_str = f'iteration {iteration}' if max_iter is None else f'iteration {iteration}/{max_iter}'
+    sys.stdout.write(f'{cl}{iter_str}\n')
 
     name_w = max(len(p.name) for p in params)
     for p in params:
@@ -198,19 +168,19 @@ def _load_params():
         sys.exit(1)
 
     print(f'Loaded from {path}')
-    return params
+    return params, path
 
 
-def _save_checkpoint(theta, baseline_params, rng, k, recent_wr, path):
+def _save_checkpoint(theta, baseline, rng, k, path):
     """Save theta + SPSA state to pickle."""
-    data = dict(baseline_params)
+    data = {}
     for p in PARAMS:
         val = theta[p.name]
         data[p.name] = round(val) if p.is_int else val
     data['_spsa_state'] = {
         'k': k,
         'rng_state': rng.getstate(),
-        'recent_wr': list(recent_wr),
+        'baseline': baseline,
     }
     save_pickle(DATA_DIR, PREFIX, data, path=path)
 
@@ -218,36 +188,36 @@ def _save_checkpoint(theta, baseline_params, rng, k, recent_wr, path):
 def run_spsa(resume=False):
     """Run SPSA optimization."""
     match_config = MatchConfig(GAMES_PER_TC)
-    baseline_params = _load_params()
+    loaded_params, loaded_path = _load_params()
 
     # Internal theta is float (continuous relaxation, even for ints)
-    theta = {p.name: float(baseline_params[p.name]) for p in PARAMS}
+    theta = {p.name: float(loaded_params[p.name]) for p in PARAMS}
 
-    A = A_FRAC * MAX_ITER
-    rng = random.Random(42)
-    recent_wr = []
+    # Baseline is the starting point for diff display
+    baseline = dict(theta)
+
+    rng = random.Random(RNG_SEED)
     start_k = 0
 
     # Restore SPSA state if resuming
-    spsa_state = baseline_params.get('_spsa_state')
+    spsa_state = loaded_params.get('_spsa_state')
     if resume:
         if spsa_state:
             start_k = spsa_state['k'] + 1
             rng.setstate(spsa_state['rng_state'])
-            recent_wr = spsa_state['recent_wr']
+            if 'baseline' in spsa_state:
+                baseline = spsa_state['baseline']
             print(f'Resuming from iteration {start_k}')
         else:
             print('Warning: --resume given but no SPSA state in pickle, starting fresh')
 
-    save_path = next_path(DATA_DIR, PREFIX, '.pkl')
+    save_path = loaded_path if resume else next_path(DATA_DIR, PREFIX, '.pkl')
 
-    _render(
-        PARAMS, baseline_params, theta,
-        start_k, MAX_ITER, None, None, None, first=True,
-    )
+    _render(PARAMS, baseline, theta, start_k, None, first=True)
 
+    k = start_k
     try:
-        for k in range(start_k, MAX_ITER):
+        while True:
             a_k = A_INIT / (k + 1 + A) ** ALPHA
 
             theta_plus, theta_minus, realized = _perturb(PARAMS, theta, rng, k)
@@ -262,29 +232,17 @@ def run_spsa(resume=False):
                 theta[p.name] += p.a * a_k * g
                 theta[p.name] = max(p.min_val, min(p.max_val, theta[p.name]))
 
-            recent_wr.append(win_rate)
-            if len(recent_wr) > CONVERGE_WINDOW:
-                recent_wr.pop(0)
-            avg_wr = sum(recent_wr) / len(recent_wr)
-
-            _render(
-                PARAMS, baseline_params, theta,
-                k + 1, MAX_ITER, win_rate, avg_wr, a_k,
-            )
+            _render(PARAMS, baseline, theta, k + 1, None)
 
             if (k + 1) % SAVE_INTERVAL == 0:
                 _save_checkpoint(
-                    theta, baseline_params, rng, k, recent_wr, save_path,
+                    theta, baseline, rng, k, save_path,
                 )
 
-            if (
-                len(recent_wr) >= CONVERGE_WINDOW
-                and abs(avg_wr - 0.5) < CONVERGE_EPS
-            ):
-                break
+            k += 1
 
     except KeyboardInterrupt:
         pass
 
-    _save_checkpoint(theta, baseline_params, rng, k, recent_wr, save_path)
+    _save_checkpoint(theta, baseline, rng, k - 1, save_path)
     print(f'\nSaved to {save_path}')

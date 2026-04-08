@@ -1,4 +1,4 @@
-*Part 14 of 16 — [← Prev: NNUE Evaluation](nnue.md) | [Next: Time Management →](time-management.md)*
+*Part 14 of 17 — [← Prev: NNUE Evaluation](nnue.md) | [Next: Time Management →](time-management.md)*
 
 # NNUE Training
 

@@ -45,11 +45,11 @@ public:
     // --- Async search ---
 
     /** Launch an async search with any combination of limits (depth, time, nodes). */
-    void search(const Board& board, SearchDepth max_depth, int soft_time, int hard_time, uint64_t max_nodes);
+    void search(const Board& board, SearchDepth max_depth, int max_time, uint64_t max_nodes);
     /** Launch an async search to a fixed depth. */
     void search_depth(const Board& board, SearchDepth depth);
-    /** Launch an async search with soft/hard time limits (ms). */
-    void search_time(const Board& board, int soft_time, int hard_time);
+    /** Launch an async search with a hard time limit (ms). */
+    void search_time(const Board& board, int max_time);
     /** Launch an async search bounded by a node count. */
     void search_nodes(const Board& board, uint64_t max_nodes);
     /** Launch an unbounded async search (stopped only by stop()). */
@@ -58,7 +58,7 @@ public:
     // --- Ponder support ---
 
     /** Apply limits to an already-running search (e.g. after ponderhit). */
-    void apply_limits(SearchDepth max_depth, int soft_time, int hard_time, uint64_t max_nodes);
+    void apply_limits(SearchDepth max_depth, int max_time, uint64_t max_nodes);
 
     // --- Control ---
 
@@ -81,11 +81,11 @@ public:
     // --- Synchronous search ---
 
     /** Blocking search with any combination of limits. */
-    SearchResult sync_search(Board& board, SearchDepth max_depth, int soft_time, int hard_time, uint64_t max_nodes);
+    SearchResult sync_search(Board& board, SearchDepth max_depth, int max_time, uint64_t max_nodes);
     /** Blocking search to a fixed depth. */
     SearchResult sync_search_depth(Board& board, SearchDepth depth);
-    /** Blocking search with time limits. */
-    SearchResult sync_search_time(Board& board, int soft_time, int hard_time);
+    /** Blocking search with a hard time limit. */
+    SearchResult sync_search_time(Board& board, int max_time);
     /** Blocking search bounded by node count. */
     SearchResult sync_search_nodes(Board& board, uint64_t max_nodes);
 
@@ -99,8 +99,7 @@ private:
         bool is_main_thread = false;
         SearchDepth max_depth = MAX_SEARCH_PLY - 1;
         uint64_t max_nodes = 0;
-        int soft_time = -1;
-        int hard_time = -1;
+        int max_time = -1;
         bool search_interrupted = false;
 
         uint64_t nodes = 0;

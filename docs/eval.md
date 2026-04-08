@@ -1,4 +1,4 @@
-*Part 7 of 16 — [← Prev: Move Generation](movegen.md) | [Next: Search →](search.md)*
+*Part 7 of 17 — [← Prev: Move Generation](movegen.md) | [Next: Search →](search.md)*
 
 # Evaluation
 

@@ -1,4 +1,4 @@
-*Part 10 of 16 — [← Prev: Transposition Table](transposition-table.md) | [Next: Pruning & Extensions →](pruning.md)*
+*Part 10 of 17 — [← Prev: Transposition Table](transposition-table.md) | [Next: Pruning & Extensions →](pruning.md)*
 
 # Move Ordering
 

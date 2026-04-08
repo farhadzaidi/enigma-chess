@@ -20,8 +20,8 @@ were tuned. It works, barely — but it has problems:
   interactions entirely.
 - **Signal is weak.** A 5 Elo improvement requires hundreds of games to measure reliably.
   You can't eyeball your way to 5 Elo.
-- **There are too many knobs.** Enigma has 38 tunable parameters. Even testing 3 values
-  per parameter means 3^38 combinations — more than the number of atoms in the universe.
+- **There are too many knobs.** Enigma has 25 tunable search parameters. Even testing 3 values
+  per parameter means 3^25 combinations — nearly a quadrillion.
 
 Automated tuning solves all three. It searches the parameter space systematically, measures
 results statistically, and finds combinations that no human would stumble on.
@@ -66,8 +66,8 @@ This is the essence of SPSA.
 
 SPSA is a gradient-free optimization algorithm. It estimates the gradient (which direction
 to move each parameter) from just **two** function evaluations per iteration, regardless
-of how many parameters you're tuning. For Enigma's 38 parameters, that means one match
-per iteration instead of 76 (two per parameter, which is what finite-difference methods
+of how many parameters you're tuning. For Enigma's 25 parameters, that means one match
+per iteration instead of 50 (two per parameter, which is what finite-difference methods
 would need).
 
 ### The Algorithm
@@ -182,17 +182,18 @@ that parameter is skipped entirely.
 
 ## The Parameters
 
-Enigma tunes 38 parameters simultaneously — 27 search parameters and 11 time management
-parameters. They're defined in `scripts/tune/spsa.py` and the tuned values are compiled
-into `src/data/params.hpp`.
+Enigma tunes 25 search parameters. They're defined in `scripts/tune/spsa.py` and the
+tuned values are compiled into `src/data/params.hpp`.
 
 Search parameters control pruning thresholds (futility margins, razoring depth, SEE
-cutoffs), reduction amounts (null move, LMR), and other search heuristics. Time management
-parameters control move estimation, time allocation factors, and emergency behavior. See
-[Pruning](pruning.md) and [Time Management](time-management.md) for what each one does.
+cutoffs), reduction amounts (null move, LMR), and other search heuristics. See
+[Pruning](pruning.md) for what each one does.
 
-All parameters use the same SPSA infrastructure — the `c` and `a` values are derived from
-their ranges, and the algorithm treats them identically. The only distinction is whether
-a parameter is an integer or a float.
+Time management constants are hand-tuned separately — see [Time Management](time-management.md)
+for the rationale.
+
+All tunable parameters use the same SPSA infrastructure — the `c` and `a` values are
+derived from their ranges, and the algorithm treats them identically. The only distinction
+is whether a parameter is an integer or a float.
 
 See [Tooling](tooling.md) for how to run the tuner and apply results.

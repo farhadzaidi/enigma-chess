@@ -33,7 +33,7 @@ SearchBenchResult run_search_bench(const SearchBenchFlags& flags) {
 
         Engine engine;
         engine.set_threads(flags.threads);
-        Move best_move = engine.sync_search_time(b, -1, SEARCH_BENCH_TIME_MS).move;
+        Move best_move = engine.sync_search_time(b, SEARCH_BENCH_TIME_MS).move;
         positions_tested++;
 
         if (best_move != expected_move) {

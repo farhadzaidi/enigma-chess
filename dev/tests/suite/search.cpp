@@ -101,6 +101,14 @@ bool test_mate_in_2(Board& b) {
         {"3k4/8/1K6/7Q/8/8/8/8 w - - 0 1", "h5f7", "queen + king forced mate in 2"},
         // White Qg1+, black king forced to h4, then Qg4#/Qh2#
         {"8/8/1Q6/5K2/8/7k/8/8 w - - 0 1", "b6g1", "queen + king forced mate in 2"},
+        // White Kf4: black pawn on a5 does not prevent the quiet mating net
+        {"8/8/8/p7/7k/4K3/8/6Q1 w - - 0 1", "e3f4", "quiet mate in 2 against king + pawn"},
+        // White Kg6: black pawn on g5 still leaves only one quiet mating net
+        {"7k/8/8/5QpK/8/8/8/8 w - - 0 1", "h5g6", "quiet mate in 2 against king + pawn"},
+        // White Kc5: defender pawn on e3 does not stop the quiet net
+        {"8/8/3K4/k7/8/4p3/4Q3/8 w - - 0 1", "d6c5", "quiet mate in 2 with extra defender pawn"},
+        // White Kf2: black pawn on b4 still allows a unique quiet mate in 2
+        {"8/8/8/Q7/1p6/4K3/7k/8 w - - 0 1", "e3f2", "quiet mate in 2 with edge pawn defender"},
     };
 
     for (const auto& tc : test_cases) {

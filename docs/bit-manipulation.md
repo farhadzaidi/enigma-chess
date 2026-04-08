@@ -1,4 +1,4 @@
-*Part 2 of 16 — [← Prev: Architecture Overview](overview.md) | [Next: Bitboards →](bitboards.md)*
+*Part 2 of 17 — [← Prev: Architecture Overview](overview.md) | [Next: Bitboards →](bitboards.md)*
 
 # Bit Manipulation
 

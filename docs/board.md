@@ -1,4 +1,4 @@
-*Part 4 of 16 — [← Prev: Bitboards](bitboards.md) | [Next: Moves & Make/Unmake →](moves.md)*
+*Part 4 of 17 — [← Prev: Bitboards](bitboards.md) | [Next: Moves & Make/Unmake →](moves.md)*
 
 # Board State
 

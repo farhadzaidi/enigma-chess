@@ -12,6 +12,7 @@
 #include "move_generator.hpp"
 #include "print.hpp"
 #include "notation.hpp"
+#include "time_manager.hpp"
 
 // --- LMR table ---
 
@@ -282,14 +283,15 @@ Move Engine::Context::get_countermove(const Board& board) const {
 }
 
 bool Engine::Context::has_runtime_limits() const {
-    return soft_time != -1 || hard_time != -1 || max_nodes > 0;
+    return max_time != -1 || max_nodes > 0;
 }
 
 void Engine::Context::set_deadlines_from(std::chrono::steady_clock::time_point now) {
     soft_deadline = std::chrono::steady_clock::time_point::max();
     hard_deadline = std::chrono::steady_clock::time_point::max();
-    if (soft_time != -1) soft_deadline = now + std::chrono::milliseconds(soft_time);
-    if (hard_time != -1) hard_deadline = now + std::chrono::milliseconds(hard_time);
+    if (max_time != -1) {
+        hard_deadline = now + std::chrono::milliseconds(max_time);
+    }
 }
 
 uint64_t Engine::Context::elapsed_ms() const {
@@ -558,29 +560,28 @@ uint64_t Engine::total_nodes() const {
 }
 
 void Engine::search_depth(const Board& board, SearchDepth depth) {
-    search(board, depth, -1, -1, 0);
+    search(board, depth, -1, 0);
 }
 
-void Engine::search_time(const Board& board, int soft_time, int hard_time) {
-    search(board, MAX_SEARCH_PLY - 1, soft_time, hard_time, 0);
+void Engine::search_time(const Board& board, int max_time) {
+    search(board, MAX_SEARCH_PLY - 1, max_time, 0);
 }
 
 void Engine::search_nodes(const Board& board, uint64_t max_nodes) {
-    search(board, MAX_SEARCH_PLY - 1, -1, -1, max_nodes);
+    search(board, MAX_SEARCH_PLY - 1, -1, max_nodes);
 }
 
 void Engine::search_infinite(const Board& board) {
-    search(board, MAX_SEARCH_PLY - 1, -1, -1, 0);
+    search(board, MAX_SEARCH_PLY - 1, -1, 0);
 }
 
-void Engine::apply_limits(SearchDepth max_depth, int soft_time, int hard_time, uint64_t max_nodes) {
+void Engine::apply_limits(SearchDepth max_depth, int max_time, uint64_t max_nodes) {
     if (contexts_.empty()) {
         return;
     }
     Context& ctx = contexts_[0];
     ctx.max_depth = max_depth;
-    ctx.soft_time = soft_time;
-    ctx.hard_time = hard_time;
+    ctx.max_time = max_time;
     ctx.max_nodes = max_nodes;
     ctx.set_deadlines_from(std::chrono::steady_clock::now());
 }
@@ -588,24 +589,23 @@ void Engine::apply_limits(SearchDepth max_depth, int soft_time, int hard_time, u
 Engine::SearchResult Engine::sync_search(
     Board& board,
     SearchDepth max_depth,
-    int soft_time,
-    int hard_time,
+    int max_time,
     uint64_t max_nodes
 ) {
-    search(board, max_depth, soft_time, hard_time, max_nodes);
+    search(board, max_depth, max_time, max_nodes);
     return finish();
 }
 
 Engine::SearchResult Engine::sync_search_depth(Board& board, SearchDepth depth) {
-    return sync_search(board, depth, -1, -1, 0);
+    return sync_search(board, depth, -1, 0);
 }
 
-Engine::SearchResult Engine::sync_search_time(Board& board, int soft_time, int hard_time) {
-    return sync_search(board, MAX_SEARCH_PLY - 1, soft_time, hard_time, 0);
+Engine::SearchResult Engine::sync_search_time(Board& board, int max_time) {
+    return sync_search(board, MAX_SEARCH_PLY - 1, max_time, 0);
 }
 
 Engine::SearchResult Engine::sync_search_nodes(Board& board, uint64_t max_nodes) {
-    return sync_search(board, MAX_SEARCH_PLY - 1, -1, -1, max_nodes);
+    return sync_search(board, MAX_SEARCH_PLY - 1, -1, max_nodes);
 }
 
 // --- Threading ---
@@ -613,8 +613,7 @@ Engine::SearchResult Engine::sync_search_nodes(Board& board, uint64_t max_nodes)
 void Engine::search(
     const Board& board,
     SearchDepth max_depth,
-    int soft_time,
-    int hard_time,
+    int max_time,
     uint64_t max_nodes
 ) {
     stop();
@@ -636,8 +635,7 @@ void Engine::search(
     // Only the main thread respects search limits; helpers search until signalled
     Context& main_ctx = contexts_[0];
     main_ctx.max_depth = max_depth;
-    main_ctx.soft_time = soft_time;
-    main_ctx.hard_time = hard_time;
+    main_ctx.max_time = max_time;
     main_ctx.max_nodes = max_nodes;
 
     for (int i = 0; i < num_threads_; i++) {
@@ -715,7 +713,13 @@ bool Engine::should_stop_search(Context& ctx) {
 
     auto now = std::chrono::steady_clock::now();
 
-    if (ctx.hard_time != -1 && now >= ctx.hard_deadline) {
+    if (now >= ctx.soft_deadline) {
+        ctx.search_interrupted = true;
+        external_stop_ = true;
+        return true;
+    }
+
+    if (ctx.max_time != -1 && now >= ctx.hard_deadline) {
         ctx.search_interrupted = true;
         external_stop_ = true;
         return true;
@@ -1059,16 +1063,15 @@ PositionScore Engine::negamax(
     // If the static eval is so far above beta that even after subtracting a
     // depth-scaled margin the opponent still can't beat it, cut the node early.
     if (can_apply_pruning(
-        alpha,
-        beta,
-        is_pv_node,
-        in_check,
-        depth,
-        prm.reverse_futility_max_depth
+            alpha,
+            beta,
+            is_pv_node,
+            in_check,
+            depth,
+            prm.reverse_futility_max_depth
     )) {
-        PositionScore rfp_margin =
-            prm.reverse_futility_margin_per_depth * depth
-            + prm.reverse_futility_margin_base;
+        PositionScore rfp_margin = 
+            prm.reverse_futility_margin_per_depth * depth + prm.reverse_futility_margin_base;
         if (eval() - rfp_margin >= beta) {
             return beta;
         }
@@ -1357,13 +1360,16 @@ Engine::SearchResult Engine::iterative_deepening(Board& board, Context& ctx, Sea
         return {NULL_MOVE, 0};
     }
 
-    SearchResult prev_result{NULL_MOVE, 0};
     SearchResult best_result{NULL_MOVE, 0};
-    int best_move_stability = 0;  // how many consecutive iterations picked the same move
+    Move last_best_move = NULL_MOVE;
 
     ctx.reset(board.ply());
     ctx.search_start = std::chrono::steady_clock::now();
     ctx.set_deadlines_from(ctx.search_start);
+
+    if (ctx.is_main_thread) {
+        g_tm().init_search(moves.size());
+    }
 
     while (true) {
         if (should_stop_search(ctx)) {
@@ -1372,18 +1378,6 @@ Engine::SearchResult Engine::iterative_deepening(Board& board, Context& ctx, Sea
 
         if (ctx.is_main_thread && depth > ctx.max_depth) {
             break;
-        }
-
-        // Stop after the soft deadline unless the score dropped significantly
-        // or the best move keeps changing (unstable search).
-        if (ctx.is_main_thread && ctx.has_runtime_limits() && ctx.soft_time != -1) {
-            bool soft_limit_hit = std::chrono::steady_clock::now() >= ctx.soft_deadline;
-            if (soft_limit_hit) {
-                bool score_dropped = (prev_result.score - best_result.score) > prm.score_drop_threshold;
-                if (!score_dropped && best_move_stability > prm.best_move_min_stability) {
-                    break;
-                }
-            }
         }
 
         // Start with a narrow window around the previous score, widening on
@@ -1423,16 +1417,27 @@ Engine::SearchResult Engine::iterative_deepening(Board& board, Context& ctx, Sea
             break;
         }
 
-        prev_result = best_result;
         if (depth_result.move != NULL_MOVE) {
+            // Track cross-depth best-move changes for instability signal
+            if (last_best_move != NULL_MOVE
+                && depth_result.move != last_best_move
+                && ctx.is_main_thread
+            ) {
+                g_tm().on_root_best_move_change();
+            }
+            last_best_move = depth_result.move;
             best_result = depth_result;
         }
 
-        // Track best-move stability for soft time management decision
-        if (best_result.move == prev_result.move) {
-            best_move_stability++;
-        } else {
-            best_move_stability = 0;
+        // Soft time management check
+        if (ctx.is_main_thread && ctx.has_runtime_limits()) {
+            if (g_tm().should_stop_after_depth(
+                depth,
+                best_result.score,
+                ctx.elapsed_ms()
+            )) {
+                break;
+            }
         }
 
         emit_search_info(ctx, depth, best_result.score);
@@ -1441,7 +1446,7 @@ Engine::SearchResult Engine::iterative_deepening(Board& board, Context& ctx, Sea
     }
 
     signal_stop(ctx);
-    
+
     // Fall back to the first legal move if search was interrupted before completing depth 1
     if (best_result.move == NULL_MOVE && !moves.is_empty()) {
         best_result.move = moves[0];

@@ -143,8 +143,8 @@ uv run -m tune                  # fresh tuning run
 uv run -m tune --resume         # resume interrupted run
 ```
 
-Each iteration perturbs all 38 parameters (search + time management) in random directions
-and plays 200 games per time control at 8+0 and 8+0.08. The gradient estimate from each
+Each iteration perturbs all 25 search parameters in random directions and plays games
+per time control at 8+0 and 8+0.08. The gradient estimate from each
 iteration nudges parameters toward stronger values. Perturbation size (`c`) and learning
 rate (`a`) are derived automatically from each parameter's range — no per-parameter tuning
 needed.

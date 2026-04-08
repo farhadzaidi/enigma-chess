@@ -11,6 +11,7 @@
 #include "perft.hpp"
 #include "print.hpp"
 #include "engine.hpp"
+#include "time_manager.hpp"
 #include "transposition_table.hpp"
 #include "types.hpp"
 #include "notation.hpp"
@@ -24,46 +25,12 @@ Engine& engine() {
 
 struct PendingLimits {
     SearchDepth max_depth = MAX_SEARCH_PLY - 1;
-    int soft_time = -1;
-    int hard_time = -1;
+    int max_time = -1;
     uint64_t max_nodes = 0;
 };
 
 PendingLimits pending_limits;
 bool has_pending_limits = false;
-
-struct TimeLimits {
-    int soft_time;
-    int hard_time;
-};
-
-/** Compute soft and hard time limits from clock state and game phase */
-TimeLimits calc_time_limit(Board& b, int remaining, int increment, int movestogo) {
-    int moves_left;
-    if (movestogo > 0) {
-        moves_left = movestogo;
-    } else {
-        // Estimate remaining moves based on game phase (more material = more moves left)
-        float phase_ratio = static_cast<float>(b.game_phase()) / MAX_GAME_PHASE;
-        moves_left = prm.moves_left_base + static_cast<int>(prm.moves_left_phase_scale * phase_ratio);
-    }
-
-    if (increment == 0) {
-        moves_left = std::max(moves_left, prm.min_moves_no_increment);
-    }
-
-    int base = remaining / moves_left + static_cast<int>(increment * prm.increment_fraction);
-    int soft = base * (increment == 0 ? prm.soft_factor_no_increment : prm.soft_factor_increment);
-    int hard = std::min(static_cast<int>(base * prm.hard_factor), remaining / prm.hard_cap_divisor);
-
-    // Emergency scaling: when time is critically low, play fast to avoid flagging
-    if (remaining < base * prm.emergency_trigger) {
-        soft = remaining / prm.emergency_soft_divisor;
-        hard = remaining / prm.emergency_hard_divisor;
-    }
-
-    return {soft, hard};
-}
 
 /** Respond to "uci" with engine identity, supported options, and "uciok" */
 void cmd_uci() {
@@ -87,7 +54,6 @@ void cmd_uci() {
 
     // --- Tunable search parameters ---
     uci_print("option name AspirationWindow type string");
-    uci_print("option name ScoreDropThreshold type string");
     uci_print("option name NullMoveBaseReduction type string");
     uci_print("option name NullMoveDeeperThreshold type string");
     uci_print("option name NullMoveMinDepth type string");
@@ -111,22 +77,8 @@ void cmd_uci() {
     uci_print("option name MinimumIIDDepth type string");
     uci_print("option name IIDDepthDivisor type string");
     uci_print("option name LMRPVReduction type string");
-    uci_print("option name BestMoveMinStability type string");
     uci_print("option name NullMoveDeepReduction type string");
     uci_print("option name HistoryMalusDivisor type string");
-    
-    // --- Tunable time management parameters ---
-    uci_print("option name MovesLeftBase type string");
-    uci_print("option name MovesLeftPhaseScale type string");
-    uci_print("option name MinMovesNoIncrement type string");
-    uci_print("option name IncrementFraction type string");
-    uci_print("option name SoftFactorNoIncrement type string");
-    uci_print("option name SoftFactorIncrement type string");
-    uci_print("option name HardFactor type string");
-    uci_print("option name HardCapDivisor type string");
-    uci_print("option name EmergencyTrigger type string");
-    uci_print("option name EmergencySoftDivisor type string");
-    uci_print("option name EmergencyHardDivisor type string");
 
     uci_print("uciok");
 }
@@ -147,8 +99,7 @@ void cmd_go(std::string& cmd, Board& b) {
     std::istringstream iss(cmd);
     std::string token;
 
-    int soft_time = -1;
-    int hard_time = -1;
+    int max_time = -1;
     SearchDepth max_depth = MAX_SEARCH_PLY - 1;
     uint64_t max_nodes = 0;
     bool has_depth = false;
@@ -170,7 +121,7 @@ void cmd_go(std::string& cmd, Board& b) {
         } else if (token == "movestogo") {
             iss >> movestogo;
         } else if (token == "movetime") {
-            iss >> hard_time;
+            iss >> max_time;
             has_movetime = true;
             has_explicit_limit = true;
         } else if (token == "nodes") {
@@ -191,29 +142,37 @@ void cmd_go(std::string& cmd, Board& b) {
         }
     }
 
+    g_tm().disable();
+
     if (!has_explicit_limit) {
-        hard_time = 50;
+        max_time = 50;
 
         int remaining = (b.to_move() == WHITE) ? wtime : btime;
         int increment = (b.to_move() == WHITE) ? winc : binc;
+        double phase_ratio = static_cast<double>(b.game_phase()) / MAX_GAME_PHASE;
 
         if (remaining != -1) {
-            TimeLimits limits = calc_time_limit(b, remaining, increment, movestogo);
-            soft_time = limits.soft_time;
-            hard_time = limits.hard_time;
+            max_time = g_tm().allocate_time(
+                remaining,
+                increment,
+                movestogo,
+                phase_ratio,
+                is_ponder_search
+            );
         }
+
     }
 
     engine().stop();
 
     if (is_ponder_search) {
-        pending_limits = {max_depth, soft_time, hard_time, max_nodes};
+        pending_limits = {max_depth, max_time, max_nodes};
         has_pending_limits = true;
         engine().search_infinite(b);
     } else if (is_infinite) {
         engine().search_infinite(b);
     } else {
-        engine().search(b, max_depth, soft_time, hard_time, max_nodes);
+        engine().search(b, max_depth, max_time, max_nodes);
     }
 }
 
@@ -222,8 +181,7 @@ void cmd_ponderhit() {
     if (has_pending_limits) {
         engine().apply_limits(
             pending_limits.max_depth,
-            pending_limits.soft_time,
-            pending_limits.hard_time,
+            pending_limits.max_time,
             pending_limits.max_nodes
         );
         has_pending_limits = false;
@@ -264,8 +222,6 @@ void cmd_setoption(const std::string& cmd) {
     // --- Tunable search parameters ---
     } else if (name == "AspirationWindow") {
         prm.aspiration_window = std::stoi(value);
-    } else if (name == "ScoreDropThreshold") {
-        prm.score_drop_threshold = std::stoi(value);
     } else if (name == "NullMoveBaseReduction") {
         prm.null_move_base_reduction = std::stoi(value);
     } else if (name == "NullMoveDeeperThreshold") {
@@ -314,36 +270,10 @@ void cmd_setoption(const std::string& cmd) {
         prm.iid_depth_divisor = std::stoi(value);
     } else if (name == "LMRPVReduction") {
         prm.lmr_pv_reduction = std::stoi(value);
-    } else if (name == "BestMoveMinStability") {
-        prm.best_move_min_stability = std::stoi(value);
     } else if (name == "NullMoveDeepReduction") {
         prm.null_move_deep_reduction = std::stoi(value);
     } else if (name == "HistoryMalusDivisor") {
         prm.history_malus_divisor = std::stoi(value);
-
-    // --- Tunable time management parameters ---
-    } else if (name == "MovesLeftBase") {
-        prm.moves_left_base = std::stoi(value);
-    } else if (name == "MovesLeftPhaseScale") {
-        prm.moves_left_phase_scale = std::stoi(value);
-    } else if (name == "MinMovesNoIncrement") {
-        prm.min_moves_no_increment = std::stoi(value);
-    } else if (name == "IncrementFraction") {
-        prm.increment_fraction = std::stod(value);
-    } else if (name == "SoftFactorNoIncrement") {
-        prm.soft_factor_no_increment = std::stod(value);
-    } else if (name == "SoftFactorIncrement") {
-        prm.soft_factor_increment = std::stod(value);
-    } else if (name == "HardFactor") {
-        prm.hard_factor = std::stod(value);
-    } else if (name == "HardCapDivisor") {
-        prm.hard_cap_divisor = std::stoi(value);
-    } else if (name == "EmergencyTrigger") {
-        prm.emergency_trigger = std::stoi(value);
-    } else if (name == "EmergencySoftDivisor") {
-        prm.emergency_soft_divisor = std::stoi(value);
-    } else if (name == "EmergencyHardDivisor") {
-        prm.emergency_hard_divisor = std::stoi(value);
     }
 }
 

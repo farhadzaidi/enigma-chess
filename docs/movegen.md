@@ -1,4 +1,4 @@
-*Part 6 of 16 — [← Prev: Moves & Make/Unmake](moves.md) | [Next: Evaluation →](eval.md)*
+*Part 6 of 17 — [← Prev: Moves & Make/Unmake](moves.md) | [Next: Evaluation →](eval.md)*
 
 # Move Generation
 

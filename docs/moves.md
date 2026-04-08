@@ -1,4 +1,4 @@
-*Part 5 of 16 — [← Prev: Board State](board.md) | [Next: Move Generation →](movegen.md)*
+*Part 5 of 17 — [← Prev: Board State](board.md) | [Next: Move Generation →](movegen.md)*
 
 # Moves & Make/Unmake
 

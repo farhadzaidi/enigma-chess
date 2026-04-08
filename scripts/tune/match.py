@@ -24,6 +24,7 @@ TIME_CONTROLS = [
 ]
 
 MATCH_SEED = 42
+MOVE_OVERHEAD_SEC = 0.01
 
 
 class MatchConfig:
@@ -102,8 +103,13 @@ def _play_game(engine_a, engine_b, opening_moves, tc):
 
         if result.move is None:
             break
+
+        # Forfeit if the move took longer than remaining time (with overhead)
+        if elapsed + MOVE_OVERHEAD_SEC > times[side]:
+            return 0.0 if side == 0 else 1.0
+
         board.push(result.move)
-        times[side] = max(0.0, times[side] - elapsed + inc_sec)
+        times[side] = times[side] - elapsed - MOVE_OVERHEAD_SEC + inc_sec
 
     result = board.result(claim_draw=True)
     if result == '1-0':

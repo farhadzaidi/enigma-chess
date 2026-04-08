@@ -1,4 +1,4 @@
-*Part 12 of 16 — [← Prev: Pruning & Extensions](pruning.md) | [Next: NNUE Evaluation →](nnue.md)*
+*Part 12 of 17 — [← Prev: Pruning & Extensions](pruning.md) | [Next: NNUE Evaluation →](nnue.md)*
 
 # Advanced Search
 

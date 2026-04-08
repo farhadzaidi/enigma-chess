@@ -1,4 +1,4 @@
-*Part 3 of 16 — [← Prev: Bit Manipulation](bit-manipulation.md) | [Next: Board State →](board.md)*
+*Part 3 of 17 — [← Prev: Bit Manipulation](bit-manipulation.md) | [Next: Board State →](board.md)*
 
 # Bitboards
 

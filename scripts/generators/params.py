@@ -16,7 +16,6 @@ OUTPUT = PROJECT_ROOT / 'src' / 'data' / 'params.hpp'
 PARAMS = [
     # Search
     ('AspirationWindow', 'ASPIRATION_WINDOW', 25),
-    ('ScoreDropThreshold', 'SCORE_DROP_THRESHOLD', 50),
     ('NullMoveBaseReduction', 'NULL_MOVE_BASE_REDUCTION', 2),
     ('NullMoveDeeperThreshold', 'NULL_MOVE_DEEPER_THRESHOLD', 6),
     ('NullMoveMinDepth', 'NULL_MOVE_MIN_DEPTH', 3),
@@ -40,21 +39,8 @@ PARAMS = [
     ('MinimumIIDDepth', 'MINIMUM_IID_DEPTH', 4),
     ('IIDDepthDivisor', 'IID_DEPTH_DIVISOR', 2),
     ('LMRPVReduction', 'LMR_PV_REDUCTION', 1),
-    ('BestMoveMinStability', 'BEST_MOVE_MIN_STABILITY', 0),
     ('NullMoveDeepReduction', 'NULL_MOVE_DEEP_REDUCTION', 5),
     ('HistoryMalusDivisor', 'HISTORY_MALUS_DIVISOR', 2),
-    # Time management
-    ('MovesLeftBase', 'MOVES_LEFT_BASE', 10),
-    ('MovesLeftPhaseScale', 'MOVES_LEFT_PHASE_SCALE', 30),
-    ('MinMovesNoIncrement', 'MIN_MOVES_NO_INCREMENT', 45),
-    ('IncrementFraction', 'INCREMENT_FRACTION', 0.5),
-    ('SoftFactorNoIncrement', 'SOFT_FACTOR_NO_INCREMENT', 0.5),
-    ('SoftFactorIncrement', 'SOFT_FACTOR_INCREMENT', 0.6),
-    ('HardFactor', 'HARD_FACTOR', 2.625),
-    ('HardCapDivisor', 'HARD_CAP_DIVISOR', 3),
-    ('EmergencyTrigger', 'EMERGENCY_TRIGGER', 4),
-    ('EmergencySoftDivisor', 'EMERGENCY_SOFT_DIVISOR', 15),
-    ('EmergencyHardDivisor', 'EMERGENCY_HARD_DIVISOR', 8),
 ]
 
 

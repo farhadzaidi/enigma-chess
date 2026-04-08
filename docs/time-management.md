@@ -15,9 +15,6 @@ Get it wrong and you either:
 - **Waste time on easy moves** — less dramatic but still costly. That time could have been
   spent on harder positions later.
 
-Time management is implemented in `src/uci.cpp` (allocation) and `src/engine.cpp`
-(enforcement during search).
-
 ## When Time Management Applies
 
 Everything below applies to **clock-based** time controls (`go wtime/btime`), which is
@@ -25,140 +22,158 @@ the normal case in games. UCI also supports `go movetime X` (fixed time per move
 use it all) and `go infinite` (think until the GUI sends `stop`). In those modes there's
 nothing to manage.
 
-## Two Deadlines
+## Building Up From Scratch
 
-The engine computes two deadlines before each search:
+Before diving into what Enigma does, it helps to see why simpler approaches fall short.
 
-**Soft limit** — the target thinking time. After each iteration of iterative deepening,
-the engine checks whether the soft deadline has passed. If it has and the search has
-settled on a move, stop. If the situation is uncertain (score dropping, best move
-changing), keep going.
-
-**Hard limit** — the absolute maximum. The search stops immediately when this is reached,
-even mid-iteration. This is the safety net — no matter how complex the position, you can't
-spend more than this.
-
-The soft limit is where the intelligence is. The hard limit is where the safety is.
-
-## Estimating Moves Remaining
-
-The first step: how many moves are left in the game? This determines how to divide the
-remaining clock.
-
-If the GUI sends `movestogo` (some time controls specify moves until the next time
-increment), use that directly. Otherwise, estimate from the game phase:
+**Fixed time per move.** Divide the remaining clock evenly:
 
 ```
-moves_left = base_moves + phase_ratio × phase_scale
+time_per_move = remaining / estimated_moves_left
 ```
 
-`phase_ratio` is the material-based game phase (1.0 at full material, 0.0 with bare
-kings — see the game phase section in [Board State](board.md)). `base_moves` sets the
-floor for endgames. `phase_scale` controls how much the opening/middlegame inflates the
-estimate.
+Pick 30 or 40 for `estimated_moves_left` and you'll rarely flag. But not all positions
+deserve equal time — a forced recapture needs milliseconds, while a complex middlegame
+might benefit from seconds of extra thought.
 
-In the opening with all pieces, the estimate is deliberately high — conserving time for
-the long game. As pieces trade off, it drops toward `base_moves`.
+**Soft and hard limits.** The next step is splitting the budget into two deadlines: a
+**soft limit** (target time — stop here if things look settled) and a **hard limit**
+(absolute maximum — never exceed this). The soft limit is checked between depth iterations.
+The hard limit is enforced mid-search — it prevents a single exploding iteration from
+draining the clock.
 
-All constants are auto-tuned (stored in `src/data/params.hpp`). SPSA plays hundreds of
-games per iteration, perturbing all parameters simultaneously to find the values that
-maximize playing strength while minimizing time forfeits.
+Easy positions stop at the soft limit, complex ones push toward the hard limit. But both
+are still computed once before the search starts. A smarter system would adjust based on
+what the search actually finds.
 
-## Allocating Time
+## How Enigma Does It
 
-The time allocation formula in `src/uci.cpp` (lines 41-66):
+Enigma uses the soft/hard framework, but the stop decision is made dynamically after each
+completed depth based on what the search found.
 
-```
-base = remaining / moves_left + increment × increment_fraction
-```
+The implementation lives in `src/time_manager.hpp` and `src/time_manager.cpp`. The
+`TimeManager` class has three entry points:
 
-The increment fraction is slightly below 1.0 — the engine holds back a small safety
-buffer rather than spending the entire increment each move.
+1. **`allocate_time()`** — called before each search, computes the base soft and hard
+   limits from the clock state.
+2. **`init_search()`** — resets per-search tracking state.
+3. **`should_stop_after_depth()`** — called after each completed depth, decides whether
+   to stop or keep searching.
 
-### Soft Limit
+## Time Allocation
 
-```
-soft = base × soft_factor
-```
+The first step is computing a time budget from the clock state.
 
-The soft factor differs depending on whether the time control has increment. With
-increment, it's smaller (more conservative) because increment-based time controls tend
-to have less total remaining time.
+### Safety Reserve
 
-### Hard Limit
+Before dividing up the clock, the engine holds back a safety reserve that scales with the
+remaining time so it never flags. With increment the reserve can be smaller since time is
+replenished each move (2% of remaining, or a multiple of the increment, whichever is
+larger). Without increment the engine needs a bigger cushion (5% of remaining, with a
+higher minimum floor).
 
-```
-hard = min(base × hard_factor, remaining / hard_cap_divisor)
-```
+### Estimating Moves Remaining
 
-The hard factor gives room for complex positions. The cap (typically half the remaining
-clock) is an absolute safeguard — never spend too much on one move.
+The engine needs to know how many moves to spread the clock across. If the GUI provides
+`movestogo` (some time controls tell you how many moves until the next time top-up), that
+number is used directly.
+
+Otherwise the engine estimates from the game phase. A `phase_ratio` derived from the
+material on the board (1.0 at the start, 0.0 in a bare endgame) scales between many moves
+remaining and few. Without increment the estimate is floored higher to avoid running low.
+
+### Base, Soft, and Hard Limits
+
+The base time divides the spendable clock (remaining minus reserve) evenly across estimated
+moves, then credits a portion of the increment as bonus time.
+
+The **soft target** is slightly below the base — a scaling factor (different for increment
+vs no-increment games) leaves headroom so the search can finish its current iteration
+gracefully rather than cutting off mid-depth.
+
+The **hard max** is the absolute ceiling — a multiple of the base time, but never more than
+the full spendable clock. This lets the engine extend on complex positions without risking
+the whole game.
 
 ### Emergency Mode
 
-When remaining time is critically low (below a tunable trigger):
+When the clock is critically low relative to the base allocation, both limits are
+overridden to tiny fractions of the remaining time — fast shallow moves to avoid flagging.
 
-```
-soft = remaining / emergency_soft_divisor
-hard = remaining / emergency_hard_divisor
-```
+### Ponder Bonus
 
-Panic mode. The engine abandons deep search and just tries to play reasonable moves fast
-enough to survive.
+When pondering (thinking on the opponent's turn), the engine can afford a larger soft
+target since it already has a head start.
 
-## Continuing Past the Soft Limit
+## Soft Time: Deciding When to Stop
 
-The soft limit isn't a hard stop — it's a suggestion. The search continues past it when
-either condition holds:
+After each completed depth in iterative deepening, `should_stop_after_depth()` decides
+whether to keep going or stop.
 
-### Score Drop
+The decision is based on two signals and one optimization:
 
-If the score fell by more than `score_drop_threshold` since the previous iteration,
-something dramatic happened — the engine just discovered it's losing a piece, or found a
-deep tactical sequence. Stopping now would commit to a move chosen *before* this
-discovery.
+### Best Move Stability
 
-### Best-Move Instability
+The engine tracks how many consecutive depths the best move has been the same. If the best
+move keeps changing between iterations, the position is uncertain and more time is
+warranted. If it's been stable, the engine is confident and can stop sooner.
 
-If the best move keeps changing between iterations, the engine hasn't converged. Committing
-to whichever move happens to be best at the moment of the soft deadline is risky.
+### Score Drop Detection
 
-The stability counter tracks consecutive iterations with the same best move. If it's zero
-(the move just changed), keep searching. Once it's positive (stable for at least one
-iteration) and the score hasn't dropped, stop.
+If the score drops significantly between iterations, the position is more complicated than
+it appeared. The engine refuses to stop early — it keeps searching even past the soft
+target to avoid committing to a move when something has gone wrong.
 
-These extensions can push thinking time up to the hard limit — which is why the hard limit
-exists.
+### Winning Position Speedup
 
-## Clock Checking
+When the engine is clearly winning and the best move is stable, the soft target is reduced
+so it moves faster. There's no point burning clock to distinguish +5.0 from +5.2 — both
+are winning. The reduction scales linearly from a moderate advantage up to a decisive one.
 
-Reading the system clock is a syscall. Cheap by syscall standards (~50-200ns) but not free
-when called millions of times per second. At 10M nodes/sec, a 100ns clock read on every
-node would be a significant overhead.
+### The Stop Decision
 
-Instead, the clock is checked every **2048 nodes**, detected via a bitmask
-(`should_stop_search()` in `src/engine.hpp:163`):
+Putting it together: after each depth, once elapsed time exceeds the (possibly reduced)
+soft target, the engine stops — but only if the best move is stable **and** the score
+hasn't dropped. If either condition fails, it keeps searching up to the hard max.
+
+## Hard Time Enforcement
+
+The hard limit is the only mid-search safety net. Soft time is checked between depth
+iterations (a natural stopping point), but a single iteration can take much longer than
+expected. The hard limit needs to be enforced **during** search — potentially millions of
+nodes into an iteration.
+
+Reading the system clock on every node would be wasteful — at 10M nodes/sec, even a cheap
+100ns syscall adds up to ~1% of search time. Instead, the clock is checked every **2048
+nodes** via a bitmask (`should_stop_search()` in `src/engine.cpp`):
 
 ```
 (nodes & 2047) == 0
 ```
 
-This bitmask check compiles to a single AND instruction — essentially free. At 10M
-nodes/sec, the clock is read ~5000 times per second.
+This compiles to a single AND instruction. At 10M nodes/sec the clock is read ~5000 times
+per second — the worst-case overshoot is the time to search 2048 nodes, well under a
+millisecond.
 
-Only the main thread checks time. Helper threads run until `main_finished_` is set by
-the main thread.
+Only the main thread checks time. Helper threads run until the main thread signals them
+to stop.
 
-## The Tuning Dimension
+## Tuning the Constants
 
-Every constant in time management — base moves, phase scale, soft/hard factors, emergency
-thresholds, score drop threshold — is a tunable parameter. Enigma tunes them alongside
-all search parameters using SPSA, which perturbs everything simultaneously and uses the
-win rate gradient to converge on optimal values.
+Search parameters are tuned with SPSA (see [Parameter Tuning](tuning.md)), which needs
+thousands of games for statistical significance. To keep each run practical, games are
+played at very short time controls (8+0.08s). That works for search parameters — they
+behave similarly regardless of TC.
 
-This is important because time management interacts with search quality in non-obvious
-ways. Spending more time per move means deeper search, but also less time for future
-moves. The optimal balance depends on game length, increment, search efficiency, and even
-opponent strength. Automated tuning navigates this space better than manual adjustment.
+Time management constants are a different story. The whole point of TM is to play well at
+real human time controls — 1+0 (bullet), 3+2 (blitz), 15+10 (rapid) — and these have
+very different pressure profiles from an 8-second TC. At 8+0.08 the clock is always
+healthy, emergency mode rarely triggers, the moves-left estimate barely matters, and subtle
+reserve issues never surface. Constants that look fine there can cause flagging or wasteful
+spending at the TCs that actually matter.
 
-See [Tooling](tooling.md) for how to run the tuning pipeline.
+For this reason, TM constants are hand-tuned by playing real games online and observing
+clock behavior directly: whether the reserve holds up through the endgame, whether the
+engine flags in won positions, whether it wastes time on moves that don't need it, and
+whether spending spikes in already-decided positions. This is slower than automated tuning
+but captures behavior that short-TC optimization cannot.
