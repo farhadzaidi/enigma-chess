@@ -756,13 +756,19 @@ void Engine::emit_search_info(const Context& ctx, SearchDepth depth, PositionSco
     int mate_in = (plies_to_mate + 1) / 2 * (score > 0 ? 1 : -1);
     std::string score_str = is_mate ? "mate " + std::to_string(mate_in) : "cp " + std::to_string(score);
 
+    std::string pv_str;
+    for (int i = 0; i < ctx.pv_length[0]; i++) {
+        pv_str += " " + decode_move_to_uci(ctx.pv[0][i]);
+    }
+
     uci_print(
         "info"
         " depth " + std::to_string(depth) +
         " score " + score_str +
         " nodes " + std::to_string(nodes) +
         " nps " + std::to_string(nps) +
-        " time " + std::to_string(elapsed_ms)
+        " time " + std::to_string(elapsed_ms) +
+        (pv_str.empty() ? "" : " pv" + pv_str)
     );
 }
 
@@ -854,6 +860,14 @@ Engine::TTProbeResult Engine::probe_tt(
     }
 
     return {NULL_MOVE, false, 0, 0, TT_FAIL_LOW};
+}
+
+void Engine::update_pv(Context& ctx, int ply, Move move) {
+    ctx.pv[ply][0] = move;
+    for (int i = 0; i < ctx.pv_length[ply + 1]; i++) {
+        ctx.pv[ply][i + 1] = ctx.pv[ply + 1][i];
+    }
+    ctx.pv_length[ply] = 1 + ctx.pv_length[ply + 1];
 }
 
 void Engine::update_killer_table(Context& ctx, Move move, int ply) {
@@ -1000,7 +1014,12 @@ PositionScore Engine::negamax(
     Move excluded_move
 ) {
     PositionScore original_alpha = alpha;
+    int ply = ctx.search_ply(board.ply());
     ctx.nodes++;
+
+    if (ctx.is_main_thread) {
+        ctx.pv_length[ply] = 0;
+    }
 
     if (should_stop_search(ctx)) {
         ctx.search_interrupted = true;
@@ -1265,6 +1284,10 @@ PositionScore Engine::negamax(
 
         if (score > alpha) {
             alpha = score;
+
+            if (ctx.is_main_thread) {
+                update_pv(ctx, ply, move);
+            }
         }
 
         if (move.type() == MT_QUIET) {
@@ -1298,6 +1321,11 @@ Engine::SearchResult Engine::search_at_depth(
     PositionScore alpha,
     PositionScore beta
 ) {
+    int ply = ctx.search_ply(board.ply());
+    if (ctx.is_main_thread) {
+        ctx.pv_length[ply] = 0;
+    }
+
     SearchResult best_result{NULL_MOVE, DUMMY_SCORE};
     MoveList searched_quiet_moves;
     TTEntry* tt_entry = g_tt.get_entry(board.position_hash());
@@ -1337,6 +1365,10 @@ Engine::SearchResult Engine::search_at_depth(
 
         if (score > alpha) {
             alpha = score;
+
+            if (ctx.is_main_thread) {
+                update_pv(ctx, ply, move);
+            }
         }
 
         if (move.type() == MT_QUIET) {

@@ -105,6 +105,10 @@ private:
         uint64_t nodes = 0;
         int ply_offset = 0;  // board ply at root, so search_ply = board_ply - ply_offset
 
+        // Principal variation table
+        Move pv[MAX_SEARCH_PLY][MAX_SEARCH_PLY];
+        int pv_length[MAX_SEARCH_PLY] = {};
+
         using KillerMoves = std::array<Move, MAX_SEARCH_PLY>;
         using SidePieceToHistory = std::array<std::array<std::array<MoveScore, NUM_SQUARES>, NUM_PIECES>, NUM_SIDES>;
         using FromToHistory = std::array<std::array<MoveScore, NUM_SQUARES>, NUM_SQUARES>;
@@ -227,6 +231,9 @@ private:
 
     // --- Internal helpers ---
 
+    /** Prepend a move to the child's PV line, building the PV for the current ply. */
+    static void update_pv(Context& ctx, int ply, Move move);
+    /** Slot a new killer move into the two-slot killer table for this ply. */
     static void update_killer_table(Context& ctx, Move move, int ply);
     /** Update killer, history, and butterfly tables on a beta cutoff. */
     static void handle_beta_cutoff(Board& b, Context& ctx, Move cutoff_move, SearchDepth depth, MoveList& searched_quiet_moves);
