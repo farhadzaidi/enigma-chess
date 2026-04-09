@@ -26,6 +26,8 @@ constexpr MoveScore MIN_MOVE_SCORE = -MAX_MOVE_SCORE;
 
 constexpr int MIN_THREADS = 1;
 constexpr int MAX_THREADS = 64;
+constexpr int MIN_MULTI_PV = 1;
+constexpr int MAX_MULTI_PV = 16;
 
 // --- Engine ---
 
@@ -69,9 +71,12 @@ public:
 
     // --- Config ---
 
-    /** Set the number of search threads (clamped to [1, 64]). */
+    /** Set the number of search threads. */
     void set_threads(int n);
+    /** Enable or disable the compiled-in opening book. */
     void set_use_opening_book(bool enabled);
+    /** Set the number of principal variations to report. */
+    void set_multi_pv(int n);
 
     // --- Info ---
 
@@ -145,6 +150,7 @@ private:
     std::atomic<bool> main_finished_{false};
     bool use_opening_book_ = true;
     int num_threads_ = 1;
+    int multi_pv_ = -1;
 
     std::thread main_thread_;
     std::vector<std::thread> helper_threads_;
@@ -169,7 +175,11 @@ private:
 
     // --- UCI output ---
 
-    void emit_search_info(const Context& ctx, SearchDepth depth, PositionScore score);
+    /** Whether multi-PV mode has been explicitly enabled. */
+    bool is_multi_pv_enabled() const;
+    /** Print a UCI info line with depth, score, nodes, PV, and multi-PV index. */
+    void emit_search_info(const Context& ctx, SearchDepth depth, PositionScore score, int multipv = 0);
+    /** Print UCI bestmove with the engine's best move and optionally a ponder move. */
     void emit_best_move(Board& board);
 
     // --- TT helpers ---
@@ -223,7 +233,8 @@ private:
         SearchDepth depth,
         Move prev_best_move,
         PositionScore alpha,
-        PositionScore beta
+        PositionScore beta,
+        const MoveList& excluded_moves = {}
     );
 
     /** Iterative deepening loop with aspiration windows and soft time management. */

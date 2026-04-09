@@ -52,6 +52,12 @@ void cmd_uci() {
     uci_print("option name Ponder type check default false");
     uci_print("option name OwnBook type check default true");
 
+    std::string multipv_option = "option name MultiPV type spin"
+        " default " + std::to_string(MIN_MULTI_PV) +
+        " min " + std::to_string(MIN_MULTI_PV) +
+        " max " + std::to_string(MAX_MULTI_PV);
+    uci_print(multipv_option);
+
     // --- Tunable search parameters ---
     uci_print("option name AspirationWindow type string");
     uci_print("option name NullMoveBaseReduction type string");
@@ -216,6 +222,8 @@ void cmd_setoption(const std::string& cmd) {
         g_tt.resize(std::stoi(value));
     } else if (name == "OwnBook") {
         engine().set_use_opening_book(value == "true");
+    } else if (name == "MultiPV") {
+        engine().set_multi_pv(std::stoi(value));
     } else if (name == "Ponder") {
         // Accepted but unused; go ponder is always respected.
 

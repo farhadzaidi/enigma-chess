@@ -541,6 +541,14 @@ void Engine::set_use_opening_book(bool enabled) {
     use_opening_book_ = enabled;
 }
 
+void Engine::set_multi_pv(int n) {
+    multi_pv_ = std::clamp(n, MIN_MULTI_PV, MAX_MULTI_PV);
+}
+
+bool Engine::is_multi_pv_enabled() const {
+    return multi_pv_ != -1;
+}
+
 void Engine::stop() {
     external_stop_ = true;
     finish();
@@ -742,7 +750,7 @@ void Engine::signal_stop(const Context& ctx) {
 
 // --- UCI output ---
 
-void Engine::emit_search_info(const Context& ctx, SearchDepth depth, PositionScore score) {
+void Engine::emit_search_info(const Context& ctx, SearchDepth depth, PositionScore score, int multipv) {
     if (!ctx.is_main_thread) {
         return;
     }
@@ -764,6 +772,7 @@ void Engine::emit_search_info(const Context& ctx, SearchDepth depth, PositionSco
     uci_print(
         "info"
         " depth " + std::to_string(depth) +
+        (is_multi_pv_enabled() ? " multipv " + std::to_string(multipv) : "") +
         " score " + score_str +
         " nodes " + std::to_string(nodes) +
         " nps " + std::to_string(nps) +
@@ -1319,7 +1328,8 @@ Engine::SearchResult Engine::search_at_depth(
     SearchDepth depth,
     Move prev_best_move,
     PositionScore alpha,
-    PositionScore beta
+    PositionScore beta,
+    const MoveList& excluded_moves
 ) {
     int ply = ctx.search_ply(board.ply());
     if (ctx.is_main_thread) {
@@ -1337,6 +1347,12 @@ Engine::SearchResult Engine::search_at_depth(
         Move move = move_selector.next_move(ctx);
         if (move == NULL_MOVE) {
             break;
+        }
+
+        if (is_multi_pv_enabled()
+            && std::find(excluded_moves.begin(), excluded_moves.end(), move) != excluded_moves.end()
+        ) {
+            continue;
         }
 
         board.make_move(move);
@@ -1392,7 +1408,8 @@ Engine::SearchResult Engine::iterative_deepening(Board& board, Context& ctx, Sea
         return {NULL_MOVE, 0};
     }
 
-    SearchResult best_result{NULL_MOVE, 0};
+    int num_pvs = (ctx.is_main_thread && is_multi_pv_enabled()) ? multi_pv_ : 1;
+    std::vector<SearchResult> pv_results(num_pvs, {NULL_MOVE, 0});
     Move last_best_move = NULL_MOVE;
 
     ctx.reset(board.ply());
@@ -1404,75 +1421,85 @@ Engine::SearchResult Engine::iterative_deepening(Board& board, Context& ctx, Sea
     }
 
     while (true) {
-        if (should_stop_search(ctx)) {
-            break;
-        }
-
         if (ctx.is_main_thread && depth > ctx.max_depth) {
             break;
         }
 
-        // Start with a narrow window around the previous score, widening on
-        // fail-high/fail-low. Use full window at depth 1 since there's no prior score.
-        int alpha;
-        int beta;
-        int alpha_delta = prm.aspiration_window;
-        int beta_delta = prm.aspiration_window;
-        if (depth == 1) {
-            alpha = -CHECKMATE_SCORE;
-            beta = CHECKMATE_SCORE;
-        } else {
-            alpha = std::max(best_result.score - alpha_delta, -static_cast<int>(CHECKMATE_SCORE));
-            beta = std::min(best_result.score + beta_delta, static_cast<int>(CHECKMATE_SCORE));
-        }
+        MoveList excluded_moves;
 
-        // Re-search with exponentially wider windows on fail-high/fail-low
-        SearchResult depth_result;
-        while (true) {
+        for (int pv = 0; pv < num_pvs; pv++) {
             if (should_stop_search(ctx)) {
                 break;
             }
 
-            depth_result = search_at_depth(board, ctx, depth, best_result.move, alpha, beta);
-            if (depth_result.score <= alpha) {
-                alpha_delta *= 2;
-                alpha = std::max(best_result.score - alpha_delta, -static_cast<int>(CHECKMATE_SCORE));
-            } else if (depth_result.score >= beta) {
-                beta_delta *= 2;
-                beta = std::min(best_result.score + beta_delta, static_cast<int>(CHECKMATE_SCORE));
+            SearchResult& prev = pv_results[pv];
+
+            // Start with a narrow window around the previous score, widening on
+            // fail-high/fail-low. Use full window at depth 1 since there's no prior score.
+            int alpha;
+            int beta;
+            int alpha_delta = prm.aspiration_window;
+            int beta_delta = prm.aspiration_window;
+            if (depth == 1) {
+                alpha = -CHECKMATE_SCORE;
+                beta = CHECKMATE_SCORE;
             } else {
+                alpha = std::max(prev.score - alpha_delta, -static_cast<int>(CHECKMATE_SCORE));
+                beta = std::min(prev.score + beta_delta, static_cast<int>(CHECKMATE_SCORE));
+            }
+
+            // Re-search with exponentially wider windows on fail-high/fail-low
+            SearchResult depth_result;
+            while (true) {
+                if (should_stop_search(ctx)) {
+                    break;
+                }
+
+                depth_result = search_at_depth(board, ctx, depth, prev.move, alpha, beta, excluded_moves);
+                if (depth_result.score <= alpha) {
+                    alpha_delta *= 2;
+                    alpha = std::max(prev.score - alpha_delta, -static_cast<int>(CHECKMATE_SCORE));
+                } else if (depth_result.score >= beta) {
+                    beta_delta *= 2;
+                    beta = std::min(prev.score + beta_delta, static_cast<int>(CHECKMATE_SCORE));
+                } else {
+                    break;
+                }
+            }
+
+            if (should_stop_search(ctx)) {
                 break;
             }
-        }
 
-        if (should_stop_search(ctx)) {
-            break;
-        }
+            if (depth_result.move != NULL_MOVE) {
+                if (pv == 0) {
+                    // Track cross-depth best-move changes for instability signal
+                    if (last_best_move != NULL_MOVE
+                        && depth_result.move != last_best_move
+                        && ctx.is_main_thread
+                    ) {
+                        g_tm().on_root_best_move_change();
+                    }
+                    last_best_move = depth_result.move;
+                }
 
-        if (depth_result.move != NULL_MOVE) {
-            // Track cross-depth best-move changes for instability signal
-            if (last_best_move != NULL_MOVE
-                && depth_result.move != last_best_move
-                && ctx.is_main_thread
-            ) {
-                g_tm().on_root_best_move_change();
+                prev = depth_result;
+                excluded_moves.add(depth_result.move);
             }
-            last_best_move = depth_result.move;
-            best_result = depth_result;
+
+            emit_search_info(ctx, depth, prev.score, pv + 1);
         }
 
-        // Soft time management check
+        // Soft time management
         if (ctx.is_main_thread && ctx.has_runtime_limits()) {
             if (g_tm().should_stop_after_depth(
                 depth,
-                best_result.score,
+                pv_results[0].score,
                 ctx.elapsed_ms()
             )) {
                 break;
             }
         }
-
-        emit_search_info(ctx, depth, best_result.score);
 
         depth++;
     }
@@ -1480,8 +1507,8 @@ Engine::SearchResult Engine::iterative_deepening(Board& board, Context& ctx, Sea
     signal_stop(ctx);
 
     // Fall back to the first legal move if search was interrupted before completing depth 1
-    if (best_result.move == NULL_MOVE && !moves.is_empty()) {
-        best_result.move = moves[0];
+    if (pv_results[0].move == NULL_MOVE && !moves.is_empty()) {
+        pv_results[0].move = moves[0];
     }
-    return best_result;
+    return pv_results[0];
 }
