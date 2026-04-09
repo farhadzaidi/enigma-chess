@@ -99,20 +99,31 @@ private:
 
     // --- Types ---
 
-    /** Per-thread search state: limits, counters, and move-ordering tables. */
-    struct Context {
-        bool is_main_thread = false;
+    /** Main-thread-only state: search limits, deadlines, and PV table. */
+    struct MainState {
         SearchDepth max_depth = MAX_SEARCH_PLY - 1;
         uint64_t max_nodes = 0;
         int max_time = -1;
+
+        std::chrono::steady_clock::time_point search_start;
+        std::chrono::steady_clock::time_point soft_deadline;
+        std::chrono::steady_clock::time_point hard_deadline;
+
+        Move pv[MAX_SEARCH_PLY][MAX_SEARCH_PLY];
+        int pv_length[MAX_SEARCH_PLY] = {};
+
+        bool has_runtime_limits() const;
+        void set_deadlines_from(std::chrono::steady_clock::time_point now);
+        uint64_t elapsed_ms() const;
+    };
+
+    /** Per-thread search state: counters and move-ordering tables. */
+    struct Context {
+        MainState* main = nullptr;
         bool search_interrupted = false;
 
         uint64_t nodes = 0;
         int ply_offset = 0;  // board ply at root, so search_ply = board_ply - ply_offset
-
-        // Principal variation table
-        Move pv[MAX_SEARCH_PLY][MAX_SEARCH_PLY];
-        int pv_length[MAX_SEARCH_PLY] = {};
 
         using KillerMoves = std::array<Move, MAX_SEARCH_PLY>;
         using SidePieceToHistory = std::array<std::array<std::array<MoveScore, NUM_SQUARES>, NUM_PIECES>, NUM_SIDES>;
@@ -128,15 +139,8 @@ private:
         FromToHistory from_to_history;
         ContinuationHistory continuation_history;
 
-        std::chrono::steady_clock::time_point search_start;
-        std::chrono::steady_clock::time_point soft_deadline;
-        std::chrono::steady_clock::time_point hard_deadline;
-
         int search_ply(int board_ply) const;
         Move get_countermove(const Board& board) const;
-        bool has_runtime_limits() const;
-        void set_deadlines_from(std::chrono::steady_clock::time_point now);
-        uint64_t elapsed_ms() const;
         void reset(int board_ply);
     };
 
@@ -155,6 +159,7 @@ private:
     std::thread main_thread_;
     std::vector<std::thread> helper_threads_;
     std::vector<Context> contexts_;
+    MainState main_state_;
     SearchResult best_result_;
 
     // --- Thread management ---
