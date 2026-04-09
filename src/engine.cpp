@@ -1420,6 +1420,10 @@ Engine::SearchResult Engine::iterative_deepening(Board& board, Context& ctx, Sea
     }
 
     while (true) {
+        if (should_stop_search(ctx)) {
+            break;
+        }
+
         if (ctx.main && depth > ctx.main->max_depth) {
             break;
         }
@@ -1439,7 +1443,8 @@ Engine::SearchResult Engine::iterative_deepening(Board& board, Context& ctx, Sea
             int beta;
             int alpha_delta = prm.aspiration_window;
             int beta_delta = prm.aspiration_window;
-            if (depth == 1) {
+            bool previous_score_is_mate = std::abs(prev.score) >= CHECKMATE_SCORE - MAX_SEARCH_PLY;
+            if (depth == 1 || previous_score_is_mate) {
                 alpha = -CHECKMATE_SCORE;
                 beta = CHECKMATE_SCORE;
             } else {
@@ -1498,6 +1503,10 @@ Engine::SearchResult Engine::iterative_deepening(Board& board, Context& ctx, Sea
             )) {
                 break;
             }
+        }
+
+        if (depth == MAX_SEARCH_PLY - 1) {
+            break;
         }
 
         depth++;
