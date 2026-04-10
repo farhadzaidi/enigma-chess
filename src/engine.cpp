@@ -583,6 +583,21 @@ void Engine::search_infinite(const Board& board) {
     search(board, MAX_SEARCH_PLY - 1, -1, 0);
 }
 
+void Engine::set_pondering(bool pondering) {
+    std::scoped_lock lock(ponder_mutex_);
+    pondering_ = pondering;
+}
+
+bool Engine::is_bestmove_ready() {
+    std::scoped_lock lock(ponder_mutex_);
+    return bestmove_ready_;
+}
+
+void Engine::clear_bestmove_ready() {
+    std::scoped_lock lock(ponder_mutex_);
+    bestmove_ready_ = false;
+}
+
 void Engine::apply_limits(SearchDepth max_depth, int max_time, uint64_t max_nodes) {
     if (contexts_.empty() || !contexts_[0].main) {
         return;
@@ -783,6 +798,14 @@ void Engine::emit_search_info(const Context& ctx, SearchDepth depth, PositionSco
 
 /** Print UCI bestmove with a ponder move if one exists in the TT. */
 void Engine::emit_best_move(Board& board) {
+    {
+        std::scoped_lock lock(ponder_mutex_);
+        if (pondering_) {
+            bestmove_ready_ = true;
+            return;
+        }
+    }
+
     std::string ponder_str;
     if (best_result_.move != NULL_MOVE) {
         // Make the best move on the board to look up the opponent's expected reply in the TT

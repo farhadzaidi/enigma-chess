@@ -170,10 +170,13 @@ void cmd_go(std::string& cmd, Board& b) {
     }
 
     engine().stop();
+    engine().set_pondering(false);
+    engine().clear_bestmove_ready();
 
     if (is_ponder_search) {
         pending_limits = {max_depth, max_time, max_nodes};
         has_pending_limits = true;
+        engine().set_pondering(true);
         engine().search_infinite(b);
     } else if (is_infinite) {
         engine().search_infinite(b);
@@ -183,7 +186,7 @@ void cmd_go(std::string& cmd, Board& b) {
 }
 
 /** Convert an infinite ponder search into a bounded search */
-void cmd_ponderhit() {
+void cmd_ponderhit(Board& b) {
     if (has_pending_limits) {
         engine().apply_limits(
             pending_limits.max_depth,
@@ -192,11 +195,23 @@ void cmd_ponderhit() {
         );
         has_pending_limits = false;
     }
+
+    engine().set_pondering(false);
+    if (engine().is_bestmove_ready()) {
+        engine().clear_bestmove_ready();
+        engine().emit_best_move(b);
+    }
 }
 
 /** Halt the current search immediately */
-void cmd_stop() {
+void cmd_stop(Board& b) {
     engine().stop();
+    engine().set_pondering(false);
+    has_pending_limits = false;
+    if (engine().is_bestmove_ready()) {
+        engine().clear_bestmove_ready();
+        engine().emit_best_move(b);
+    }
 }
 
 void cmd_quit() {
@@ -288,12 +303,18 @@ void cmd_setoption(const std::string& cmd) {
 /** Reset engine state and board for a new game */
 void cmd_ucinewgame(Board& b) {
     engine().clear();
+    engine().set_pondering(false);
+    engine().clear_bestmove_ready();
+    has_pending_limits = false;
     b.reset();
 }
 
 /** Set up the board from "position startpos/fen ... moves ..." */
 void cmd_position(const std::string& cmd, Board& b) {
     engine().stop();
+    engine().set_pondering(false);
+    engine().clear_bestmove_ready();
+    has_pending_limits = false;
 
     std::istringstream iss(cmd);
     std::string token;
@@ -386,9 +407,9 @@ void uci_loop() {
         } else if (cmd.starts_with("go")) {
             cmd_go(cmd, b);
         } else if (cmd == "ponderhit") {
-            cmd_ponderhit();
+            cmd_ponderhit(b);
         } else if (cmd == "stop") {
-            cmd_stop();
+            cmd_stop(b);
         } else if (cmd.starts_with("perft")) {
             cmd_perft(cmd, b);
         } else if (cmd.starts_with("search")) {

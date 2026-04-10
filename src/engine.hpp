@@ -4,6 +4,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -57,10 +58,18 @@ public:
     /** Launch an unbounded async search (stopped only by stop()). */
     void search_infinite(const Board& board);
 
-    // --- Ponder support ---
+    // --- Ponder ---
 
+    /** Set whether the engine is in ponder mode. */
+    void set_pondering(bool pondering);
+    /** Whether a bestmove was suppressed during ponder. */
+    bool is_bestmove_ready();
+    /** Discard any deferred bestmove. */
+    void clear_bestmove_ready();
     /** Apply limits to an already-running search (e.g. after ponderhit). */
     void apply_limits(SearchDepth max_depth, int max_time, uint64_t max_nodes);
+    /** Print UCI bestmove with the engine's best move and optionally a ponder move. */
+    void emit_best_move(Board& board);
 
     // --- Control ---
 
@@ -161,6 +170,9 @@ private:
     std::vector<Context> contexts_;
     MainState main_state_;
     SearchResult best_result_;
+    std::mutex ponder_mutex_;
+    bool pondering_ = false;
+    bool bestmove_ready_ = false;
 
     // --- Thread management ---
 
@@ -184,8 +196,6 @@ private:
     bool is_multi_pv_enabled() const;
     /** Print a UCI info line with depth, score, nodes, PV, and multi-PV index. */
     void emit_search_info(const Context& ctx, SearchDepth depth, PositionScore score, int multipv = 0);
-    /** Print UCI bestmove with the engine's best move and optionally a ponder move. */
-    void emit_best_move(Board& board);
 
     // --- TT helpers ---
 
