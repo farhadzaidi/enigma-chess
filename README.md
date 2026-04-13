@@ -1,6 +1,8 @@
 # Enigma Chess
 
-Enigma is a UCI chess engine written in C++. It plays well beyond human strength by combining a classical alpha-beta search with a neural network evaluation function trained on hundreds of millions of positions. [Check it out on Lichess!](https://lichess.org/@/enigma-chess-bot)
+Enigma is a UCI chess engine written in C++. It plays well beyond human strength by combining a classical alpha-beta search with a neural network evaluation function trained on hundreds of millions of positions. 
+
+[Check it out on Lichess!](https://lichess.org/@/enigma-chess-bot)
 
 ## Development Requirements
 
