@@ -12,7 +12,7 @@ All commands below are run from the `scripts/` directory.
 
 ## Layout
 
-```text
+```bash
 scripts/
   lib/              # Shared utilities (paths, concurrency, versioning)
   generators/       # C++ header generators (book, NNUE weights, params)

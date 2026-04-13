@@ -11,7 +11,7 @@ cmake --build build --target enigma-dev
 
 ## Layout
 
-```text
+```bash
 dev/
   main.cpp        # Entry point
   parse.hpp       # File I/O and EPD parsing utilities
