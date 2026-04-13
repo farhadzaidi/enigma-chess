@@ -94,7 +94,7 @@ completely new, follow the order below.
     than it sounds when you don't know how many moves are left in the game.
 
 16. **[Parameter Tuning](tuning.md)** — why hand-tuning doesn't scale, how SPSA
-    finds optimal values for all 38 engine parameters simultaneously, and why parameters
+    finds optimal values for engine parameters simultaneously, and why parameters
     need retuning as the engine evolves.
 
 17. **[Tooling & Workflow](tooling.md)** — building, testing, benchmarking, and running

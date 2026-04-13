@@ -24,7 +24,7 @@ uv run -m nnue.datagen                # training data
 uv run -m nnue.datagen --validation   # validation data
 ```
 
-The engine plays games against itself at fixed depth 8, recording every position. For
+The engine plays games against itself at fixed depth, recording every position. For
 each position, three things are saved:
 
 1. **The board state** — which pieces are where, whose turn it is

@@ -102,13 +102,13 @@ uv run -m nnue.datagen                # training data
 uv run -m nnue.datagen --validation   # validation data
 ```
 
-Self-play at fixed depth 8. Output goes to `scripts/nnue/data/{training,validation}/`.
+Self-play at fixed depth. Output goes to `scripts/nnue/data/{training,validation}/`.
 Parallelization is automatic.
 
 Datagen is the slowest part of the pipeline — expect hours to days depending on depth and
-position count. You typically need millions of positions: 10-50 million is a reasonable
-starting point for a first network. Depth 8 is a sweet spot between data quality and speed;
-higher depths produce better labels but take exponentially longer per position.
+position count. You typically need tens of millions of positions for a good network.
+Depth 8-10 is a sweet spot between data quality and speed; higher depths produce better
+labels but take exponentially longer per position.
 
 ### Train
 
@@ -143,7 +143,7 @@ uv run -m tune                  # fresh tuning run
 uv run -m tune --resume         # resume interrupted run
 ```
 
-Each iteration perturbs all 25 search parameters in random directions and plays games
+Each iteration perturbs all search parameters in random directions and plays games
 per time control at 8+0 and 8+0.08. The gradient estimate from each
 iteration nudges parameters toward stronger values. Perturbation size (`c`) and learning
 rate (`a`) are derived automatically from each parameter's range — no per-parameter tuning

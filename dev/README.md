@@ -1,4 +1,4 @@
-# Debug
+# Dev
 
 `enigma-dev` is a separate binary for running tests and benchmarks against the engine.
 

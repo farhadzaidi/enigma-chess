@@ -66,9 +66,8 @@ This is the essence of SPSA.
 
 SPSA is a gradient-free optimization algorithm. It estimates the gradient (which direction
 to move each parameter) from just **two** function evaluations per iteration, regardless
-of how many parameters you're tuning. For Enigma's 25 parameters, that means one match
-per iteration instead of 50 (two per parameter, which is what finite-difference methods
-would need).
+of how many parameters you're tuning. That means one match per iteration instead of two
+per parameter (which is what finite-difference methods would need).
 
 ### The Algorithm
 
@@ -182,7 +181,7 @@ that parameter is skipped entirely.
 
 ## The Parameters
 
-Enigma tunes 25 search parameters. They're defined in `scripts/tune/spsa.py` and the
+Enigma's search parameters are defined in `scripts/tune/spsa.py` and the
 tuned values are compiled into `src/data/params.hpp`.
 
 Search parameters control pruning thresholds (futility margins, razoring depth, SEE

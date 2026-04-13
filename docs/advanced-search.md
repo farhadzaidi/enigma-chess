@@ -20,8 +20,7 @@ score:
 window = previous_score ± aspiration_delta
 ```
 
-The aspiration delta is a tunable constant (from `src/data/search_params.hpp`),
-typically on the order of 50 centipawns.
+The aspiration delta is a tunable constant (from `src/data/params.hpp`).
 
 ### Why This Helps
 
